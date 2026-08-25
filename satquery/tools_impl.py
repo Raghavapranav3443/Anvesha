@@ -111,7 +111,7 @@ def change_vqa_tool(ctx: Dict) -> Dict:
 
 
 def impact_analysis_tool(ctx: Dict) -> Dict:
-    from ..impact import analyse_impact
+    from .impact import analyse_impact
     from .models.change import ChangeDetectorNet
     a, b = ctx["images"][0], ctx["images"][1]
     det = ChangeDetectorNet()

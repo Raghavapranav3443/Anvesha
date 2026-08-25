@@ -30,14 +30,20 @@ class ChangeDetectorNet:
         self.encoder: Optional[SceneEncoder] = None
         self.head = None
         self.trained = False
+        self.arch = "v1"
         if CONFIG.change_weights.exists():
             try:
                 ckpt = torch.load(CONFIG.change_weights, map_location="cpu",
                                   weights_only=False)
                 enc = SceneEncoder(3)
                 enc.load_state_dict(ckpt["encoder"])
-                head = _DiffHead()
-                head.load_state_dict(ckpt["head"])
+                if ckpt.get("arch") == "v2":
+                    head = ChangeHeadV2()
+                    head.load_state_dict(ckpt["head"])
+                    self.arch = "v2"
+                else:
+                    head = _DiffHead()
+                    head.load_state_dict(ckpt["head"])
                 self.encoder, self.head = enc.eval(), head.eval()
                 self.encoder.to(self.device); self.head.to(self.device)
                 self.trained = True
@@ -50,17 +56,17 @@ class ChangeDetectorNet:
         fa_rgb, fb_rgb = _rgb3_compat(a), _rgb3_compat(b)
         h, w = a.height, a.width
 
-        if self.trained:
-            prob = self._tiled_infer(fa_rgb, fb_rgb, h, w)
-            if float(prob.max()) < 0.7:
-                # distribution shift safeguard: learned map is flat, so the
-                # scene is likely out of the training distribution - fall back
-                # to direct bi-temporal differencing evidence
+        if self.trained and self.arch == "v2":
+            prob = self._tiled_infer_v2(fa_rgb, fb_rgb, h, w)
+            prob = _clean_mask_prob(prob)
+            if float(prob.max()) < 0.35:
                 prob = np.maximum(prob, _differencing_map(
                     rgb_composite(a), rgb_composite(b)))
-                method = ("fine-tuned Siamese network + differencing support "
+                method = ("FPN-lite Siamese network + differencing support "
                           "(low-confidence region)")
             else:
+                method = "FPN-lite Siamese change network (LEVIR-CD, v2)"
+        elif self.trained:
                 method = "fine-tuned Siamese change network (LEVIR-CD)"
         else:
             fb = _differencing_map(rgb_composite(a), rgb_composite(b))
@@ -69,6 +75,44 @@ class ChangeDetectorNet:
                                 "learned model)")
 
         return {"prob_map": prob.astype(np.float32), "method": method}
+
+    def _tiled_infer_v2(self, fa_rgb, fb_rgb, h: int, w: int,
+                        tile: int = 192) -> np.ndarray:
+        """Sliding-window inference for the v2 FPN-lite head. Tiles of 192px,
+        output at stride 2, upsampled per tile and averaged in overlaps."""
+        t = self.torch
+        acc = np.zeros((h, w), np.float32)
+        weight = np.zeros((h, w), np.float32)
+        step = tile // 2
+        ys = list(range(0, max(h - tile, 0) + 1, step)) or [0]
+        xs = list(range(0, max(w - tile, 0) + 1, step)) or [0]
+        if ys[-1] + tile < h:
+            ys.append(h - tile)
+        if xs[-1] + tile < w:
+            xs.append(w - tile)
+        with t.no_grad():
+            for y0 in ys:
+                for x0 in xs:
+                    y1, x1 = min(y0 + tile, h), min(x0 + tile, w)
+                    ca = fa_rgb[y0:y1, x0:x1]
+                    cb = fb_rgb[y0:y1, x0:x1]
+                    pad_y, pad_x = tile - ca.shape[0], tile - ca.shape[1]
+                    if pad_y or pad_x:
+                        ca = np.pad(ca, ((0, pad_y), (0, pad_x), (0, 0)))
+                        cb = np.pad(cb, ((0, pad_y), (0, pad_x), (0, 0)))
+                    xa = to_tensor(resize_np(ca, tile)).to(self.device)
+                    xb = to_tensor(resize_np(cb, tile)).to(self.device)
+                    f8a = self.encoder.feature_map(xa, stride=8)
+                    f16a = self.encoder.feature_map(xa, stride=16)
+                    f8b = self.encoder.feature_map(xb, stride=8)
+                    f16b = self.encoder.feature_map(xb, stride=16)
+                    logits = self.head(f8a, f16a, f8b, f16b)
+                    pm = t.sigmoid(logits)[0, 0].cpu().numpy()
+                    ph, pw = min(y1, h) - y0, min(x1, w) - x0
+                    pm_full = _resize_prob(pm, pw, ph)
+                    acc[y0:y0 + ph, x0:x0 + pw] += pm_full
+                    weight[y0:y0 + ph, x0:x0 + pw] += 1.0
+        return acc / np.maximum(weight, 1e-6)
 
     def _tiled_infer(self, fa_rgb, fb_rgb, h: int, w: int,
                      tile: int = 128) -> np.ndarray:
@@ -107,8 +151,60 @@ class ChangeDetectorNet:
         return acc / np.maximum(weight, 1e-6)
 
 
+class SEBlock(nn.Module):
+    """Squeeze-and-excitation channel attention on the difference features —
+    suppresses pseudo-change channels before decoding."""
+
+    def __init__(self, ch: int, r: int = 8):
+        super().__init__()
+        self.fc = nn.Sequential(
+            nn.Linear(ch, ch // r), nn.ReLU(inplace=True),
+            nn.Linear(ch // r, ch), nn.Sigmoid())
+
+    def forward(self, x):
+        w = self.fc(x.mean(dim=(2, 3)))
+        return x * w[:, :, None, None]
+
+
+class ChangeHeadV2(nn.Module):
+    """FPN-lite siamese decoder.
+
+    Consumes stride-8 (128ch) and stride-16 (256ch) feature maps from BOTH
+    dates, forms multi-scale differences, fuses with channel attention, and
+    decodes to full-resolution logits (output stride 2).
+    forward(f8a, f16a, f8b, f16b) -> B x 1 x H/2 x W/2
+    """
+
+    def __init__(self, ch8: int = 128, ch16: int = 256, d: int = 128):
+        super().__init__()
+        self.reduce8 = nn.Sequential(nn.Conv2d(ch8 * 2, d, 1), nn.ReLU(inplace=True))
+        self.reduce16 = nn.Sequential(nn.Conv2d(ch16 * 2, d, 1), nn.ReLU(inplace=True))
+        self.se = SEBlock(d * 2)
+        self.dec1 = nn.Sequential(nn.Conv2d(d * 2, 64, 3, padding=1),
+                                  nn.ReLU(inplace=True))
+        self.dec2 = nn.Sequential(nn.Conv2d(64, 32, 3, padding=1),
+                                  nn.ReLU(inplace=True))
+        self.final = nn.Conv2d(32, 1, 1)
+
+    def forward(self, f8a, f16a, f8b, f16b):
+        d8 = self.reduce8(torch.cat([f8a, f8b], dim=1))
+        d16 = self.reduce16(torch.cat([f16a, f16b], dim=1))
+        d16u = nn.functional.interpolate(d16, size=d8.shape[-2:],
+                                         mode="bilinear", align_corners=False)
+        d = self.se(torch.cat([d8, d16u], dim=1))
+        h = self.dec1(d)
+        h = nn.functional.interpolate(h, scale_factor=2, mode="bilinear",
+                                      align_corners=False)
+        h = self.dec2(h)
+        h = nn.functional.interpolate(h, scale_factor=2, mode="bilinear",
+                                      align_corners=False)
+        return self.final(h)
+
+
 class _DiffHead(nn.Module):
-    def __init__(self) -> None:
+    """Legacy v1 head (stride-16 box regression era). Kept for rollback."""
+
+    def __init__(self):
         super().__init__()
         self.net = nn.Sequential(
             nn.Conv2d(256, 128, 3, padding=1), nn.ReLU(),
@@ -210,6 +306,33 @@ def analyse_pair(a: RSImage, b: RSImage, query: str = "",
         "prob_map": prob,
         "method": cm["method"],
     }
+
+
+def _clean_mask_prob(prob: np.ndarray) -> np.ndarray:
+    """Morphological open/close + small-component removal on the thresholded
+    mask (applied to the probability field so downstream thresholds stay)."""
+    thr = 0.5
+    mask = (prob >= thr)
+    if not mask.any():
+        return prob
+    from PIL import Image, ImageFilter
+    im = Image.fromarray((mask * 255).astype(np.uint8))
+    im = im.filter(ImageFilter.MinFilter(3))     # erosion: kill specks
+    im = im.filter(ImageFilter.MaxFilter(3))     # dilation: restore shape
+    cleaned = np.asarray(im) > 127
+    if cleaned.sum() == 0:
+        return np.zeros_like(prob)
+    # remove small components (only for manageable image sizes)
+    if max(cleaned.shape) <= 1024:
+        labels, n = _label(cleaned)
+        if n:
+            counts = np.bincount(labels.ravel())
+            for lb in range(1, n + 1):
+                if counts[lb] < 40:              # < ~40 px is noise
+                    cleaned[labels == lb] = False
+    out = prob.copy()
+    out[~cleaned] = 0.0
+    return out
 
 
 def _differencing_map(comp_a: np.ndarray, comp_b: np.ndarray) -> np.ndarray:

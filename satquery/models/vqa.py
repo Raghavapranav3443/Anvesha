@@ -57,6 +57,7 @@ class RSVQAModel:
             except Exception:
                 self.trained = False
         self._maybe_torchscript()
+        self._load_count_head()
 
     def _maybe_torchscript(self) -> None:
         """On CPU, prefer the exported TorchScript encoder/head (P3)."""
@@ -75,7 +76,6 @@ class RSVQAModel:
             self.encoder, self.head = enc, head
         except Exception:
             pass
-        self._load_count_head()
 
     def _load_count_head(self) -> None:
         path = CONFIG.weights_dir / "count_head.pt"
@@ -103,14 +103,10 @@ class RSVQAModel:
             self.count = None
 
     def answer(self, img: RSImage, question: str) -> Dict:
-        qtype = None
         if self.trained:
-            qtype_name = None
-            for name in self.type_vocab:
-                if name in question.lower():
-                    qtype_name = name
-                    break
-            if qtype_name == "count" and self.count is not None:
+            t_idx = infer_question_type(question, self.type_vocab)
+            count_idx = self.type_vocab.get("count", -1)
+            if t_idx == count_idx and count_idx >= 0 and self.count is not None:
                 out = self._count_answer(img, question)
                 if out is not None:
                     return out
@@ -130,7 +126,8 @@ class RSVQAModel:
         xf = torch.flip(x, dims=[3])
         q = np.zeros(cfg["bow_dim"], dtype=np.float32)
         q[:] = _hashed_bow(question, dim=cfg["bow_dim"])
-        qt = torch.tensor([infer_question_type(question, cfg["type_vocab"])])
+        qt = torch.tensor([infer_question_type(question, cfg["type_vocab"])],
+                          device=self.device)
         qb = torch.from_numpy(q).unsqueeze(0).to(self.device)
         with torch.no_grad():
             probs = 0.5 * (

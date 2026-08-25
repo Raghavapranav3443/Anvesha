@@ -81,8 +81,8 @@ Measured scorecard (public benchmark test subsets, this machine):
 
 | Benchmark | Metric | Score |
 |---|---|---|
-| RSVQA-LR (test subset) | exact-match accuracy | **0.66** |
-| LEVIR-CD (test subset) | change IoU / F1 | **0.36 / 0.52** |
+| RSVQA-LR (test subset) | exact-match accuracy | **0.67** |
+| LEVIR-CD (test subset) | change IoU / F1 | **0.60 / 0.75** |
 | BigEarthNet v2 S1+S2 (held-out val) | per-scene label recall | **0.85** |
 | BigEarthNet.txt captions (val) | BLEU, single-reference | 0.24–0.59* |
 | BigEarthNet.txt refs (test) | IoU>0.5 hit-rate — experimental head, disabled | 0.15 |
