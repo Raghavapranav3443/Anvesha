@@ -19,7 +19,7 @@ function ConfidenceRing({ value }: { value: number }) {
           strokeLinecap="round" strokeDasharray={C} strokeDashoffset={off}
           style={{ transition: 'stroke-dashoffset 1s ease' }} />
       </svg>
-      <span className="absolute inset-0 flex items-center justify-center font-mono text-[15px] font-medium text-body">
+      <span className="absolute inset-0 flex items-center justify-center font-mono text-[16.5px] font-medium text-body">
         {Math.round(value * 100)}%
       </span>
     </div>
@@ -44,9 +44,9 @@ function StructuredOutputs({ result }: { result: JobResult }) {
           <Stat label="Priority zone" value={impact.priority_zone || '—'} />
         </div>
         <div className="overflow-hidden rounded-lg border border-line">
-          <table className="w-full text-left text-[13px]">
+          <table className="w-full text-left text-[14.5px]">
             <thead>
-              <tr className="border-b border-line bg-elev text-[11px] uppercase tracking-wider text-muted">
+              <tr className="border-b border-line bg-elev text-[13px] uppercase tracking-wider text-muted">
                 <th className="px-3 py-2 font-medium">Finding</th>
                 <th className="px-3 py-2 font-medium">Where</th>
                 <th className="px-3 py-2 font-medium">Recommended action</th>
@@ -66,14 +66,14 @@ function StructuredOutputs({ result }: { result: JobResult }) {
         {impact.zones_top?.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {impact.zones_top.map((z: any) => (
-              <span key={z.zone} className="rounded-lg border border-line bg-elev px-2.5 py-1 font-mono text-[11.5px] text-body">
+              <span key={z.zone} className="rounded-lg border border-line bg-elev px-2.5 py-1 font-mono text-[13.5px] text-body">
                 {z.zone} · {z.area_ha} ha · water {Math.round(z.near_water_frac * 100)}%
               </span>
             ))}
           </div>
         )}
         {impact.gsd_assumed && (
-          <p className="text-[12px] italic text-warn">
+          <p className="text-[14px] italic text-warn">
             Ground resolution assumed 10 m/pixel (input is not georeferenced) — areas are estimates.
           </p>
         )}
@@ -88,7 +88,7 @@ function StructuredOutputs({ result }: { result: JobResult }) {
         <div className="space-y-1.5">
           {entries.map(([k, v]) => (
             <div key={k} className="flex items-center gap-3">
-              <span className="w-56 shrink-0 truncate text-[13.5px] text-body">{k}</span>
+              <span className="w-56 shrink-0 truncate text-[15px] text-body">{k}</span>
               <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-elev">
                 <div className="h-full rounded-full bg-accent transition-all duration-700"
                   style={{ width: `${(v as number) * 100}%` }} />
@@ -100,7 +100,7 @@ function StructuredOutputs({ result }: { result: JobResult }) {
         {o.agreement && (
           <div className="flex flex-wrap gap-1.5">
             {Object.entries(o.agreement as Record<string, string>).map(([k, v]) => (
-              <span key={k} className="rounded-full border border-line bg-elev px-2.5 py-0.5 font-mono text-[10.5px] uppercase tracking-wide text-muted">
+              <span key={k} className="rounded-full border border-line bg-elev px-2.5 py-0.5 font-mono text-[13px] uppercase tracking-wide text-muted">
                 {k}: {v}
               </span>
             ))}
@@ -114,10 +114,10 @@ function StructuredOutputs({ result }: { result: JobResult }) {
     return (
       <div className="flex flex-wrap items-center gap-2">
         {(o.increased as string[] | undefined)?.map((c) => (
-          <span key={c} className="rounded-md border border-good/40 bg-good/10 px-2.5 py-1 text-[13px] text-good">▲ {c}</span>
+          <span key={c} className="rounded-md border border-good/40 bg-good/10 px-2.5 py-1 text-[14.5px] text-good">▲ {c}</span>
         ))}
         {(o.decreased as string[] | undefined)?.map((c) => (
-          <span key={c} className="rounded-md border border-bad/40 bg-bad/10 px-2.5 py-1 text-[13px] text-bad">▼ {c}</span>
+          <span key={c} className="rounded-md border border-bad/40 bg-bad/10 px-2.5 py-1 text-[14.5px] text-bad">▼ {c}</span>
         ))}
         <span className="rounded-md border border-line bg-elev px-2.5 py-1 font-mono text-xs text-body">
           changed {(Number(o.changed_area_fraction) * 100).toFixed(1)}%
@@ -135,8 +135,8 @@ function StructuredOutputs({ result }: { result: JobResult }) {
     return (
       <div className="flex flex-wrap gap-1.5">
         {(o.labels as [string, number][]).map(([n, s]) => (
-          <span key={n} className="rounded-full border border-line bg-elev px-2.5 py-1 text-[13px] text-body">
-            {n} <span className="font-mono text-[10.5px] text-muted">{s}</span>
+          <span key={n} className="rounded-full border border-line bg-elev px-2.5 py-1 text-[14.5px] text-body">
+            {n} <span className="font-mono text-[13px] text-muted">{s}</span>
           </span>
         ))}
       </div>
@@ -148,8 +148,8 @@ function StructuredOutputs({ result }: { result: JobResult }) {
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-line bg-elev px-3 py-2.5">
-      <div className="text-[11px] uppercase tracking-wider text-faint">{label}</div>
-      <div className="mt-0.5 font-mono text-[15px] font-medium text-body">{value}</div>
+      <div className="text-[13px] uppercase tracking-wider text-faint">{label}</div>
+      <div className="mt-0.5 font-mono text-[16.5px] font-medium text-body">{value}</div>
     </div>
   )
 }
@@ -176,7 +176,7 @@ export default function Results({ result, onFollowUp }:
     const card = prov.models?.find((m: any) => m.component === want)
     if (!card) return null
     return (
-      <span className="rounded border border-line bg-elev px-2 py-0.5 font-mono text-[10.5px] text-muted">
+      <span className="rounded border border-line bg-elev px-2 py-0.5 font-mono text-[13px] text-muted">
         {card.component}{typeof card.val_accuracy === 'number'
           ? ` · val ${(card.val_accuracy * 100).toFixed(0)}%` : ''}
       </span>
@@ -194,15 +194,15 @@ export default function Results({ result, onFollowUp }:
           <ConfidenceRing value={result.confidence} />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded border border-accent/40 bg-accent-soft px-2 py-0.5 text-[12px] font-semibold uppercase tracking-wide text-accent">
+              <span className="rounded border border-accent/40 bg-accent-soft px-2 py-0.5 text-[14px] font-semibold uppercase tracking-wide text-accent">
                 {taskLabel(result.selected_task)}
               </span>
               {modelChip}
               {result.cached && (
-                <span className="rounded border border-line bg-elev px-2 py-0.5 font-mono text-[10.5px] text-muted">cached</span>
+                <span className="rounded border border-line bg-elev px-2 py-0.5 font-mono text-[13px] text-muted">cached</span>
               )}
             </div>
-            <p className="mt-3 text-[17px] leading-relaxed text-body">{result.answer}</p>
+            <p className="mt-3 text-[18px] leading-relaxed text-body">{result.answer}</p>
           </div>
         </div>
         <div className="mt-5 flex flex-wrap items-center gap-2">
@@ -239,7 +239,7 @@ export default function Results({ result, onFollowUp }:
           <div className="mt-2 flex flex-wrap gap-2">
             {suggestions.map(q => (
               <button key={q} onClick={() => onFollowUp(q)}
-                className="rounded-full border border-accent/40 bg-accent-soft px-3.5 py-1.5 text-[13px] text-accent transition-colors hover:bg-accent/20">
+                className="rounded-full border border-accent/40 bg-accent-soft px-3.5 py-1.5 text-[14.5px] text-accent transition-colors hover:bg-accent/20">
                 {q} →
               </button>
             ))}
@@ -256,7 +256,7 @@ export default function Results({ result, onFollowUp }:
              ['map', 'Map'], ['json', 'Outputs']] as const).map(([k, l]) => (
             <button key={k} onClick={() => setTab(k)}
               disabled={(k === 'compare' && !hasCompare) || (k === 'map' && !hasGeo)}
-              className={`flex-1 rounded-md px-3 py-1.5 text-[13px] transition-colors disabled:opacity-35 ${
+              className={`flex-1 rounded-md px-3 py-1.5 text-[14.5px] transition-colors disabled:opacity-35 ${
                 tab === k ? 'bg-panel text-body shadow-sm' : 'text-muted hover:text-body'}`}>
               {l}
             </button>
@@ -270,7 +270,7 @@ export default function Results({ result, onFollowUp }:
                 {evidenceImgs.map(([k, url]) => (
                   <figure key={k} className="overflow-hidden rounded-lg border border-line">
                     {url && <img src={url} alt={k} className="w-full" />}
-                    <figcaption className="border-t border-line bg-elev px-3 py-2 font-mono text-[11px] text-muted">
+                    <figcaption className="border-t border-line bg-elev px-3 py-2 font-mono text-[13px] text-muted">
                       {k.split('_').join(' ')}
                     </figcaption>
                   </figure>
@@ -291,14 +291,16 @@ export default function Results({ result, onFollowUp }:
         {tab === 'map' && hasGeo && <MapWithGeo runId={result.run_id} />}
 
         {tab === 'json' && (
-          <pre className="max-h-[420px] overflow-auto rounded-lg border border-line bg-elev p-4 font-mono text-[11.5px] leading-relaxed text-muted">
-            {JSON.stringify(result.outputs, null, 2)}
-          </pre>
+          <div className="min-w-0 overflow-hidden rounded-lg border border-line bg-elev">
+            <pre className="max-h-[420px] max-w-full overflow-auto whitespace-pre-wrap break-words p-4 font-mono text-[13px] leading-relaxed text-muted">
+              {JSON.stringify(result.outputs, null, 2)}
+            </pre>
+          </div>
         )}
       </Panel>
 
       <Panel title="Why trust this answer?">
-        <ul className="space-y-1.5 text-[13.5px] text-muted">
+        <ul className="space-y-1.5 text-[15px] text-muted">
           <li>✓ Every step recorded: validation, routing, tool selection, execution timings (see the execution trace above).</li>
           <li>✓ Models fine-tuned on public remote-sensing benchmarks — provenance and metrics in the Provenance tab.</li>
           <li>✓ Confidence is temperature-calibrated against held-out data, not a raw softmax.</li>
@@ -327,8 +329,8 @@ function InputsGrid({ result }: { result: JobResult }) {
         <figure key={i} className="overflow-hidden rounded-lg border border-line">
           <img src={inp.composite} alt={inp.summary.file} className="w-full bg-black/5" />
           <figcaption className="flex items-center gap-2 border-t border-line bg-elev px-3 py-2">
-            <span className="truncate font-mono text-[11px] text-muted">{inp.summary.file}</span>
-            <span className="ml-auto font-mono text-[10px] uppercase text-faint">{inp.summary.modality}</span>
+            <span className="truncate font-mono text-[13px] text-muted">{inp.summary.file}</span>
+            <span className="ml-auto font-mono text-[13px] uppercase text-faint">{inp.summary.modality}</span>
           </figcaption>
         </figure>
       ))}
@@ -362,8 +364,8 @@ function SwipeCompare({ result }: { result: JobResult }) {
           style={{ left: `${pos}%` }}>
           <span className="absolute top-1/2 -ml-4 h-8 w-8 -translate-y-1/2 rounded-full border-2 border-accent bg-panel" />
         </div>
-        <span className="absolute left-3 top-3 rounded bg-black/55 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wide text-white">A · before</span>
-        <span className="absolute right-3 top-3 rounded bg-black/55 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wide text-white">B · after</span>
+        <span className="absolute left-3 top-3 rounded bg-black/55 px-2 py-0.5 font-mono text-[13px] uppercase tracking-wide text-white">A · before</span>
+        <span className="absolute right-3 top-3 rounded bg-black/55 px-2 py-0.5 font-mono text-[13px] uppercase tracking-wide text-white">B · after</span>
       </div>
       <input type="range" min={4} max={96} value={pos} onChange={(e) => setPos(+e.target.value)}
         className="mt-3 w-full accent-[var(--c-accent)]" />
@@ -423,7 +425,7 @@ function RegionQuery({ result }: { result: JobResult }) {
 
   return (
     <div className="rounded-lg border border-line p-4">
-      <div className="mb-2 text-[11px] uppercase tracking-wider text-faint">
+      <div className="mb-2 text-[13px] uppercase tracking-wider text-faint">
         Interrogate a region — drag a rectangle, then ask
       </div>
       <div className="relative inline-block max-w-full overflow-hidden rounded border border-line"

@@ -31,31 +31,31 @@ export default function EvaluationView({ prov }: { prov: Provenance | null }) {
   return (
     <div className="space-y-6">
       <Panel title="Benchmark & evaluation harness">
-        <p className="mb-4 max-w-3xl text-[13px] leading-relaxed text-muted">
+        <p className="mb-4 max-w-3xl text-[17px] leading-relaxed text-muted">
           Reproducible evaluation over the prescribed public benchmark subsets.
           The combined score is the mean of per-benchmark normalised scores —
           the same normalisation the problem statement applies before combining.
         </p>
         <div className="flex flex-wrap items-center gap-3">
-          <label className="flex items-center gap-2 text-xs text-muted">
+          <label className="flex items-center gap-2 text-base text-muted">
             items per benchmark
             <input type="number" min={50} max={800} value={n}
               onChange={e => setN(+e.target.value)}
               className="w-20 rounded border border-line bg-panel px-2 py-1 font-mono text-body outline-none focus:border-accent/60" />
           </label>
           <button onClick={run} disabled={!!evalId && status === 'running'}
-            className="rounded-lg bg-accent px-5 py-1.5 text-sm font-semibold text-white hover:bg-accent-dim disabled:opacity-40">
+            className="rounded-lg bg-accent px-5 py-1.5 text-base font-semibold text-white hover:bg-accent-dim disabled:opacity-40">
             {status === 'running' ? 'Evaluating…' : 'Run evaluation'}
           </button>
-          {status === 'running' && <span className="scanning relative px-2 font-mono text-xs text-accent">running on server…</span>}
-          {status.startsWith('error') && <span className="text-xs text-red-400">{status}</span>}
+          {status === 'running' && <span className="scanning relative px-2 font-mono text-base text-accent">running on server…</span>}
+          {status.startsWith('error') && <span className="text-base text-red-400">{status}</span>}
         </div>
       </Panel>
 
       <Panel title={card ? `Scorecard — combined normalised ${combined}` : 'Latest measured scorecard'}>
-        <table className="w-full text-left text-[13px]">
+        <table className="w-full text-left text-[17px]">
           <thead>
-            <tr className="border-b border-line text-[10.5px] uppercase tracking-wider text-faint">
+            <tr className="border-b border-line text-[14.5px] uppercase tracking-wider text-faint">
               <th className="py-2 pr-3 font-medium">Benchmark</th>
               <th className="py-2 pr-3 font-medium">Metric</th>
               <th className="py-2 pr-3 font-medium">n</th>

@@ -27,7 +27,7 @@ function modalityBadge(m: string) {
     grayscale: 'border-line bg-elev text-muted',
   }
   return (
-    <span className={`rounded border px-1.5 py-px font-mono text-[10px] uppercase tracking-wide ${styles[m] ?? styles.grayscale}`}>
+    <span className={`rounded border px-1.5 py-px font-mono text-[13px] uppercase tracking-wide ${styles[m] ?? styles.grayscale}`}>
       {m}
     </span>
   )
@@ -44,7 +44,7 @@ export function Term({ t, d }: { t: string; d: string }) {
 export function Panel({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
   return (
     <div className="rounded-xl border border-line bg-panel p-5 shadow-[var(--shadow-panel)]">
-      <h2 className="mb-4 flex items-center gap-2 text-[12.5px] font-semibold uppercase tracking-[.13em] text-faint">
+      <h2 className="mb-4 flex items-center gap-2 text-[14px] font-semibold uppercase tracking-[.13em] text-faint">
         {title}
         {hint && <Term t="?" d={hint} />}
       </h2>
@@ -137,9 +137,9 @@ export default function Console() {
                     on ? 'border-accent/60 bg-accent-soft'
                        : 'border-line bg-panel hover:border-muted/50'}`}>
                   <span className={`h-2 w-2 rounded-full ${on ? 'bg-accent' : 'bg-line'}`} />
-                  <span className="min-w-0 flex-1 truncate text-[13px] text-body">{s.name}</span>
+                  <span className="min-w-0 flex-1 truncate text-[14.5px] text-body">{s.name}</span>
                   {modalityBadge(s.modality)}
-                  <span className="font-mono text-[10px] text-faint">{s.bands}b</span>
+                  <span className="font-mono text-[13px] text-faint">{s.bands}b</span>
                 </button>
               )
             })}
@@ -157,8 +157,8 @@ export default function Console() {
           <div className={`mb-3 flex items-center justify-between rounded-lg border px-3 py-2.5 ${
             investigate ? 'border-accent/60 bg-accent-soft' : 'border-line bg-panel'}`}>
             <div>
-              <div className="text-[13.5px] font-semibold text-body">🛰️ Investigation Mode</div>
-              <div className="text-[11.5px] text-muted">Multi-step agent: change → water → impact → ranked zones</div>
+              <div className="text-[15px] font-semibold text-body">🛰️ Investigation Mode</div>
+              <div className="text-[13.5px] text-muted">Multi-step agent: change → water → impact → ranked zones</div>
             </div>
             <button role="switch" aria-checked={investigate}
               onClick={() => { setInvestigate(v => !v); if (!investigate) setOverride('auto') }}
@@ -176,7 +176,7 @@ export default function Console() {
             </select>
           )}
           {investigate && nInputs !== 2 && (
-            <p className="mt-2 text-[12px] text-warn">Investigation Mode needs two images (bi-temporal pair).</p>
+            <p className="mt-2 text-[14px] text-warn">Investigation Mode needs two images (bi-temporal pair).</p>
           )}
         </Panel>
       </section>
@@ -187,7 +187,7 @@ export default function Console() {
           hint="Plain language works best. The agent handles the remote-sensing vocabulary for you.">
           <textarea value={query} onChange={(e) => setQuery(e.target.value)} rows={2}
             placeholder='e.g. "What changed between these two dates?"'
-            className="w-full resize-none rounded-lg border border-line bg-panel px-4 py-3 text-[15.5px] text-body outline-none placeholder:text-faint focus:border-accent/60" />
+            className="w-full resize-none rounded-lg border border-line bg-panel px-4 py-3 text-[17px] text-body outline-none placeholder:text-faint focus:border-accent/60" />
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {EXAMPLES.map((ex) => (
               <button key={ex} onClick={() => setQuery(ex)}
@@ -197,12 +197,12 @@ export default function Console() {
             ))}
           </div>
           <div className="mt-4 flex items-center justify-between">
-            <span className="font-mono text-[11.5px] text-faint">
+            <span className="font-mono text-[13.5px] text-faint">
               {nInputs} input{nInputs === 1 ? '' : 's'}
               {investigate && ' · investigation mode'}
             </span>
             <button onClick={run} disabled={busy || !nInputs || (investigate && nInputs !== 2)}
-              className="relative overflow-hidden rounded-lg bg-accent px-7 py-2 text-[15px] font-semibold text-white transition-all hover:bg-accent-dim disabled:cursor-not-allowed disabled:opacity-40">
+              className="relative overflow-hidden rounded-lg bg-accent px-7 py-2 text-[16.5px] font-semibold text-white transition-all hover:bg-accent-dim disabled:cursor-not-allowed disabled:opacity-40">
               {busy ? 'Analysing…' : investigate ? '🛰️ Run investigation' : 'Run analysis'}
               {busy && <span className="scanning absolute inset-0" />}
             </button>
@@ -224,7 +224,7 @@ export default function Console() {
                 <div className="flex flex-wrap gap-2">
                   {suggestions.map(q => (
                     <button key={q} onClick={() => followUp(q)} disabled={busy}
-                      className="rounded-full border border-accent/40 bg-accent-soft px-3.5 py-1.5 text-[13px] text-accent transition-colors hover:bg-accent/20 disabled:opacity-40">
+                      className="rounded-full border border-accent/40 bg-accent-soft px-3.5 py-1.5 text-[14.5px] text-accent transition-colors hover:bg-accent/20 disabled:opacity-40">
                       {q} →
                     </button>
                   ))}
@@ -243,7 +243,7 @@ export default function Console() {
 function Field({ label, value, onChange }: { label: React.ReactNode; value: string; onChange: (v: string) => void }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-[11.5px] text-muted">{label}</span>
+      <span className="mb-1 block text-[13.5px] text-muted">{label}</span>
       <input value={value} onChange={(e) => onChange(e.target.value)}
         className="w-full rounded-lg border border-line bg-panel px-3 py-1.5 font-mono text-sm text-body outline-none focus:border-accent/60" />
     </label>
@@ -265,7 +265,7 @@ function Dropzone({ files, onChange }: { files: File[]; onChange: (f: File[]) =>
         <path d="M12 16V4m0 0l-4 4m4-4l4 4M4 17v2a1 1 0 001 1h14a1 1 0 001-1v-2" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
       <span className="text-sm text-muted">Drop GeoTIFF / PNG / JPEG here</span>
-      <span className="mt-0.5 text-[11.5px] text-faint">up to 2 images · single image or a pair</span>
+      <span className="mt-0.5 text-[13.5px] text-faint">up to 2 images · single image or a pair</span>
       <input ref={ref} type="file" multiple accept=".tif,.tiff,.png,.jpg,.jpeg" className="hidden"
         onChange={(e) => onChange(Array.from(e.target.files ?? []).slice(0, 2))} />
       {files.length > 0 && (
@@ -298,20 +298,20 @@ export function TraceTimeline({ trace, running }: { trace: JobState['trace']; ru
               <span className={`absolute -left-[31px] top-1 h-2.5 w-2.5 rounded-full ${
                 active ? 'bg-accent shadow-[0_0_8px_var(--c-accent)]' : ok ? 'bg-good' : 'bg-line'}`} />
               <div className="flex items-baseline justify-between gap-3">
-                <span className="font-mono text-[13px] text-body">
+                <span className="font-mono text-[14.5px] text-body">
                   {s.label ?? stepLabel(s.name)}
                 </span>
                 {s.duration_ms != null && (
-                  <span className="font-mono text-[11px] text-faint">{s.duration_ms} ms</span>
+                  <span className="font-mono text-[13px] text-faint">{s.duration_ms} ms</span>
                 )}
               </div>
               {s.output_keys && (
-                <div className="mt-0.5 font-mono text-[11px] text-faint">→ {s.output_keys.join(', ')}</div>
+                <div className="mt-0.5 font-mono text-[13px] text-faint">→ {s.output_keys.join(', ')}</div>
               )}
               {s.params && Object.keys(s.params).length > 0 && (
                 <details className="mt-1">
-                  <summary className="cursor-pointer font-mono text-[10.5px] text-faint hover:text-muted">params</summary>
-                  <pre className="mt-1 overflow-auto rounded bg-elev p-2 font-mono text-[10.5px] text-muted">
+                  <summary className="cursor-pointer font-mono text-[13px] text-faint hover:text-muted">params</summary>
+                  <pre className="mt-1 overflow-auto rounded bg-elev p-2 font-mono text-[13px] text-muted">
                     {JSON.stringify(s.params, null, 1)}
                   </pre>
                 </details>
@@ -322,7 +322,7 @@ export function TraceTimeline({ trace, running }: { trace: JobState['trace']; ru
         {running && steps.length > 0 && (
           <li className="relative">
             <span className="absolute -left-[31px] top-1 h-2.5 w-2.5 animate-pulse rounded-full bg-line" />
-            <span className="font-mono text-[13px] text-faint">working…</span>
+            <span className="font-mono text-[14.5px] text-faint">working…</span>
           </li>
         )}
       </ol>

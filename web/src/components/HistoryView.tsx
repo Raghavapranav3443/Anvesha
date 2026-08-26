@@ -34,10 +34,10 @@ export default function HistoryView() {
           <div className="grid grid-cols-2 gap-4">
             {cmpStates.map(s => (
               <div key={s.job_id} className="rounded-lg border border-line p-4">
-                <div className="font-mono text-[11px] text-muted">{s.job_id}</div>
-                <div className="mt-1 text-[13px] font-medium text-accent">{taskLabel(s.result?.selected_task)}</div>
-                <div className="mt-2 text-sm text-body">{s.result?.answer?.slice(0, 220)}</div>
-                <div className="mt-2 font-mono text-xs text-muted">confidence {s.result?.confidence}</div>
+                <div className="font-mono text-[15.5px] text-muted">{s.job_id}</div>
+                <div className="mt-1 text-[17px] font-medium text-accent">{taskLabel(s.result?.selected_task)}</div>
+                <div className="mt-2 text-base text-body">{s.result?.answer?.slice(0, 220)}</div>
+                <div className="mt-2 font-mono text-base text-muted">confidence {s.result?.confidence}</div>
               </div>
             ))}
           </div>
@@ -48,19 +48,19 @@ export default function HistoryView() {
         <div className="mb-3 flex flex-wrap gap-1.5">
           {['', 'single_vqa', 'captioning', 'grounding', 'change_vqa', 'change_analysis', 'optical_sar'].map(t => (
             <button key={t || 'all'} onClick={() => setFilter(t)}
-              className={`rounded-full border px-2.5 py-0.5 text-[11.5px] transition-colors ${
+              className={`rounded-full border px-2.5 py-0.5 text-[16px] transition-colors ${
                 filter === t ? 'border-accent/60 bg-accent/10 text-accent'
                              : 'border-line text-muted hover:text-body'}`}>
               {t ? taskLabel(t) : 'all tasks'}
             </button>
           ))}
           <button onClick={refresh}
-            className="ml-auto rounded border border-line px-2.5 py-0.5 text-[11px] text-muted hover:text-body">↻ refresh</button>
+            className="ml-auto rounded border border-line px-2.5 py-0.5 text-[15.5px] text-muted hover:text-body">↻ refresh</button>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-[12.5px]">
+          <table className="w-full text-left text-[17px]">
             <thead>
-              <tr className="border-b border-line text-[10.5px] uppercase tracking-wider text-faint">
+              <tr className="border-b border-line text-[14.5px] uppercase tracking-wider text-faint">
                 <th className="py-2 pr-3 font-medium">When</th>
                 <th className="py-2 pr-3 font-medium">Task</th>
                 <th className="py-2 pr-3 font-medium">Query</th>
@@ -72,11 +72,11 @@ export default function HistoryView() {
             <tbody>
               {visible.map(r => (
                 <tr key={r.job_id} className="border-b border-line/60 hover:bg-elev">
-                  <td className="py-2 pr-3 font-mono text-[11px] text-muted">{r.created_at.slice(5, 16)}</td>
-                  <td className="py-2 pr-3 text-[12.5px] text-accent">{taskLabel(r.selected_task) !== '—' ? taskLabel(r.selected_task) : r.status}</td>
+                  <td className="py-2 pr-3 font-mono text-[15.5px] text-muted">{r.created_at.slice(5, 16)}</td>
+                  <td className="py-2 pr-3 text-[17px] text-accent">{taskLabel(r.selected_task) !== '—' ? taskLabel(r.selected_task) : r.status}</td>
                   <td className="max-w-[220px] truncate py-2 pr-3 text-muted">{r.query}</td>
                   <td className="max-w-[280px] truncate py-2 pr-3 text-body">{r.answer}</td>
-                  <td className="py-2 pr-3 text-right font-mono text-[11px] text-muted">{r.confidence?.toFixed?.(2)}</td>
+                  <td className="py-2 pr-3 text-right font-mono text-[15.5px] text-muted">{r.confidence?.toFixed?.(2)}</td>
                   <td className="py-2 text-right">
                     <button onClick={() => open(r.job_id)} className="mr-2 text-accent hover:underline">view</button>
                     <input type="checkbox" className="accent-[#4C8DF6]"
@@ -95,7 +95,7 @@ export default function HistoryView() {
         </div>
         {compare.length === 2 && (
           <button onClick={compareRuns}
-            className="mt-3 rounded-lg bg-accent px-4 py-1.5 text-xs font-semibold text-white hover:bg-accent-dim">
+            className="mt-3 rounded-lg bg-accent px-4 py-1.5 text-base font-semibold text-white hover:bg-accent-dim">
             Compare selected runs
           </button>
         )}

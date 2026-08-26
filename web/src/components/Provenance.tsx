@@ -11,13 +11,13 @@ export default function ProvenanceView({ prov }: { prov: Provenance | null }) {
             <div key={m.component} className="flex items-center gap-4 rounded-lg border border-line bg-elev px-4 py-3">
               <span className={`h-2.5 w-2.5 rounded-full ${m.trained && !m.synthetic ? 'bg-emerald-500' : m.synthetic ? 'bg-amber-500' : 'bg-slate-600'}`} />
               <div className="min-w-0 flex-1">
-                <div className="text-sm text-body">{m.component}</div>
-                <div className="truncate font-mono text-[11px] text-faint">{m.file}</div>
+                <div className="text-base text-body">{m.component}</div>
+                <div className="truncate font-mono text-[15.5px] text-faint">{m.file}</div>
               </div>
               {typeof m.val_accuracy === 'number' && (
-                <span className="font-mono text-xs text-emerald-400">{(m.val_accuracy * 100).toFixed(1)}%</span>
+                <span className="font-mono text-base text-emerald-400">{(m.val_accuracy * 100).toFixed(1)}%</span>
               )}
-              <span className={`rounded border px-1.5 py-px font-mono text-[10px] uppercase ${
+              <span className={`rounded border px-1.5 py-px font-mono text-[14px] uppercase ${
                 m.trained ? 'border-emerald-700/40 bg-emerald-900/20 text-emerald-400'
                           : 'border-line bg-slate-900 text-muted'}`}>
                 {m.synthetic ? 'synthetic' : m.trained ? 'fine-tuned' : 'fallback'}
@@ -25,7 +25,7 @@ export default function ProvenanceView({ prov }: { prov: Provenance | null }) {
             </div>
           ))}
         </div>
-        <p className="mt-4 text-[12px] leading-relaxed text-muted">
+        <p className="mt-4 text-[16.5px] leading-relaxed text-muted">
           Every specialist is fine-tuned on open remote-sensing data (EuroSAT ·
           RSVQA-LR · LEVIR-CD · BigEarthNet v2 S1+S2). Weights load automatically;
           interpretable fallbacks keep the assistant usable without them.
@@ -34,9 +34,9 @@ export default function ProvenanceView({ prov }: { prov: Provenance | null }) {
 
       <Panel title="Public benchmark results (measured)">
         {prov.benchmarks?.length ? (
-          <table className="w-full text-left text-[13px]">
+          <table className="w-full text-left text-[17px]">
             <thead>
-              <tr className="border-b border-line text-[11px] uppercase tracking-wide text-faint">
+              <tr className="border-b border-line text-[15.5px] uppercase tracking-wide text-faint">
                 <th className="py-2 pr-2 font-medium">Benchmark</th>
                 <th className="py-2 pr-2 font-medium">Metric</th>
                 <th className="py-2 pr-2 font-medium">n</th>
@@ -61,7 +61,7 @@ export default function ProvenanceView({ prov }: { prov: Provenance | null }) {
             </tbody>
           </table>
         ) : (
-          <p className="text-sm text-muted">Run <code className="font-mono">scripts/run_benchmarks.py</code> to populate.</p>
+          <p className="text-base text-muted">Run <code className="font-mono">scripts/run_benchmarks.py</code> to populate.</p>
         )}
       </Panel>
     </div>

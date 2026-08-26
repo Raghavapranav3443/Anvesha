@@ -9,10 +9,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@react-three/fiber": "^8.18.0",
+    "@types/three": "^0.185.4",
     "leaflet": "^1.9.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-leaflet": "^4.2.1"
+    "react-leaflet": "^4.2.1",
+    "three": "^0.185.1"
   },
   "devDependencies": {
     "@types/leaflet": "^1.9.22",

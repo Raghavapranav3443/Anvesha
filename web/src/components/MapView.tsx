@@ -9,7 +9,7 @@ export default function MapView({ geo }: { geo: GeoJSON | null }) {
   const [tilesOk, setTilesOk] = useState(true)
 
   if (!geo || !geo.features.length) {
-    return <p className="text-sm text-muted">
+    return <p className="text-base text-muted">
       No georeferenced overlay for this run (inputs lack CRS bounds or the
       task produced no spatial regions).
     </p>
@@ -30,7 +30,7 @@ export default function MapView({ geo }: { geo: GeoJSON | null }) {
 
   return (
     <div>
-      <div className="mb-2 flex items-center gap-2 font-mono text-[11px] text-muted">
+      <div className="mb-2 flex items-center gap-2 font-mono text-[15.5px] text-muted">
         <span>CRS: {geo.crs ?? 'pixel space'}</span>
         <span>·</span>
         <span>{geo.features.length} feature(s)</span>

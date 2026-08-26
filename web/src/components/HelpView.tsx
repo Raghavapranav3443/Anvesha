@@ -38,7 +38,7 @@ export default function HelpView({ onStart }: { onStart?: () => void }) {
   return (
     <div className="space-y-6">
       <Panel title="How Anvesha works">
-        <p className="max-w-4xl text-[15px] leading-relaxed text-muted">
+        <p className="max-w-4xl text-[19px] leading-relaxed text-muted">
           You ask questions in plain language. An agent validates your imagery,
           interprets the question, selects fine-tuned remote-sensing specialist
           models, runs them, and fuses their outputs into an evidence-grounded
@@ -47,15 +47,15 @@ export default function HelpView({ onStart }: { onStart?: () => void }) {
         <div className="mt-4 grid gap-2.5 md:grid-cols-5">
           {PIPELINE.map(([t, d], i) => (
             <div key={t} className="rounded-lg border border-line bg-elev p-3">
-              <div className="mb-1 font-mono text-[10px] text-accent">STEP {i + 1}</div>
-              <div className="text-[13.5px] font-semibold text-body">{t}</div>
-              <div className="mt-1 text-[12px] leading-relaxed text-muted">{d}</div>
+              <div className="mb-1 font-mono text-[14px] text-accent">STEP {i + 1}</div>
+              <div className="text-[18px] font-semibold text-body">{t}</div>
+              <div className="mt-1 text-[16.5px] leading-relaxed text-muted">{d}</div>
             </div>
           ))}
         </div>
         {onStart && (
           <button onClick={onStart}
-            className="mt-4 rounded-lg bg-accent px-5 py-2 text-sm font-semibold text-white hover:bg-accent-dim">
+            className="mt-4 rounded-lg bg-accent px-5 py-2 text-base font-semibold text-white hover:bg-accent-dim">
             Open the console
           </button>
         )}
@@ -65,8 +65,8 @@ export default function HelpView({ onStart }: { onStart?: () => void }) {
         <div className="grid gap-2.5 md:grid-cols-2">
           {CAPABILITIES.map(([t, d]) => (
             <div key={t} className="rounded-lg border border-line bg-elev p-3.5">
-              <div className="text-[14px] font-semibold text-body">{t}</div>
-              <div className="mt-1 text-[13px] leading-relaxed text-muted">{d}</div>
+              <div className="text-[17.5px] font-semibold text-body">{t}</div>
+              <div className="mt-1 text-[17px] leading-relaxed text-muted">{d}</div>
             </div>
           ))}
         </div>
@@ -78,8 +78,8 @@ export default function HelpView({ onStart }: { onStart?: () => void }) {
             <button key={t} onClick={() => setOpen(open === t ? null : t)}
               className={`rounded-lg border px-3.5 py-2.5 text-left transition-colors ${
                 open === t ? 'border-accent/60 bg-accent-soft' : 'border-line bg-elev hover:border-muted/50'}`}>
-              <div className="text-[14px] font-semibold text-body">{t}</div>
-              {open === t && <div className="mt-1 text-[13px] leading-relaxed text-muted">{d}</div>}
+              <div className="text-[17.5px] font-semibold text-body">{t}</div>
+              {open === t && <div className="mt-1 text-[17px] leading-relaxed text-muted">{d}</div>}
             </button>
           ))}
         </div>
