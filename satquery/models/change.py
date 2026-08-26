@@ -50,13 +50,36 @@ class ChangeDetectorNet:
             except Exception:
                 self.trained = False
 
-    def map(self, a: RSImage, b: RSImage) -> Dict:
-        """Returns {'prob_map': HxW float [0,1], 'method': str}."""
+    def map(self, a: RSImage, b: RSImage, tta: bool = False) -> Dict:
+        """Returns {'prob_map': HxW float [0,1], 'method': str}.
+
+        When *tta* is True, predictions are averaged over the original image
+        plus horizontal-flip, vertical-flip and both-flip variants (typically
+        gives +2-3 F1 points at 4× inference cost).
+        """
         t = self.torch
         fa_rgb, fb_rgb = _rgb3_compat(a), _rgb3_compat(b)
         h, w = a.height, a.width
 
-        if self.trained and self.arch == "v2":
+        def _infer_once(fa, fb):
+            if self.trained and self.arch == "v2":
+                return self._tiled_infer_v2(fa, fb, h, w)
+            elif self.trained:
+                return self._tiled_infer(fa, fb, h, w)
+            else:
+                return _differencing_map(rgb_composite(a), rgb_composite(b))
+
+        if self.trained and tta:
+            # Test-time augmentation: average over 4 transforms
+            prob_orig = _infer_once(fa_rgb, fb_rgb)
+            prob_hflip = _infer_once(fa_rgb[:, ::-1].copy(), fb_rgb[:, ::-1].copy())[:, ::-1].copy()
+            prob_vflip = _infer_once(fa_rgb[::-1].copy(), fb_rgb[::-1].copy())[::-1].copy()
+            prob_both = _infer_once(
+                fa_rgb[::-1, ::-1].copy(), fb_rgb[::-1, ::-1].copy())[::-1, ::-1].copy()
+            prob = (prob_orig + prob_hflip + prob_vflip + prob_both) / 4.0
+            prob = _clean_mask_prob(prob)
+            method = "FPN-lite Siamese + TTA (4-way average)"
+        elif self.trained and self.arch == "v2":
             prob = self._tiled_infer_v2(fa_rgb, fb_rgb, h, w)
             prob = _clean_mask_prob(prob)
             if float(prob.max()) < 0.35:
@@ -371,6 +394,16 @@ def _region_stats(mask: np.ndarray):
 
 
 def _label(mask: np.ndarray):
+    """Connected component labeling.  Uses ``scipy.ndimage.label`` when
+    available (C-compiled union-find); falls back to a pure-Python BFS.
+    """
+    try:
+        from scipy.ndimage import label as _scipy_label
+        labels, n = _scipy_label(mask.astype(np.int32))
+        return labels.astype(np.int32), int(n)
+    except ImportError:
+        pass
+    # Fallback: BFS-based labeling (no path compression — slow on large masks)
     from collections import deque
     h, w = mask.shape
     labels = np.zeros((h, w), dtype=np.int32)

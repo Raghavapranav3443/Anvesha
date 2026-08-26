@@ -6,12 +6,21 @@ Concurrency model:
 * torch intra-op threads capped (SATQUERY_THREADS, default 4)
 * trace streamed to the job via the controller's trace_callback — the
   controller instance is never mutated, so concurrent jobs are safe.
+
+Logging
+-------
+Structured JSON lines are written via a Python ``RotatingFileHandler``
+(5 MB × 3 backups) so the server log never grows unbounded and file
+handles are never leaked.
 """
 from __future__ import annotations
 
 import base64
+import collections
 import io
 import json
+import logging
+import logging.handlers
 import os
 import threading
 import time
@@ -25,18 +34,61 @@ import numpy as np
 
 from ..config import CONFIG
 
-WORKERS = max(1, int(os.environ.get("SATQUERY_WORKERS", "4")))
-TORCH_THREADS = max(1, int(os.environ.get("SATQUERY_THREADS", "4")))
+# ---------------------------------------------------------------------------
+# Tunables
+# ---------------------------------------------------------------------------
+WORKERS        = max(1, int(os.environ.get("SATQUERY_WORKERS", "4")))
+TORCH_THREADS  = max(1, int(os.environ.get("SATQUERY_THREADS", "4")))
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
-EVIDENCE_MAX_PX = 768
-MAX_QUEUE = int(os.environ.get("SATQUERY_MAX_QUEUE", "50"))   # beyond → 429
-MAX_JOBS_IN_MEMORY = 300                                      # LRU cap
+EVIDENCE_MAX_PX  = 768
+MAX_QUEUE        = int(os.environ.get("SATQUERY_MAX_QUEUE", "50"))   # beyond → 429
+MAX_JOBS_IN_MEMORY = 300                                              # LRU cap
+JOB_TTL_SECONDS  = int(os.environ.get("SATQUERY_JOB_TTL", "3600"))  # 1 h
 
 _executor = ThreadPoolExecutor(max_workers=WORKERS)
 _gpu_sem: Optional[threading.Semaphore] = None
 _gpu_sem_lock = threading.Lock()
-_log_lock = threading.Lock()
 
+# ---------------------------------------------------------------------------
+# Structured rotating logger
+# ---------------------------------------------------------------------------
+
+def _build_logger() -> logging.Logger:
+    lg = logging.getLogger("satquery.server")
+    if lg.handlers:
+        return lg                           # already configured (e.g. in tests)
+    lg.setLevel(logging.DEBUG)
+    # Console handler — plain text for human reading
+    ch = logging.StreamHandler()
+    ch.setFormatter(logging.Formatter("%(levelname)s %(message)s"))
+    lg.addHandler(ch)
+    # File handler — JSON lines, rotating 5 MB × 3 backups
+    try:
+        log_path = CONFIG.runs_dir / "server.log"
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        fh = logging.handlers.RotatingFileHandler(
+            str(log_path), maxBytes=5 * 1024 * 1024, backupCount=3,
+            encoding="utf-8")
+        fh.setFormatter(logging.Formatter("%(message)s"))   # raw JSON lines
+        lg.addHandler(fh)
+    except Exception:
+        pass                                # degraded: console only
+    return lg
+
+
+_logger = _build_logger()
+
+
+def log_event(request_id: str, event: str, **kw) -> None:
+    """Emit a structured JSON log line.  Safe to call from any thread."""
+    rec = {"ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
+           "request_id": request_id, "event": event, **kw}
+    _logger.info(json.dumps(rec, default=str))
+
+
+# ---------------------------------------------------------------------------
+# GPU semaphore
+# ---------------------------------------------------------------------------
 
 def gpu_semaphore() -> Optional[threading.Semaphore]:
     global _gpu_sem
@@ -53,18 +105,9 @@ def gpu_semaphore() -> Optional[threading.Semaphore]:
     return _gpu_sem
 
 
-def log_event(request_id: str, event: str, **kw) -> None:
-    rec = {"ts": time.strftime("%Y-%m-%dT%H:%M:%S"), "request_id": request_id,
-           "event": event, **kw}
-    line = json.dumps(rec, default=str)
-    with _log_lock:
-        try:
-            (CONFIG.runs_dir / "server.log").open("a", encoding="utf-8") \
-                .write(line + "\n")
-        except Exception:
-            pass
-    print(line, flush=True)
-
+# ---------------------------------------------------------------------------
+# Image encoding helper
+# ---------------------------------------------------------------------------
 
 def _encode_image(arr, max_px: int = EVIDENCE_MAX_PX) -> Optional[str]:
     from PIL import Image
@@ -80,11 +123,26 @@ def _encode_image(arr, max_px: int = EVIDENCE_MAX_PX) -> Optional[str]:
     return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
 
 
+# ---------------------------------------------------------------------------
+# Cache key
+# ---------------------------------------------------------------------------
+
 def cache_key_for(paths: List[Path], query: str, task_override: Optional[str],
                   params: Dict[str, str]) -> str:
+    """Compute a deterministic SHA-256 cache key.
+
+    Guards against files that disappear between upload and hashing
+    (e.g. concurrent cleanup) by propagating ``FileNotFoundError`` so the
+    caller can handle it gracefully.
+    """
     h = hashlib.sha256()
     for p in sorted(paths, key=lambda x: x.name):
-        fh = hashlib.sha256(p.read_bytes()).hexdigest()
+        try:
+            fh = hashlib.sha256(p.read_bytes()).hexdigest()
+        except FileNotFoundError:
+            raise FileNotFoundError(
+                f"Uploaded file '{p.name}' was removed before analysis could start. "
+                "Please re-upload.")
         h.update(fh.encode())
     h.update(query.strip().lower().encode())
     h.update((task_override or "auto").encode())
@@ -92,27 +150,36 @@ def cache_key_for(paths: List[Path], query: str, task_override: Optional[str],
     return h.hexdigest()
 
 
+# ---------------------------------------------------------------------------
+# JSON serialisation helper
+# ---------------------------------------------------------------------------
+
 def _jsonable(obj: Any) -> Any:
     return json.loads(json.dumps(
         obj, default=lambda o: o.item() if hasattr(o, "item") else str(o)))
 
 
+# ---------------------------------------------------------------------------
+# _Job
+# ---------------------------------------------------------------------------
+
 class _Job:
     def __init__(self, query: str, task_override: str, image_paths: List[Path],
                  params: Dict[str, str], cache_key: str = ""):
-        self.id = uuid.uuid4().hex[:12]
-        self.query = query
+        self.id            = uuid.uuid4().hex[:12]
+        self.query         = query
         self.task_override = None if task_override == "auto" else task_override
-        self.image_paths = image_paths
-        self.params = params
-        self.cache_key = cache_key
-        self.status = "queued"
+        self.image_paths   = image_paths
+        self.params        = params
+        self.cache_key     = cache_key
+        self.status        = "queued"
         self.trace: List[Dict[str, Any]] = []
-        self.created = time.time()
+        self.created       = time.time()
         self.result: Optional[Dict[str, Any]] = None
         self.error: Optional[str] = None
-        self.cached = False
-        self._lock = threading.Lock()
+        self.cached        = False
+        self._lock         = threading.Lock()
+        self._persisted    = False           # written to DB at most once
 
     def _publish_trace(self, trace: List[Dict[str, Any]]) -> None:
         """Live trace streaming: called by the controller after every step."""
@@ -125,28 +192,32 @@ class _Job:
     def snapshot(self) -> Dict[str, Any]:
         with self._lock:
             try:
-                trace = _jsonable(self.trace)
+                trace  = _jsonable(self.trace)
                 result = _jsonable(self.result) if self.result else None
             except Exception:
                 trace, result = self.trace, self.result
             return {
-                "job_id": self.id,
-                "status": self.status,
-                "query": self.query,
-                "trace": trace,
-                "result": result,
-                "error": self.error,
-                "cached": self.cached,
+                "job_id":   self.id,
+                "status":   self.status,
+                "query":    self.query,
+                "trace":    trace,
+                "result":   result,
+                "error":    self.error,
+                "cached":   self.cached,
                 "n_images": len(self.image_paths),
             }
 
 
+# ---------------------------------------------------------------------------
+# JobStore
+# ---------------------------------------------------------------------------
+
 class JobStore:
     def __init__(self) -> None:
-        self._jobs: Dict[str, _Job] = {}
-        self._order: List[str] = []          # insertion order for LRU eviction
+        # OrderedDict preserves insertion order and gives O(1) move/delete
+        self._jobs: "collections.OrderedDict[str, _Job]" = collections.OrderedDict()
         self._pending = 0
-        self._lock = threading.Lock()
+        self._lock    = threading.Lock()
         self.cache_hits = 0
 
     def create(self, query, task_override, paths, params, cache_key="") -> _Job:
@@ -157,28 +228,28 @@ class JobStore:
                     f"(limit {MAX_QUEUE}). Retry shortly.")
             job = _Job(query, task_override, paths, params, cache_key)
             self._jobs[job.id] = job
-            self._order.append(job.id)
             self._pending += 1
             self._evict_locked()
         return job
 
     def _evict_locked(self) -> None:
         """Keep memory bounded: drop oldest *finished* jobs beyond the cap.
-        Active jobs are skipped, so finished payloads behind a long-running
-        job can still be reclaimed (no head-of-line blocking)."""
-        excess = len(self._order) - MAX_JOBS_IN_MEMORY
-        if excess <= 0:
-            return
-        evicted = 0
-        for jid in list(self._order):
-            if evicted >= excess:
-                break
-            j = self._jobs.get(jid)
-            if j is not None and j.status in ("queued", "running"):
-                continue                     # never evict active work
-            self._order.remove(jid)
-            self._jobs.pop(jid, None)
-            evicted += 1
+
+        Uses ``OrderedDict`` iteration so the removal is O(1) per entry —
+        no linear scan through a list.  Active jobs are skipped so finished
+        payloads behind a long-running job can still be reclaimed.
+        Also evicts finished jobs that are older than ``JOB_TTL_SECONDS``
+        regardless of the count cap.
+        """
+        now    = time.time()
+        excess = len(self._jobs) - MAX_JOBS_IN_MEMORY
+        for jid, j in list(self._jobs.items()):
+            if j.status in ("queued", "running"):
+                continue                    # never evict active work
+            age = now - j.created
+            if excess > 0 or age > JOB_TTL_SECONDS:
+                del self._jobs[jid]
+                excess -= 1
 
     def get(self, job_id: str) -> Optional[_Job]:
         return self._jobs.get(job_id)
@@ -190,7 +261,7 @@ class JobStore:
     def submit(self, job: _Job) -> None:
         """Dispatch a created job onto the bounded worker pool."""
         try:
-            self._executor.submit(self.run, job.id)
+            _executor.submit(self.run, job.id)
         except Exception:
             self.release_slot()              # never leak a queue slot
             raise
@@ -198,11 +269,19 @@ class JobStore:
     def stats(self) -> Dict[str, Any]:
         with self._lock:
             running = sum(1 for j in self._jobs.values() if j.status == "running")
-            return {"in_memory": len(self._jobs), "running": running,
-                    "pending": self._pending}
+            queued  = sum(1 for j in self._jobs.values() if j.status == "queued")
+            return {
+                "in_memory": len(self._jobs),
+                "running":   running,
+                "queued":    queued,
+                "pending":   self._pending,
+                "cache_hits_session": self.cache_hits,
+            }
 
     def run(self, job_id: str) -> None:
-        job = self._jobs[job_id]
+        job = self._jobs.get(job_id)
+        if job is None:
+            return                           # evicted before we could run
         try:
             self._run_inner(job)
         finally:
@@ -217,10 +296,10 @@ class JobStore:
 
         sem = gpu_semaphore()
         try:
-            images = [load_image(p) for p in job.image_paths]
+            images     = [load_image(p) for p in job.image_paths]
             controller = get_controller()
-            cb = (lambda trace: (job._publish_trace(trace), time.sleep(0.08)))
-            run_kw = dict(trace_callback=cb)
+            cb         = (lambda trace: (job._publish_trace(trace), time.sleep(0.08)))
+            run_kw     = dict(trace_callback=cb)
 
             if sem is not None:
                 with sem:
@@ -237,7 +316,7 @@ class JobStore:
                 for k in result.visuals
             }
             from .rasterout import png_mask_to_geotiff
-            mask_tif = None
+            mask_tif  = None
             mask_path = CONFIG.runs_dir / result.run_id / "visuals" / "change_mask.png"
             if mask_path.exists():
                 png_mask_to_geotiff(mask_path, images[-1] if images else None)
@@ -252,7 +331,7 @@ class JobStore:
                     if k in ("overlay", "change_overlay")
                 },
                 "inputs": [
-                    {"summary": im.summary(),
+                    {"summary":   im.summary(),
                      "composite": _encode_image(rgb_composite(im))}
                     for im in images
                 ],
@@ -261,15 +340,27 @@ class JobStore:
             }
 
             with job._lock:
-                job.trace = result.trace
+                job.trace  = result.trace
                 job.result = payload
                 job.status = "done"
             log_event(job.id, "job_done", task=result.selected_task,
                       confidence=result.confidence,
                       duration_ms=int((time.time() - job.created) * 1000))
+
+        except MemoryError as e:
+            # GPU/CPU OOM — distinct bucket so ops can alert on it separately
+            self._fail_job(job, e, "MemoryError (OOM)")
+        except OSError as e:
+            # Disk full, file disappeared, etc.
+            self._fail_job(job, e, "OSError")
         except Exception as e:
-            import traceback
-            with job._lock:
-                job.error = f"{type(e).__name__}: {e}\n{traceback.format_exc(limit=4)}"
-                job.status = "error"
-            log_event(job.id, "job_error", error=str(e)[:200])
+            self._fail_job(job, e, type(e).__name__)
+
+    @staticmethod
+    def _fail_job(job: _Job, exc: BaseException, kind: str) -> None:
+        import traceback
+        tb = traceback.format_exc(limit=6)
+        with job._lock:
+            job.error  = f"{kind}: {exc}\n{tb}"
+            job.status = "error"
+        log_event(job.id, "job_error", kind=kind, error=str(exc)[:200])

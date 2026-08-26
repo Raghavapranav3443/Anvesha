@@ -1,8 +1,10 @@
-"""Fine-tune the RSVQA specialist v2.
+"""Fine-tune the RSVQA specialist v3.
 
-Upgrades over v1: 512-dim question hashing, question-type conditioning,
-class-balanced cross-entropy, flip/rot90 augmentation, full dataset with
-cosine LR schedule.
+Upgrades over v2:
+  - 192px image resolution (up from 128px) for better spatial detail
+  - 30 epochs with cosine LR (up from 20)
+  - AMP (mixed precision) for faster training
+  - Experiment logging
 """
 from __future__ import annotations
 
@@ -23,7 +25,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
 
 from satquery.config import CONFIG
-from satquery.models.backbone import SceneEncoder, resize_np
+from satquery.models.backbone import SceneEncoder
 
 
 def bow(text: str, dim: int = 512) -> np.ndarray:
@@ -57,7 +59,7 @@ class RSVQADataset(Dataset):
     """RSVQA LowRes with question-type conditioning."""
 
     def __init__(self, root: Path, split="train", max_items=None,
-                 image_size: int = 128, max_answers=100, augment=False,
+                 image_size: int = 192, max_answers=100, augment=False,
                  type_vocab=None):
         from PIL import Image
         root = Path(root)
@@ -109,11 +111,11 @@ class RSVQADataset(Dataset):
         arr = np.asarray(Image.open(f).convert("RGB").resize(
             (self.image_size,) * 2), dtype=np.float32) / 255.0
         if self.augment:
-            k = int(np.random.randint(0, 4))
-            if k:
-                arr = np.rot90(arr, k).copy()
             if np.random.rand() < 0.5:
                 arr = arr[:, ::-1].copy()
+            k = np.random.randint(0, 4)
+            if k:
+                arr = np.rot90(arr, k).copy()
         x = torch.from_numpy(arr.transpose(2, 0, 1))
         qb = torch.from_numpy(bow(q))
         t = self.type_vocab.get(qtype, len(self.type_vocab))
@@ -140,7 +142,7 @@ def train(args):
     ds_va = RSVQADataset(root, "val", image_size=args.image_size,
                          type_vocab=ds_tr.type_vocab)
     print(f"train={len(ds_tr)} val={len(ds_va)} answers={len(ds_tr.answer_vocab)}"
-          f" types={len(ds_tr.type_vocab)} device={device}")
+          f" types={len(ds_tr.type_vocab)} device={device}", flush=True)
 
     # class-balanced weights (inverse sqrt frequency)
     freq = collections.Counter(it[3] for it in ds_tr.items)
@@ -162,9 +164,10 @@ def train(args):
         print("encoder warm-started from RS-adapted scene encoder")
 
     opt = torch.optim.AdamW(list(encoder.parameters()) +
-                            list(head.parameters()), lr=args.lr)
+                            list(head.parameters()), lr=args.lr, weight_decay=0.01)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=args.epochs)
     lossf = nn.CrossEntropyLoss(weight=w)
+    scaler = torch.amp.GradScaler("cuda", enabled=device == "cuda")
 
     best = 0.0
     ckpt_path = CONFIG.vqa_weights.with_suffix(".v2.pt.tmp")
@@ -173,9 +176,11 @@ def train(args):
         for x, qb, t, y in dl:
             x, qb, t, y = x.to(device), qb.to(device), t.to(device), y.to(device)
             opt.zero_grad()
-            logits = head(encoder(x), qb, t)
-            loss = lossf(logits, y)
-            loss.backward(); opt.step()
+            with torch.amp.autocast("cuda", enabled=device == "cuda"):
+                logits = head(encoder(x), qb, t)
+                loss = lossf(logits, y)
+            scaler.scale(loss).backward()
+            scaler.step(opt); scaler.update()
             correct += (logits.argmax(1) == y).sum().item(); seen += len(y)
         sched.step()
         va = evaluate(head, encoder, dl_va, device)
@@ -191,17 +196,27 @@ def train(args):
                         "type_vocab": ds_tr.type_vocab,
                         "val_accuracy": va}, ckpt_path)
 
-    final = CONFIG.vqa_weights.with_suffix(".pt")   # vqa_weights.pt
+    final = CONFIG.vqa_weights.with_suffix(".pt")
     ckpt_path.replace(CONFIG.vqa_weights)
     print(f"saved {CONFIG.vqa_weights} (best val_acc={best:.4f})")
+
+    # Experiment log
+    from satquery.experiment_log import log_experiment
+    log_experiment(
+        script="train_vqa",
+        args={"image_size": args.image_size, "epochs": args.epochs,
+              "lr": args.lr, "batch_size": args.batch_size},
+        metrics={"val_acc": best},
+        checkpoint=str(CONFIG.vqa_weights),
+    )
 
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", default=str(CONFIG.data_dir / "rsvqa_lr"))
     ap.add_argument("--max-items", type=int, default=None)
-    ap.add_argument("--image-size", type=int, default=128)
-    ap.add_argument("--epochs", type=int, default=20)
-    ap.add_argument("--batch-size", type=int, default=128)
+    ap.add_argument("--image-size", type=int, default=192)
+    ap.add_argument("--epochs", type=int, default=30)
+    ap.add_argument("--batch-size", type=int, default=64)
     ap.add_argument("--lr", type=float, default=3e-4)
     train(ap.parse_args())

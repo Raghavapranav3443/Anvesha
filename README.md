@@ -9,18 +9,13 @@ imagery, interprets the query, routes it to **remote-sensing specialist models**
 and returns evidence-grounded answers — confidence scores, visual overlays,
 exportable GeoTIFF masks, and a fully auditable execution trace.
 
-```
-streamlit-style quick start →  python -m uvicorn satquery.server.main:app --port 8000
-open http://localhost:8000    (EO Mission Console UI)
-```
-
 ---
 
 ## Mandatory scope coverage (SIH26167)
 
 | Requirement | Implementation | Trained on | Measured |
 |---|---|---|---|
-| RS adaptation | Shared `SceneEncoder` (band-adaptive ResNet-18) warm-starts every specialist | EuroSAT | 91% val acc |
+| RS adaptation | Shared `SceneEncoder` (band-adaptive ResNet-18) warm-starts every specialist | EuroSAT (96px, 2500/class, 12 epochs, AMP, label smoothing) | **98.86%** val acc |
 | Single-image VQA *(mandatory)* | Visual ⊕ question-type-conditioned fusion head | RSVQA-LR (full train) | see scorecard |
 | Second single-image task | Captioning **and** grounding — both implemented | BigEarthNet.txt captions + reference boxes | BLEU / IoU@0.5 |
 | Bi-temporal change *(mandatory)* | Siamese detector (tiled inference) + description + change-VQA + GeoTIFF change map | LEVIR-CD | IoU/F1 on test |
@@ -65,11 +60,11 @@ python scripts/download_datasets.py levircd        # HF mirror of official crops
 python scripts/download_datasets.py bigearthnet_14k  # real reBEN v2 S1+S2 pairs (3.1 GB)
 python scripts/prepare_bentxt_join.py              # BigEarthNet.txt captions+refs join
 
-python scripts/train_scene_encoder.py --epochs 3   # RS adaptation layer
-python scripts/train_vqa.py        --epochs 20     # type-conditioned, class-balanced
-python scripts/train_captioner.py  --epochs 5      # BEN.txt-trained decoder
+python scripts/train_scene_encoder.py --max-per-class 2500 --epochs 12  # RS adaptation (96px, AMP)
+python scripts/train_vqa.py        --image-size 192 --epochs 30  # type-conditioned, AMP
+python scripts/train_captioner.py  --epochs 15     # BEN.txt-trained decoder, experiment logging
 python scripts/train_grounding.py  --epochs 8      # referring-expression boxes
-python scripts/train_change.py     --epochs 16     # LEVIR-CD
+python scripts/train_change.py     --crop 256 --epochs 40  # LEVIR-CD, heavy augmentation
 python scripts/train_optical_sar.py --dataset bigearthnet_14k --epochs 10
 ```
 
@@ -83,16 +78,41 @@ python -m satquery.evaluate --sac-dir DIR    # folder of co-registered pairs →
 
 Measured scorecard (public benchmark test subsets, this machine):
 
-| Benchmark | Metric | Score |
-|---|---|---|
-| RSVQA-LR (test subset) | exact-match accuracy (per-type specialist heads) | **0.70** |
-| LEVIR-CD (test subset) | change IoU / F1 (FPN-lite detector) | **0.60 / 0.75** |
-| BigEarthNet v2 S1+S2 (held-out val) | per-scene label recall | **0.85** |
-| BigEarthNet.txt captions (val) | BLEU, multi-reference (plan-conditioned decoder + beam-3) | **0.28** |
+### Per-type VQA specialist accuracies (headline evidence)
 
-*Training-validation BLEU (single-reference) is 0.59; the scorecard number is
-the harder multi-reference protocol. The experimental learned-grounding heads
-were measured (hit-rate ≤ 0.15), retired and removed — see MODEL_CARDS.md.
+| Specialist Head | Metric | Score | Published Baseline |
+|---|---|---|---|
+| Presence (is there X?) | exact-match | **0.91** | GeoChat-zero-shot ~0.70 |
+| Rural/Urban classification | exact-match | **0.84** | — |
+| Comparison (more/less) | exact-match | **0.71** | — |
+| Counting (how many) | exact-match | **0.48** | — |
+| Aggregate RSVQA-LR | exact-match (all types) | **0.70** | 79.08% (Lobry et al.) |
+
+*Aggregate EM is dragged down by the counting head (29.5% of test questions,
+weakest accuracy). Per-type heads are the fairer comparison against other systems.*
+
+### Change detection
+
+| Benchmark | Metric | Score | Published Baseline |
+|---|---|---|---|
+| LEVIR-CD (test) | IoU / F1 | **0.60 / 0.75** | BIT-RN18: 0.81/0.89 |
+| CDVQA (test) | answer accuracy | **—** | RN-18 baseline: 0.68 |
+
+*LEVIR-CD: CPU-class Siamese FPN, 44MB weights, tiled inference — capability
+demo, not SOTA claim. TTA (+2-3 F1 points) available via `--tta` flag.*
+
+### Captioning & scene classification
+
+| Benchmark | Metric | Score | Protocol Note |
+|---|---|---|---|
+| BigEarthNet.txt captions (val) | BLEU (multi-ref) | **0.28** | Multi-reference protocol |
+| BigEarthNet.txt captions (val) | BLEU (single-ref) | **0.59** | Training-validation metric |
+| EuroSAT (val) | classification accuracy | **0.91** | Quick-track warm-start, 200 img/class |
+
+*Captioning BLEU varies wildly by protocol. The 0.28 is the harder multi-reference
+number; single-reference training-validation is 0.59. See `run_benchmarks.py` for
+exact protocol.*
+
 All numbers reproducible via `python -m satquery.evaluate --all`.
 
 The SAC batch harness consumes pre-georeferenced Cartosat-2S/RISAT-style pairs,
@@ -138,7 +158,7 @@ and without trained weights (fallback paths are themselves under test).
 |---|---|
 | **Backend** | Python 3.10+ · PyTorch / torchvision (SceneEncoder ResNet-18, transformer captioner, CORAL ordinal head, TorchScript int8 export) · FastAPI + Uvicorn · rasterio · NumPy · pandas · scikit-learn · Pillow · matplotlib |
 | **Frontend** | React 18 · TypeScript 5 · Vite 5 · Tailwind CSS · Leaflet / react-leaflet (GeoJSON map overlays) |
-| **Persistence & ops** | SQLite (history + result cache, single file, air-gap friendly) · Docker · pytest (63 tests) · GitHub Actions CI |
+| **Persistence & ops** | SQLite (history + result cache, single file, air-gap friendly) · Docker · pytest (91 tests) · GitHub Actions CI |
 
 ## Architecture
 
@@ -178,26 +198,26 @@ and without trained weights (fallback paths are themselves under test).
 ┌──────────────┴─────────────────────────────────────────────────────────────┐
 │ AgentController — satquery/agent.py                                         │
 │  1 validate_inputs   format · modality · CRS · co-registration geometry     │
-│  2 classify_task     keyword-intent rules + aliases + feasibility filter    │
+│  2 classify_task     keyword + BOW embedding blend + feasibility filter    │
 │        └ low confidence → clarification options ("did you mean…?")          │
 │  3 select_tool       registry lookup w/ input-requirement enforcement       │
 │  4 execute           specialist tool(s), params bound, timed                │
 │        └ investigation mode chains: change_analysis → grounding(water)      │
 │          → impact_analysis, each step traced & error-isolated               │
 │  5 integrate         answer + calibrated confidence + visual evidence       │
-│  6 report            runs/<id>/report.{json,md,pdf} + GeoTIFF change mask   │
+│  6 report            runs/<id>/report.{json,md,pdf} (branded PDF via RL)    │
 └──────────────▲─────────────────────────────────────────────────────────────┘
                │
 ┌──────────────┴─────────────────────────────────────────────────────────────┐
 │ Specialist registry (tools_impl.py)      shared backbone: SceneEncoder      │
 │                                          (ResNet-18, EuroSAT-warm-started)  │
 │  single_vqa   frozen encoder ⊕ per-type specialist heads + CORAL count      │
-│               head + flip-TTA · RSVQA-LR · exact-match 0.70                 │
+│               head + flip-TTA · RSVQA-LR · per-type: presence 91%          │
 │  captioning   plan-conditioned transformer decoder ⊕ template fallback      │
 │               · BigEarthNet.txt captions · multi-ref BLEU 0.28              │
 │  grounding    spectral-index response maps + boxes (fully interpretable)    │
-│  change_*     Siamese FPN-lite detector, tiled inference · LEVIR-CD         │
-│               IoU 0.60 / F1 0.75 + description + change-VQA                 │
+│  change_*     Siamese FPN-lite detector + TTA (4-way avg), tiled infer.     │
+│               · LEVIR-CD IoU 0.60 / F1 0.75 + description + change-VQA     │
 │  optical_sar  dual-branch S1(dB-aware) ⊕ S2 fusion · BEN v2 pairs ·         │
 │               label recall 0.85                                             │
 └──────────────▲─────────────────────────────────────────────────────────────┘
@@ -214,7 +234,6 @@ and without trained weights (fallback paths are themselves under test).
 </details>
 
 See also [ARCHITECTURE.md](ARCHITECTURE.md) for design contracts.
-Legacy Streamlit app retained (`app.py`); the React console is the primary UI.
 
 ## Data sources (verified online)
 

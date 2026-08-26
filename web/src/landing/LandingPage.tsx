@@ -95,7 +95,7 @@ export default function LandingPage({ onEnterConsole }: { onEnterConsole?: () =>
       <div className="fixed right-5 top-4 z-50 flex items-center gap-2">
         <button
           onClick={onEnterConsole}
-          className="rounded-lg border border-white/20 bg-white/5 px-3.5 py-1.5 font-mono text-[13px] uppercase tracking-[.15em] text-white/80 backdrop-blur transition-colors hover:border-white/40 hover:text-white"
+          className="rounded-lg border border-transparent bg-panel/80 px-3.5 py-1.5 font-mono text-[13px] uppercase tracking-[.15em] text-body backdrop-blur transition-colors hover:border-accent/50 hover:text-accent"
         >
           Console →
         </button>
@@ -106,7 +106,7 @@ export default function LandingPage({ onEnterConsole }: { onEnterConsole?: () =>
             localStorage.setItem('anvesha-theme', next)
           }}
           title="Toggle light/dark theme"
-          className="rounded-lg border border-white/20 bg-white/5 px-3 py-1.5 text-[15px] text-white/80 backdrop-blur transition-colors hover:border-white/40"
+          className="rounded-lg border border-transparent bg-panel/80 px-3 py-1.5 text-[15px] text-body backdrop-blur transition-colors hover:border-accent/50"
         >
           ☀ / ☾
         </button>

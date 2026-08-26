@@ -9,14 +9,31 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 
 
+def _scipy_edt_available() -> bool:
+    try:
+        from scipy.ndimage import distance_transform_edt  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
 # --------------------------------------------------------------------- #
-# Geospatial helpers (numpy-only, no scipy)
+# Geospatial helpers
 # --------------------------------------------------------------------- #
 
 def chamfer_distance(target: np.ndarray, max_px: int = 512) -> np.ndarray:
-    """Approximate Euclidean distance transform (two-pass chamfer) toward the
-    nearest True pixel of `target`. Distance in pixels."""
+    """True Euclidean distance transform toward the nearest True pixel of
+    *target*.  Distance in pixels.
+
+    Uses ``scipy.ndimage.distance_transform_edt`` when available (correct,
+    fast C implementation).  Falls back to a two-pass chamfer approximation
+    when scipy is absent (air-gapped edge case).
+    """
     t = target.astype(bool)
+    if _scipy_edt_available():
+        from scipy.ndimage import distance_transform_edt as _edt
+        return _edt(~t).astype(np.float32)
+    # Fallback: chamfer approximation (not metric-accurate)
     if max_px and max(t.shape) > max_px:
         scale = max(t.shape) / max_px
         small_t = _resize_bool(t, max_px)
@@ -42,10 +59,10 @@ def _resize_float(a: np.ndarray, shape) -> np.ndarray:
 
 
 def _chamfer(t: np.ndarray) -> np.ndarray:
+    """Two-pass chamfer approximation (fallback when scipy is unavailable)."""
     INF = float(t.size)
     d = np.where(t, 0.0, INF).astype(np.float32)
     a, b = 1.0, 1.41421356
-    # forward pass
     for i in range(d.shape[0]):
         for j in range(d.shape[1]):
             if d[i, j] == 0:
@@ -60,7 +77,6 @@ def _chamfer(t: np.ndarray) -> np.ndarray:
             if i > 0 and j < d.shape[1] - 1:
                 best = min(best, d[i - 1, j + 1] + b)
             d[i, j] = best
-    # backward pass
     for i in range(d.shape[0] - 1, -1, -1):
         for j in range(d.shape[1] - 1, -1, -1):
             best = d[i, j]

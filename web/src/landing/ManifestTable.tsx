@@ -5,7 +5,7 @@ const ROWS = [
     data: 'BigEarthNet.txt captions', score: '0.28 multi-ref BLEU' },
   { task: 'Region highlighting', approach: 'spectral-index reasoning — NDWI · ExG · double-bounce',
     data: 'no training — interpretable', score: 'boxes + masks' },
-  { task: 'Change detection', approach: 'Siamese FPN-lite · tiled inference',
+  { task: 'Change detection', approach: 'Siamese FPN-lite · TTA (4-way avg) · tiled inference',
     data: 'LEVIR-CD', score: '0.60 IoU · 0.75 F1' },
   { task: 'Optical + SAR fusion', approach: 'dual-branch · dB-aware SAR path',
     data: 'BEN v2 S1+S2 pairs', score: '0.85 label recall' },

@@ -6,6 +6,7 @@ import HistoryView from './components/HistoryView'
 import EvaluationView from './components/EvaluationView'
 import HelpView from './components/HelpView'
 import Onboarding from './components/Onboarding'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { fetchProvenance, type Provenance } from './api'
 
 // ---- removable landing page -------------------------------------------- #
@@ -81,14 +82,14 @@ export default function App() {
               className={`group flex w-[60px] flex-col items-center gap-0.5 rounded-lg py-2 transition-colors ${
                 view === n.id ? 'bg-accent-soft text-accent' : 'text-muted hover:bg-elev hover:text-body'}`}>
               <span className="text-[18px] leading-none">{n.icon}</span>
-              <span className="text-[14px] font-medium">{n.label}</span>
+              <span className="text-[11px] font-medium leading-tight text-center">{n.label}</span>
             </button>
           ))}
         </nav>
         <button onClick={toggleTheme} title="Toggle light/dark theme"
           className="flex w-[60px] flex-col items-center gap-0.5 rounded-lg py-2 text-muted hover:bg-elev hover:text-body">
           <span className="text-[17px]">{theme === 'light' ? '🌙' : '☀️'}</span>
-          <span className="text-[14px]">{theme === 'light' ? 'Dark' : 'Light'}</span>
+          <span className="text-[11px] font-medium leading-tight">{theme === 'light' ? 'Dark' : 'Light'}</span>
         </button>
       </aside>
       )}
@@ -127,11 +128,13 @@ export default function App() {
               <LandingPage onEnterConsole={() => setView('console')} />
             </Suspense>
           )}
-          {view === 'console' && <Console />}
-          {view === 'history' && <HistoryView />}
-          {view === 'evaluation' && <EvaluationView prov={prov} />}
-          {view === 'provenance' && <ProvenanceView prov={prov} />}
-          {view === 'help' && <HelpView onStart={() => { setView('console'); setOnboard(false) }} />}
+          <ErrorBoundary>
+            <div style={{ display: view === 'console' ? 'block' : 'none' }}><Console /></div>
+            {view === 'history' && <HistoryView />}
+            {view === 'evaluation' && <EvaluationView prov={prov} />}
+            {view === 'provenance' && <ProvenanceView prov={prov} />}
+            {view === 'help' && <HelpView onStart={() => { setView('console'); setOnboard(false) }} />}
+          </ErrorBoundary>
         </main>
 
         {view !== 'home' && (

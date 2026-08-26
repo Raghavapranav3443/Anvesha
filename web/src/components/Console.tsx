@@ -27,7 +27,7 @@ function modalityBadge(m: string) {
     grayscale: 'border-line bg-elev text-muted',
   }
   return (
-    <span className={`rounded border px-1.5 py-px font-mono text-[13px] uppercase tracking-wide ${styles[m] ?? styles.grayscale}`}>
+    <span className={`shrink-0 rounded border px-1 py-px font-mono text-[11px] uppercase tracking-wide ${styles[m] ?? styles.grayscale}`}>
       {m}
     </span>
   )
@@ -43,7 +43,7 @@ export function Term({ t, d }: { t: string; d: string }) {
 
 export function Panel({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-line bg-panel p-5 shadow-[var(--shadow-panel)]">
+    <div className="overflow-hidden rounded-xl border border-line bg-panel p-5 shadow-[var(--shadow-panel)]">
       <h2 className="mb-4 flex items-center gap-2 text-[14px] font-semibold uppercase tracking-[.13em] text-faint">
         {title}
         {hint && <Term t="?" d={hint} />}
@@ -57,7 +57,7 @@ export default function Console() {
   const [samples, setSamples] = useState<SampleInfo[]>([])
   const [selected, setSelected] = useState<string[]>([])
   const [files, setFiles] = useState<File[]>([])
-  const [query, setQuery] = useState(EXAMPLES[2])
+  const [query, setQuery] = useState('')
   const [override, setOverride] = useState('auto')
   const [investigate, setInvestigate] = useState(false)
   const [dateA, setDateA] = useState('T1')
@@ -66,10 +66,14 @@ export default function Console() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const pollRef = useRef<number | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
   const lastInputs = useRef<(File | string)[]>([])
 
   useEffect(() => { fetchSamples().then(setSamples).catch(() => {}) }, [])
-  useEffect(() => () => { if (pollRef.current) window.clearInterval(pollRef.current) }, [])
+  useEffect(() => () => {
+    if (pollRef.current) window.clearInterval(pollRef.current)
+    if (abortRef.current) abortRef.current.abort()
+  }, [])
 
   function toggleSample(name: string) {
     setSelected((s) => s.includes(name)
@@ -78,6 +82,9 @@ export default function Console() {
   }
 
   async function launch(queryText: string) {
+    // Cancel any previous in-flight poll
+    if (pollRef.current) window.clearInterval(pollRef.current)
+    if (abortRef.current) abortRef.current.abort()
     const useFiles = lastInputs.current.filter((x): x is File => x instanceof File)
     const useSamples = lastInputs.current.filter((x): x is string => typeof x === 'string')
     const effOverride = investigate && override === 'auto' ? 'investigation' : override
@@ -87,13 +94,21 @@ export default function Console() {
         query: queryText, taskOverride: effOverride,
         files: useFiles, sampleNames: useSamples, dateA, dateB,
       })
+      abortRef.current = new AbortController()
       pollRef.current = window.setInterval(async () => {
-        const st = await pollJob(id)
-        setJob(st)
-        if (st.status === 'done' || st.status === 'error') {
+        try {
+          const st = await pollJob(id, abortRef.current?.signal)
+          setJob(st)
+          if (st.status === 'done' || st.status === 'error') {
+            if (pollRef.current) window.clearInterval(pollRef.current)
+            setBusy(false)
+            if (st.status === 'error') setError(st.error?.split('\n')[0] ?? 'analysis failed')
+          }
+        } catch (e) {
+          if (abortRef.current?.signal.aborted) return
           if (pollRef.current) window.clearInterval(pollRef.current)
           setBusy(false)
-          if (st.status === 'error') setError(st.error?.split('\n')[0] ?? 'analysis failed')
+          setError(String(e))
         }
       }, 450)
     } catch (e) {
@@ -111,6 +126,12 @@ export default function Console() {
     if (busy) return
     setQuery(q)
     await launch(q)
+  }
+
+  function reset() {
+    if (pollRef.current) window.clearInterval(pollRef.current)
+    if (abortRef.current) abortRef.current.abort()
+    setJob(null); setBusy(false); setError(''); setQuery(''); setSelected([]); setFiles([])
   }
 
   const nInputs = files.length + selected.length
@@ -133,13 +154,13 @@ export default function Console() {
               const on = selected.includes(s.name)
               return (
                 <button key={s.name} onClick={() => toggleSample(s.name)}
-                  className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-left transition-colors ${
+                  className={`flex items-center gap-1.5 overflow-hidden rounded-lg border px-2.5 py-1.5 text-left transition-colors ${
                     on ? 'border-accent/60 bg-accent-soft'
                        : 'border-line bg-panel hover:border-muted/50'}`}>
-                  <span className={`h-2 w-2 rounded-full ${on ? 'bg-accent' : 'bg-line'}`} />
-                  <span className="min-w-0 flex-1 truncate text-[14.5px] text-body">{s.name}</span>
+                  <span className={`h-2 w-2 shrink-0 rounded-full ${on ? 'bg-accent' : 'bg-line'}`} />
+                  <span className="min-w-0 flex-1 truncate text-[13.5px] text-body">{s.name}</span>
                   {modalityBadge(s.modality)}
-                  <span className="font-mono text-[13px] text-faint">{s.bands}b</span>
+                  <span className="shrink-0 font-mono text-[12px] text-faint">{s.bands}b</span>
                 </button>
               )
             })}
@@ -201,11 +222,19 @@ export default function Console() {
               {nInputs} input{nInputs === 1 ? '' : 's'}
               {investigate && ' · investigation mode'}
             </span>
-            <button onClick={run} disabled={busy || !nInputs || (investigate && nInputs !== 2)}
-              className="relative overflow-hidden rounded-lg bg-accent px-7 py-2 text-[16.5px] font-semibold text-white transition-all hover:bg-accent-dim disabled:cursor-not-allowed disabled:opacity-40">
-              {busy ? 'Analysing…' : investigate ? '🛰️ Run investigation' : 'Run analysis'}
-              {busy && <span className="scanning absolute inset-0" />}
-            </button>
+            <div className="flex items-center gap-2">
+              <button onClick={run} disabled={busy || !nInputs || (investigate && nInputs !== 2)}
+                className="relative overflow-hidden rounded-lg bg-accent px-7 py-2 text-[16.5px] font-semibold text-white transition-all hover:bg-accent-dim disabled:cursor-not-allowed disabled:opacity-40">
+                {busy ? 'Analysing…' : investigate ? '🛰️ Run investigation' : 'Run analysis'}
+                {busy && <span className="scanning absolute inset-0" />}
+              </button>
+              {(job || busy) && (
+                <button onClick={reset} disabled={busy}
+                  className="rounded-lg border border-line px-4 py-2 text-[14px] font-medium text-muted transition-colors hover:border-accent/50 hover:text-accent disabled:opacity-40">
+                  Reset
+                </button>
+              )}
+            </div>
           </div>
           {error && (
             <div className="mt-3 rounded-lg border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</div>

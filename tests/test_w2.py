@@ -48,7 +48,8 @@ def test_investigation_chain(controller, bitemporal_pair):
     names = [s["name"] for s in res.trace]
     assert "plan_investigation" in names
     execs = [n for n in names if n.startswith("execute:")]
-    assert execs == ["execute:change_analysis", "execute:grounding_water",
+    # Query-conditioned routing selects 'urban' plan for 'urban expansion' query
+    assert execs == ["execute:change_analysis", "execute:grounding_built_up",
                      "execute:impact_analysis"]
     inv = res.outputs["investigation"]
     assert "impact" in inv and "findings" in inv["impact"]
@@ -179,7 +180,8 @@ def test_clarification_skips_strong_intent_and_empty_query():
 
 
 def test_clarification_surfaces_in_run_outputs(controller, rgb_png):
-    res = controller.run([rgb_png], "tell me about this place")
+    # Use a deliberately ambiguous query that has weak keyword + embedding signal
+    res = controller.run([rgb_png], "something")
     clar = res.outputs.get("clarification")
     if res.confidence < 0.55:
         assert clar and clar["needed"] and clar["options"]

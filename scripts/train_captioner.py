@@ -2,13 +2,13 @@
 RS-adapted SceneEncoder, using real BigEarthNet.txt captions joined to our
 local co-registered S2 patches (data/bentxt_join/captions.parquet).
 
-v2 — plan-conditioned decoding + beam search:
+v2 -- plan-conditioned decoding + beam search:
 * A 19-d BEN19 "content plan" is weakly derived from each caption's own text
   (keyword matching of canonical class phrases). BigEarthNet.txt captions are
   generated from the label set, so the plan captures exactly what the decoder
   must realize.
 * An internal PlanHead (trained jointly on frozen SceneEncoder features)
-  predicts that plan from the image alone at inference — no extra inputs.
+  predicts that plan from the image alone at inference -- no extra inputs.
 * Decoding supports beam search with length normalization (greedy fallback).
 """
 from __future__ import annotations
@@ -38,265 +38,177 @@ def simple_bleu(pred: str, ref: str, n_max: int = 4) -> float:
         return 0.0
     log_prec = 0.0
     for n in range(1, n_max + 1):
-        pg = [tuple(pt[i:i + n]) for i in range(len(pt) - n + 1)]
-        rg = collections.Counter(tuple(rt[i:i + n]) for i in range(len(rt) - n + 1))
-        if not pg:
-            break
-        clip = sum(min(c, rg.get(g, 0)) for g, c in collections.Counter(pg).items())
-        log_prec += np.log((clip + 1e-9) / len(pg))
+        p_ngrams = collections.Counter(tuple(pt[i:i+n]) for i in range(len(pt)-n+1))
+        r_ngrams = collections.Counter(tuple(rt[i:i+n]) for i in range(len(rt)-n+1))
+        clipped = sum(min(c, r_ngrams.get(ng, 0)) for ng, c in p_ngrams.items())
+        total = sum(p_ngrams.values())
+        if total == 0:
+            return 0.0
+        log_prec += np.log(max(clipped / total, 1e-10))
+    bleu = np.exp(log_prec / n_max)
     bp = min(1.0, np.exp(1 - len(rt) / max(len(pt), 1)))
-    return float(bp * np.exp(log_prec / n_max))
-
-
-# --------------------------------------------------------------------- #
-# Weak content-plan extraction from caption text
-# --------------------------------------------------------------------- #
-
-PLAN_KEYWORDS = {
-    "Urban fabric": ("urban fabric",),
-    "Industrial or commercial units": ("industrial", "commercial unit"),
-    "Arable land": ("arable land", "non-irrigated arable"),
-    "Permanent crops": ("permanent crop", "orchard", "vineyard", "olive grove"),
-    "Pastures": ("pasture",),
-    "Complex cultivation patterns": ("complex cultivation",),
-    "Agriculture with natural vegetation":
-        ("principally occupied by agriculture",
-         "agriculture with significant areas of natural vegetation",
-         "agriculture with natural vegetation"),
-    "Agro-forestry areas": ("agro-forestry", "agroforestry"),
-    "Broad-leaved forest": ("broad-leaved forest",),
-    "Coniferous forest": ("coniferous forest",),
-    "Mixed forest": ("mixed forest",),
-    "Natural grassland": ("natural grassland", "grassland"),
-    "Moors and heathland": ("moor", "heathland", "heath"),
-    "Sclerophyllous vegetation": ("sclerophyllous",),
-    "Transitional woodland/shrub": ("transitional woodland", "woodland or shrub",
-                                    "woodlands or shrub", "woodland and shrub",
-                                    "shrubland", "shrubs and woodland", "shrub"),
-    "Beaches dunes sands": ("beach", "dune", "sandy"),
-    "Inland waters": ("inland water", "lake", "river"),
-    "Coastal wetlands": ("wetland", "salt marsh", "coastal lagoon"),
-    "Marine waters": ("marine water", "sea ", "ocean", "bay"),
-}
-
-
-def text_to_plan(text: str) -> np.ndarray:
-    t = f" {text.lower()} "
-    plan = np.zeros(len(BEN19_CLASSES), dtype=np.float32)
-    for i, cls in enumerate(BEN19_CLASSES):
-        if any(k in t for k in PLAN_KEYWORDS[cls]):
-            plan[i] = 1.0
-    if plan.sum() == 0.0:                      # degenerate: dominant-class hint
-        plan[:] = 0.05                          # soft prior, keeps conditioning sane
-    return plan
+    return float(bp * bleu)
 
 
 class CaptionVocab:
-    def __init__(self, texts, min_freq=3, max_size=6000):
-        counts = collections.Counter()
-        for t in texts:
-            counts.update(re.findall(r"[a-z0-9]+", t.lower()))
-        self.itos = ["<pad>", "<bos>", "<eos>", "<unk>"]
-        for w, c in counts.most_common(max_size):
-            if c >= min_freq:
-                self.itos.append(w)
-        self.stoi = {w: i for i, w in enumerate(self.itos)}
-        self.pad = 0
-
+    def __init__(self, specials):
+        self.itos = ["<pad>", "<sos>", "<eos>"] + list(specials)
+        self.stoi = {t: i for i, t in enumerate(self.itos)}
     def __len__(self):
         return len(self.itos)
 
-    def encode(self, text, max_len=44):
-        ids = [self.stoi["<bos>"]]
-        for w in re.findall(r"[a-z0-9]+", text.lower())[:max_len - 2]:
-            ids.append(self.stoi.get(w, 2))
-        ids.append(self.stoi["<eos>"])
-        return ids
-
 
 class CaptionDataset(Dataset):
-    def __init__(self, join_path: Path, s2_dir: Path, vocab=None,
-                 image_size=120, max_len=44):
+    def __init__(self, root: Path, split: str, vocab: CaptionVocab,
+                 max_items=None, image_size=120):
         import pandas as pd
-        df = pd.read_parquet(join_path)
-        # one random prompt per patch keeps epochs diverse without dupes
-        df = df.sample(frac=1.0, random_state=0).drop_duplicates("patch_id")
-        keep = []
-        for _, r in df.iterrows():
-            f = s2_dir / f"{r['patch_id']}.tif"
-            if f.exists():
-                keep.append((f, str(r["output"])))
-        self.items = keep
-        self.plans = np.stack([text_to_plan(t) for _, t in keep]) \
-            if keep else np.zeros((0, len(BEN19_CLASSES)), dtype=np.float32)
-        if vocab is None:
-            self.vocab = CaptionVocab([t for _, t in self.items])
-        else:
-            self.vocab = vocab
+        from PIL import Image
         self.image_size = image_size
-        self.max_len = max_len
-
+        self.vocab = vocab
+        root = Path(root)
+        cap_file = root / "captions.parquet"
+        if not cap_file.exists():
+            root2 = root / "BigEarthNet-S2"
+            cap_file = root2 / "captions.parquet" if (root2 / "captions.parquet").exists() else None
+        if cap_file is None or not cap_file.exists():
+            raise FileNotFoundError(f"No captions.parquet found under {root}")
+        df = pd.read_parquet(cap_file)
+        df = df[df.split == split]
+        if max_items:
+            df = df.head(max_items)
+        self.items = []
+        for _, row in df.iterrows():
+            pid = str(row["patch_id"])
+            text = str(row["output"])
+            f = root / "BigEarthNet-S2" / f"{split}" / f"{pid}.tif"
+            if not f.exists():
+                f = root / "BigEarthNet-S2" / f"{pid}.tif"
+            if f.exists():
+                self.items.append((f, text))
+        self.plan_table = self._build_plan_table()
+    def _build_plan_table(self):
+        plan = {}
+        for ci, cls in enumerate(BEN19_CLASSES):
+            words = cls.lower().split()
+            plan[cls] = words
+        return plan
+    def _text_to_plan(self, text: str) -> np.ndarray:
+        vec = np.zeros(len(BEN19_CLASSES), dtype=np.float32)
+        low = text.lower()
+        for ci, cls in enumerate(BEN19_CLASSES):
+            words = cls.lower().split()
+            if any(w in low for w in words):
+                vec[ci] = 1.0
+        return vec
     def __len__(self):
         return len(self.items)
-
     def __getitem__(self, i):
-        import rasterio
+        from PIL import Image
         f, text = self.items[i]
-        with rasterio.open(f) as src:
-            arr = np.moveaxis(src.read().astype(np.float32), 0, -1)
-        rgb = np.clip(arr[..., [2, 1, 0]] / 10000.0, 0, 1)
-        x = resize_np(rgb, self.image_size)
-        ids = self.vocab.encode(text, self.max_len)
-        pad = self.vocab.pad
-        L = len(ids)
-        tgt = torch.full((self.max_len,), pad, dtype=torch.long)
-        tgt[:L] = torch.tensor(ids)
-        return (torch.from_numpy(x.transpose(2, 0, 1)), tgt, L,
-                torch.from_numpy(self.plans[i]))
+        arr = np.asarray(Image.open(f).convert("RGB").resize(
+            (self.image_size,) * 2), dtype=np.float32) / 255.0
+        x = torch.from_numpy(arr.transpose(2, 0, 1))
+        toks = re.findall(r"[a-z0-9]+", text.lower())
+        ids = [self.vocab.stoi.get("<sos>", 1)]
+        for t in toks:
+            ids.append(self.vocab.stoi.get(t, 0))
+        ids.append(self.vocab.stoi.get("<eos>", 2))
+        tgt = torch.tensor(ids, dtype=torch.long)
+        plan = torch.from_numpy(self._text_to_plan(text))
+        return x, tgt, torch.tensor(len(ids)), plan
 
 
 class Captioner(nn.Module):
-    """Frozen-encoder features cross-attended by a small causal transformer.
-
-    cond=True adds the v2 plan pathway: a Linear projection of a 19-d BEN19
-    multi-hot broadcast-added to every memory token, plus an internal PlanHead
-    predicting the plan from pooled features at inference time.
-    """
-
     N_PLAN = len(BEN19_CLASSES)
-
-    def __init__(self, vocab_size, d=256, n_layers=4, n_heads=8,
-                 ff=768, max_len=44, feat_ch=128, cond=False):
+    def __init__(self, vocab_size, d=256, nhead=4, nlayers=3, cond=True):
         super().__init__()
-        self.d = d
-        self.cond = bool(cond)
-        self.feat_proj = nn.Conv2d(feat_ch, d, 1)
-        self.tok = nn.Embedding(vocab_size, d)
-        self.pos = nn.Parameter(torch.randn(1, max_len + 225, d) * 0.02)
-        layer = nn.TransformerEncoderLayer(d, n_heads, ff, batch_first=True,
-                                           norm_first=True)
-        self.dec = nn.TransformerEncoder(layer, n_layers)
-        self.lm_head = nn.Linear(d, vocab_size)
-        if self.cond:
-            self.plan_proj = nn.Linear(self.N_PLAN, d)
-            self.plan_head = nn.Sequential(
-                nn.Linear(feat_ch, 128), nn.ReLU(), nn.Linear(128, self.N_PLAN))
-
-    def forward(self, fmap, tokens, plan=None):
+        self.cond = cond
+        self.embed = nn.Embedding(vocab_size, d)
+        self.pos = nn.Embedding(512, d)
+        decoder_layer = nn.TransformerDecoderLayer(d, nhead, dim_feedforward=d*4, batch_first=True)
+        self.decoder = nn.TransformerDecoder(decoder_layer, nlayers)
+        self.out = nn.Linear(d, vocab_size)
+        self.plan_proj = nn.Linear(self.N_PLAN, d) if cond else None
+        self.plan_head = nn.Sequential(
+            nn.Linear(512, 256), nn.ReLU(), nn.Linear(256, self.N_PLAN)
+        ) if cond else None
+    def forward(self, fmap, tgt, plan=None):
+        B, C, H, W = fmap.shape
+        memory = fmap.flatten(2).permute(0, 2, 1)
+        if self.cond and plan is not None:
+            memory = memory + self.plan_proj(plan).unsqueeze(1)
+        L = tgt.shape[1]
+        pos = self.pos(torch.arange(L, device=tgt.device)).unsqueeze(0)
+        x = self.embed(tgt) + pos
+        causal = nn.Transformer.generate_square_subsequent_mask(L, device=tgt.device)
+        out = self.decoder(x, memory, tgt_mask=causal)
+        return self.out(out)
+    @torch.no_grad()
+    def generate(self, fmap, vocab, plan=None, max_len=60, beam=1):
         B = fmap.shape[0]
-        mem = self.feat_proj(fmap).flatten(2).transpose(1, 2)      # B x 225 x d
-        mem = mem + self.pos[:, :mem.shape[1]]
-        if self.cond:
-            p = plan if plan is not None else torch.sigmoid(
-                self.predict_plan(fmap))
-            mem = mem + self.plan_proj(p).unsqueeze(1)
-        L = tokens.shape[1]
-        x = self.tok(tokens) + self.pos[:, :L]
-        mask = torch.triu(torch.ones(L, L, device=tokens.device), 1).bool()
-        h = self.dec(x, mask=mask)
-        return self.lm_head(h)
-
-    def predict_plan(self, fmap):
-        pooled = fmap.mean(dim=(2, 3))
-        return self.plan_head(pooled)
-
-    @torch.no_grad()
-    def _decode_step(self, fmap, tokens, plan):
-        logits = self(fmap, tokens, plan)[:, -1]
-        return torch.log_softmax(logits, -1)
-
-    @torch.no_grad()
-    def generate(self, fmap, vocab, max_len=44, beam=1):
-        if beam <= 1 or not self.cond and beam > 1:
-            return self._generate_greedy(fmap, vocab, max_len)
-        return self._generate_beam(fmap, vocab, max_len, beam)
-
-    @torch.no_grad()
-    def _generate_greedy(self, fmap, vocab, max_len=44):
-        B = fmap.shape[0]
-        plan = torch.sigmoid(self.predict_plan(fmap)) if self.cond else None
-        tokens = torch.full((B, 1), vocab.stoi["<bos>"], dtype=torch.long,
-                            device=fmap.device)
-        done = torch.zeros(B, dtype=torch.bool, device=fmap.device)
-        for _ in range(max_len - 1):
-            logp = self._decode_step(fmap, tokens, plan)
-            nxt = logp.argmax(-1, keepdim=True)
-            nxt[done] = vocab.stoi["<pad>"]
-            tokens = torch.cat([tokens, nxt], dim=1)
-            done |= nxt.squeeze(1) == vocab.stoi["<eos>"]
-            if done.all():
-                break
-        return [_tokens_to_text(row, vocab) for row in tokens.tolist()]
-
-    @torch.no_grad()
-    def _generate_beam(self, fmap, vocab, max_len=44, beam=3):
-        """Per-image beam search with length-normalized scores."""
+        results = []
+        for b in range(B):
+            fb = fmap[b:b+1]
+            p = plan[b:b+1] if plan is not None else None
+            if beam <= 1:
+                text = self._greedy(fb, vocab, p, max_len)
+                results.append(text)
+            else:
+                texts = self._beam(fb, vocab, p, max_len, beam)
+                results.append(texts[0] if texts else "")
+        return results
+    def _greedy(self, fmap, vocab, plan, max_len):
         device = fmap.device
-        bos, eos, pad = vocab.stoi["<bos>"], vocab.stoi["<eos>"], vocab.stoi["<pad>"]
-        plan = torch.sigmoid(self.predict_plan(fmap)) if self.cond else None
-        out = []
-        for b in range(fmap.shape[0]):
-            fm = fmap[b:b + 1]
-            pl = plan[b:b + 1] if plan is not None else None
-            seqs = torch.full((1, 1), bos, dtype=torch.long, device=device)
-            scores = torch.zeros(1, device=device)
-            finished = []                                    # (score, tokens)
-            for _ in range(max_len - 1):
-                logp = self._decode_step(fm.expand(seqs.shape[0], -1, -1, -1)
-                                         if fm.dim() == 4 else fm,
-                                         seqs, pl)
-                total = scores.unsqueeze(1) + logp           # Bk x V
-                flat = total.flatten()
-                top = torch.topk(flat, beam).indices
-                cand_seq = top // logp.shape[1]
-                cand_tok = top % logp.shape[1]
-                new_seqs, new_scores = [], []
-                active_tokens, active_scores = [], []
-                for s, t, sc in zip(cand_seq.tolist(), cand_tok.tolist(),
-                                    flat[top].tolist()):
-                    row = torch.cat([seqs[s], torch.tensor([t], device=device)])
-                    if t == eos:
-                        finished.append((sc / len(row), row.tolist()))
-                    elif t == pad:
-                        continue
-                    else:
-                        active_tokens.append(row)
-                        active_scores.append(sc)
-                if not active_tokens:
-                    break
-                # topk returns descending order — keep the BEST beams
-                seqs = torch.stack(active_tokens)[:beam]
-                scores = torch.tensor(active_scores[:beam], device=device)
-            if not finished and seqs.numel():
-                finished.append((scores[0].item() / seqs.shape[1],
-                                 seqs[0].tolist()))
-            best = max(finished, key=lambda x: x[0])[1] if finished else []
-            out.append(_tokens_to_text(best, vocab))
-        return out
-
-
-def _tokens_to_text(row, vocab):
-    special = {vocab.stoi["<pad>"], vocab.stoi["<bos>"], vocab.stoi["<eos>"]}
-    return " ".join(vocab.itos[t] for t in row if t not in special)
+        ids = [vocab.stoi.get("<sos>", 1)]
+        for _ in range(max_len):
+            t = torch.tensor([ids], device=device)
+            logits = self(fmap, t, plan)[:, -1, :]
+            nxt = int(logits.argmax(-1).item())
+            if nxt == vocab.stoi.get("<eos>", 2):
+                break
+            ids.append(nxt)
+        return " ".join(vocab.itos[i] for i in ids[1:] if i < len(vocab.itos))
+    def _beam(self, fmap, vocab, plan, max_len, beam_width):
+        device = fmap.device
+        beams = [(0.0, [vocab.stoi.get("<sos>", 1)])]
+        eos = vocab.stoi.get("<eos>", 2)
+        for _ in range(max_len):
+            cands = []
+            for score, seq in beams:
+                if seq[-1] == eos:
+                    cands.append((score, seq))
+                    continue
+                t = torch.tensor([seq], device=device)
+                logits = self(fmap, t, plan)[:, -1, :]
+                probs = torch.log_softmax(logits, -1)[0]
+                topk = probs.topk(beam_width)
+                for v, idx in zip(topk.values[0].tolist(), topk.indices[0].tolist()):
+                    cands.append((score + v, seq + [idx]))
+            beams = sorted(cands, key=lambda x: -x[0])[:beam_width]
+        eos_id = eos
+        results = []
+        for score, seq in beams:
+            toks = [i for i in seq if i not in (vocab.stoi.get("<sos>", 1), eos_id)]
+            text = " ".join(vocab.itos[i] for i in toks if i < len(vocab.itos))
+            results.append(text)
+        return results
 
 
 def main(args):
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    print("device:", device)
     root = Path(args.data)
-    ds_tr = CaptionDataset(CONFIG.data_dir / "bentxt_join" / "captions.parquet",
-                           root / "BigEarthNet-S2" / "train")
-    ds_va = CaptionDataset(CONFIG.data_dir / "bentxt_join" / "captions.parquet",
-                           root / "BigEarthNet-S2" / "validation",
-                           vocab=ds_tr.vocab)
-    print(f"captions train={len(ds_tr)} val={len(ds_va)} "
-          f"vocab={len(ds_tr.vocab)} device={device}", flush=True)
+    vocab = CaptionVocab([])
+    ds_tr = CaptionDataset(root, "train", vocab, image_size=120)
+    ds_va = CaptionDataset(root, "validation", vocab, image_size=120,
+                           max_items=300)
+    print(f"train={len(ds_tr)} val={len(ds_va)} vocab={len(vocab)}")
 
     enc = SceneEncoder(3).to(device)
     if CONFIG.scene_encoder_weights.exists():
         ck = torch.load(CONFIG.scene_encoder_weights, map_location="cpu",
                         weights_only=False)
         enc.load_state_dict(ck["encoder"])
-    enc.eval()
     for p in enc.parameters():
         p.requires_grad_(False)
 
@@ -360,11 +272,21 @@ def main(args):
     print("saved", CONFIG.weights_dir / "captioner.pt", "best BLEU",
           round(best, 4))
 
+    # Experiment log
+    from satquery.experiment_log import log_experiment
+    log_experiment(
+        script="train_captioner",
+        args={"epochs": args.epochs, "lr": args.lr, "batch_size": args.batch_size,
+              "cond": not args.no_cond},
+        metrics={"val_bleu": best},
+        checkpoint=str(CONFIG.weights_dir / "captioner.pt"),
+    )
+
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", default=str(CONFIG.data_dir / "bigearthnet_14k" / "BEN_14k"))
-    ap.add_argument("--epochs", type=int, default=5)
+    ap.add_argument("--epochs", type=int, default=15)
     ap.add_argument("--batch-size", type=int, default=64)
     ap.add_argument("--lr", type=float, default=3e-4)
     ap.add_argument("--no-cond", action="store_true")

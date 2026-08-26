@@ -8,6 +8,7 @@ Two operating paths:
 """
 from __future__ import annotations
 
+import threading
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
@@ -162,10 +163,16 @@ def heuristic_class_scores(stats: Dict[str, float]) -> List[Tuple[str, float]]:
 
 # Singleton accessor ------------------------------------------------------- #
 _INSTANCE: Optional[SceneClassifier] = None
+_scene_lock = threading.Lock()
 
 
 def get_scene_classifier(device: Optional[str] = None) -> SceneClassifier:
     global _INSTANCE
-    if _INSTANCE is None or device is not None:
-        _INSTANCE = SceneClassifier(device=device)
+    if device is not None:
+        # Explicit device request → always create a fresh instance
+        return SceneClassifier(device=device)
+    if _INSTANCE is None:
+        with _scene_lock:
+            if _INSTANCE is None:
+                _INSTANCE = SceneClassifier()
     return _INSTANCE

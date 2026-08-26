@@ -8,6 +8,7 @@ scene classifier's concept evidence provides graceful fallback answers.
 from __future__ import annotations
 
 import json
+import threading
 from typing import Dict, Optional
 
 import numpy as np
@@ -31,8 +32,8 @@ class RSVQAModel:
         self.head = None
         self.answer_vocab = list(self.ANSWERS)
         self.trained = False
-        self.input_size = 128
-        self.bow_dim = 64
+        self.input_size = 192
+        self.bow_dim = 512
         self.type_vocab: Dict[str, int] = {}
         self.count = None
         self.temperature = 1.0
@@ -363,10 +364,13 @@ def infer_question_type(question: str, type_vocab: Dict[str, int]) -> int:
 
 
 _INSTANCE: Optional[RSVQAModel] = None
+_vqa_lock = threading.Lock()
 
 
 def get_vqa_model(device: Optional[str] = None) -> RSVQAModel:
     global _INSTANCE
     if _INSTANCE is None:
-        _INSTANCE = RSVQAModel(device=device)
+        with _vqa_lock:
+            if _INSTANCE is None:
+                _INSTANCE = RSVQAModel(device=device)
     return _INSTANCE

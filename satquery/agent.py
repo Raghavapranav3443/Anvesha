@@ -11,6 +11,7 @@ Pipeline (observable execution trace):
 from __future__ import annotations
 
 import json
+import threading
 import time
 import traceback
 import uuid
@@ -26,6 +27,65 @@ from .io_utils import RSImage, InputValidationError, describe_configuration, \
     load_image, validate_inputs
 from .registry import ToolSpec, build_default_registry
 from .text import content_tokens
+
+
+# --------------------------------------------------------------------------- #
+# Embedding-augmented intent classification helpers
+# --------------------------------------------------------------------------- #
+
+def _query_bow(query: str, dim: int = 512) -> np.ndarray:
+    """Hashed bag-of-words vector for a query string."""
+    import hashlib, re
+    vec = np.zeros(dim, dtype=np.float32)
+    for tok in re.findall(r"[a-z0-9]+", query.lower()):
+        h = hashlib.md5(tok.encode()).hexdigest()
+        idx = int(h[:8], 16) % dim
+        sign = 1.0 if int(h[8:10], 16) % 2 == 0 else -1.0
+        vec[idx] += sign
+    n = float(np.linalg.norm(vec))
+    return vec / n if n > 0 else vec
+
+
+def _cosine_sim(a: np.ndarray, b: np.ndarray) -> float:
+    """Cosine similarity between two vectors (assumed L2-normalised)."""
+    return float(np.dot(a, b))
+
+
+# Lazily precomputed centroids: task -> 512-d BOW vector
+_task_centroids: Optional[Dict[str, np.ndarray]] = None
+
+def _get_task_centroids() -> Dict[str, np.ndarray]:
+    """Return precomputed task centroids.
+
+    Tries to load data-derived centroids from ``weights/task_centroids.pt``
+    (computed by ``scripts/precompute_task_centroids.py`` from real RSVQA
+    training questions).  Falls back to keyword-derived centroids if the
+    file is not available.
+    """
+    global _task_centroids
+    if _task_centroids is not None:
+        return _task_centroids
+
+    # Try loading data-derived centroids first
+    import torch
+    centroids_path = CONFIG.weights_dir / "task_centroids.pt"
+    if centroids_path.exists():
+        try:
+            ck = torch.load(centroids_path, map_location="cpu", weights_only=False)
+            _task_centroids = {k: v.numpy().astype(np.float32) for k, v in ck.items()}
+            return _task_centroids
+        except Exception:
+            pass
+
+    # Fallback: compute from keyword lists
+    _task_centroids = {}
+    for task, kws in TASK_KEYWORDS.items():
+        vecs = [_query_bow(kw) for kw in kws if len(kw) > 2]
+        if vecs:
+            mean = np.mean(vecs, axis=0)
+            n = float(np.linalg.norm(mean))
+            _task_centroids[task] = mean / n if n > 0 else mean
+    return _task_centroids
 
 
 # --------------------------------------------------------------------------- #
@@ -119,16 +179,28 @@ def build_clarification(query: str, intent: Dict[str, Any],
 
 
 def classify_task(query: str, configuration: str) -> Dict[str, Any]:
-    """Rule-based intent classifier returning ranked candidate tasks."""
+    """Intent classifier: keyword rules blended with BOW embedding similarity.
+
+    The keyword component is deterministic and auditable (shown in the trace).
+    The embedding component catches natural-language variation that pure
+    keyword matching misses — e.g. "can you tell me if water is present"
+    matches the "water" concept even though no RSVQA keyword fires.
+
+    Blending formula:
+        final_score = 0.6 * keyword_score + 0.4 * embedding_similarity
+    """
     import re
+    from .text import content_tokens  # noqa: delayed import
 
     q = query.lower()
-    scores: Dict[str, float] = {}
+    q_bow = _query_bow(q)
+
+    # --- keyword component (same as before) ---
+    keyword_scores: Dict[str, float] = {}
     for task, kws in TASK_KEYWORDS.items():
         s = 0.0
         for kw in kws:
             if ".*" in kw or kw.endswith("*"):
-                # treat as regular-expression pattern
                 try:
                     if re.search(kw.rstrip("*") + r".*" if kw.endswith("*") else kw, q):
                         s += 1.0
@@ -136,13 +208,27 @@ def classify_task(query: str, configuration: str) -> Dict[str, Any]:
                     pass
             elif kw in q:
                 s += 1.0
-        scores[task] = s
+        keyword_scores[task] = s
 
-    # merge aliased intents into their registered tool before ranking so a
-    # strong keyword hit is not lost to the low-confidence default branch
     for alias, target in TASK_ALIASES.items():
-        if alias in scores:
-            scores[target] = scores.get(target, 0.0) + scores.pop(alias)
+        if alias in keyword_scores:
+            keyword_scores[target] = keyword_scores.get(target, 0.0) + keyword_scores.pop(alias)
+
+    # --- embedding similarity component ---
+    embed_scores: Dict[str, float] = {}
+    centroids = _get_task_centroids()
+    if centroids:
+        for task, centroid in centroids.items():
+            sim = _cosine_sim(q_bow, centroid)
+            embed_scores[task] = max(0.0, sim)
+
+    # --- blend ---
+    all_tasks = set(keyword_scores) | set(embed_scores)
+    scores: Dict[str, float] = {}
+    for task in all_tasks:
+        kw = keyword_scores.get(task, 0.0)
+        em = embed_scores.get(task, 0.0)
+        scores[task] = 0.6 * kw + 0.4 * em
 
     # feasibility filter by input configuration
     def feasible(task: str) -> bool:
@@ -159,7 +245,6 @@ def classify_task(query: str, configuration: str) -> Dict[str, Any]:
     ranked = sorted(scores.items(), key=lambda kv: -kv[1])
     feasible_ranked = [(t, s) for t, s in ranked if feasible(t)]
 
-    # defaults when nothing matches strongly
     default_map = {
         "single": ("captioning" if not query.strip() else "single_vqa"),
         "bitemporal_pair": "change_analysis",
@@ -168,12 +253,19 @@ def classify_task(query: str, configuration: str) -> Dict[str, Any]:
     if not feasible_ranked or feasible_ranked[0][1] == 0.0:
         best = default_map.get(configuration, "single_vqa")
         conf = 0.35
-        method = "default routing (no strong keyword match)"
+        method = "default routing (no strong keyword or embedding match)"
     else:
         best = feasible_ranked[0][0]
         total = sum(s for _, s in feasible_ranked) + 1e-6
         conf = min(0.95, 0.5 + 0.45 * feasible_ranked[0][1] / total)
-        method = "keyword-intent rules"
+        kw_top = keyword_scores.get(best, 0.0)
+        em_top = embed_scores.get(best, 0.0)
+        if kw_top > 0 and em_top > 0:
+            method = f"keyword + embedding blend (kw={kw_top:.1f} embed={em_top:.2f})"
+        elif kw_top > 0:
+            method = "keyword-intent rules"
+        else:
+            method = "embedding similarity"
 
     return {"task": best, "confidence": round(conf, 3), "method": method,
             "ranked_candidates": feasible_ranked[:4],
@@ -335,31 +427,73 @@ class AgentController:
         return result
 
     # -- investigation plan ----------------------------------------------- #
-    def _run_investigation(self, imgs: List[RSImage], query: str,
-                           intent: Dict, trace: List[Dict[str, Any]],
-                           emit, save_report: bool) -> AgentResult:
-        """Agentic multi-step workflow: change detection → water extraction →
-        impact quantification → synthesis. Every step is observable."""
-        from .tools_impl import (change_analysis_tool, grounding_tool,
-                                 impact_analysis_tool)
-
-        plan = [
+    _INVESTIGATION_PLANS = {
+        "default": [
             ("change_analysis", "Detect what changed", {}),
             ("grounding_water", "Extract the water body", {"concept": "water"}),
             ("impact_analysis", "Quantify impact & rank zones", {}),
-        ]
+        ],
+        "urban": [
+            ("change_analysis", "Detect what changed", {}),
+            ("grounding_built_up", "Identify built-up expansion", {"concept": "built-up"}),
+            ("impact_analysis", "Quantify impact & rank zones", {}),
+        ],
+        "vegetation": [
+            ("change_analysis", "Detect what changed", {}),
+            ("grounding_vegetation", "Identify vegetation changes", {"concept": "vegetation"}),
+            ("impact_analysis", "Quantify impact & rank zones", {}),
+        ],
+        "comprehensive": [
+            ("change_analysis", "Detect what changed", {}),
+            ("grounding_water", "Extract the water body", {"concept": "water"}),
+            ("grounding_built_up", "Identify built-up areas", {"concept": "built-up"}),
+            ("impact_analysis", "Quantify impact & rank zones", {}),
+        ],
+    }
+
+    @staticmethod
+    def _select_investigation_plan(query: str) -> str:
+        """Select the investigation plan variant based on query content."""
+        q = query.lower()
+        urban_kws = ("urban", "building", "built-up", "development",
+                     "construction", "expansion", "encroachment")
+        veg_kws = ("vegetation", "forest", "deforestation", "tree",
+                    "green", "crop", "agriculture", "clearing")
+        if any(kw in q for kw in urban_kws):
+            return "urban"
+        if any(kw in q for kw in veg_kws):
+            return "vegetation"
+        if any(w in q for w in ("full analysis", "comprehensive",
+                                "everything", "all aspects")):
+            return "comprehensive"
+        return "default"
+
+    def _run_investigation(self, imgs: List[RSImage], query: str,
+                           intent: Dict, trace: List[Dict[str, Any]],
+                           emit, save_report: bool) -> AgentResult:
+        """Query-conditioned multi-step investigation workflow.
+
+        Selects a plan variant based on the query's dominant concept,
+        then executes each step with per-step error isolation.
+        Every step is observable in the trace.
+        """
+        from .tools_impl import (change_analysis_tool, grounding_tool,
+                                 impact_analysis_tool)
+
+        plan_key = self._select_investigation_plan(query)
+        plan = self._INVESTIGATION_PLANS[plan_key]
         outputs: Dict[str, Any] = {}
         visuals: Dict[str, np.ndarray] = {}
         t_start = time.time()
         run_id = datetime.now().strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:6]
 
         step = self._step(trace, "plan_investigation",
-                          {"steps": [name for name, _, _ in plan]})
+                          {"plan": plan_key, "steps": [name for name, _, _ in plan]})
         emit()
 
         ctx = {"images": imgs, "query": query, "params": {}}
         for name, label, extra in plan:
-            tool_name = ("grounding" if name == "grounding_water"
+            tool_name = ("grounding" if name.startswith("grounding_")
                          else name)
             spec = self.registry[tool_name]
             sctx = dict(ctx)
@@ -527,29 +661,51 @@ def write_report(result: AgentResult, images: Sequence[RSImage],
     json_path.write_text(json.dumps(payload, indent=2, default=str),
                          encoding="utf-8")
 
-    md = [f"# SatQuery AI Report ({result.run_id})", "",
-          f"- **Query:** {result.query}",
-          f"- **Input configuration:** {result.configuration.get('configuration_label', '')}",
-          f"- **Selected task/tool:** `{result.selected_task}`",
-          f"- **Confidence:** {result.confidence:.2f}", "",
-          "## Answer", "", str(result.answer), "",
-          "## Execution summary", ""]
+    md = [
+        f"# Anvesha — Earth Observation & Investigation Report", "",
+        f"| Field | Value |",
+        f"|---|---|",
+        f"| **Run ID** | `{result.run_id}` |",
+        f"| **Generated** | {payload['generated_at']} |",
+        f"| **Query** | {result.query} |",
+        f"| **Input configuration** | {result.configuration.get('configuration_label', '')} |",
+        f"| **Selected task** | `{result.selected_task}` |",
+        f"| **Confidence** | {result.confidence:.1%} |", "",
+        "---", "",
+        "## Answer", "", str(result.answer), "", "---", "",
+        "## Input Files", "",
+        "| File | Modality | Bands | Georeferenced |",
+        "|---|---|---|---|",
+    ]
+    for inp in payload.get("inputs", []):
+        geo = "Yes" if inp.get("georeferenced") else "No"
+        md.append(f"| {inp.get('file', '')} | {inp.get('modality', '')} | {inp.get('bands', '')} | {geo} |")
+    md += ["", "---", "", "## Execution Trace", "",
+           "| Step | Status | Duration |",
+           "|---|---|---|",
+    ]
     for s in result.trace:
-        md.append(f"- `{s.get('name')}` status={s.get('status','ok')} "
-                  f"{('duration=' + str(s.get('duration_ms')) + 'ms') if s.get('duration_ms') else ''}")
-    md += ["", "## Outputs", "", "```json",
+        name = s.get('name', '')
+        status = s.get('status', 'ok')
+        dur = f"{s.get('duration_ms')} ms" if s.get('duration_ms') else '—'
+        md.append(f"| `{name}` | {status} | {dur} |")
+    md += ["", "---", "", "## Outputs", "", "```json",
            json.dumps(payload["outputs"], indent=2, default=str)[:4000],
-           "```"]
+           "```", "", "---",
+           f"*Report generated by Anvesha — Earth Observation & Investigation System (SIH26167)*"]
     md_path = run_dir / "report.md"
     md_path.write_text("\n".join(md), encoding="utf-8")
     return {"json": json_path, "markdown": md_path}
 
 
 _CONTROLLER: Optional[AgentController] = None
+_controller_lock = threading.Lock()
 
 
 def get_controller() -> AgentController:
     global _CONTROLLER
     if _CONTROLLER is None:
-        _CONTROLLER = AgentController()
+        with _controller_lock:
+            if _CONTROLLER is None:
+                _CONTROLLER = AgentController()
     return _CONTROLLER

@@ -47,11 +47,13 @@ export default function PipelineTrack() {
             <circle cx={p.x} cy={p.y} r="10" fill="none" stroke="#35c5f2" strokeOpacity="0.5" />
             <circle cx={p.x} cy={p.y} r="3.5" fill={i === STEPS.length - 1 ? '#7dd3fc' : '#35c5f2'} />
             <text x={p.x} y={p.y + (i % 2 === 0 ? -34 : 40)} textAnchor="middle"
-              fontSize="16" letterSpacing="2" className="fill-white font-mono">
+              fontSize="16" letterSpacing="2"
+              className="font-mono" fill="var(--c-text)">
               {STEPS[i].name.toUpperCase()}
             </text>
             <text x={p.x} y={p.y + (i % 2 === 0 ? -54 : 60)} textAnchor="middle"
-              fontSize="13" className="hidden fill-white/50 font-mono md:inline">
+              fontSize="13"
+              className="hidden font-mono md:inline" fill="var(--c-muted)">
               {STEPS[i].desc}
             </text>
           </g>

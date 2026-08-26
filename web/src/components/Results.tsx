@@ -212,24 +212,19 @@ export default function Results({ result, onFollowUp }:
               ⬇ report.pdf
             </a>
           )}
-          {result.reports?.markdown && (
-            <a href={result.reports.markdown.replace(/^.*\/reports\//, '/api/reports/')} download
-              className="rounded-lg border border-line px-3 py-1.5 text-xs text-muted transition-colors hover:border-accent/50 hover:text-accent">
-              ⬇ report.md
-            </a>
+          {result.run_id && (
+            <>
+              <a href={`/api/reports/${result.run_id}/report.md`} download
+                className="rounded-lg border border-line px-3 py-1.5 text-xs text-muted transition-colors hover:border-accent/50 hover:text-accent">
+                ⬇ report.md
+              </a>
+              <a href={`/api/reports/${result.run_id}/report.json`} download
+                className="rounded-lg border border-line px-3 py-1.5 text-xs text-muted transition-colors hover:border-accent/50 hover:text-accent">
+                ⬇ report.json
+              </a>
+            </>
           )}
-          {result.reports?.json && (
-            <a href={result.reports.json.replace(/^.*\/reports\//, '/api/reports/')} download
-              className="rounded-lg border border-line px-3 py-1.5 text-xs text-muted transition-colors hover:border-accent/50 hover:text-accent">
-              ⬇ report.json
-            </a>
-          )}
-          {(result.visuals?.change_overlay || result.mask_geotiff) && (
-            <a href={result.mask_geotiff?.startsWith('/api') ? result.mask_geotiff : '#'} download
-              className="rounded-lg border border-line px-3 py-1.5 text-xs text-muted transition-colors hover:border-accent/50 hover:text-accent">
-              ⬇ change mask raster
-            </a>
-          )}
+
         </div>
       </div>
 
