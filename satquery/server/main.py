@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import os
+import secrets
 import sys
 import threading
 import time
@@ -20,7 +21,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+import numpy as np
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Header, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -63,10 +65,13 @@ _AUTH_TOKEN = os.environ.get("SATQUERY_TOKEN", "").strip()
 ALLOWED_EXT = {".tif", ".tiff", ".png", ".jpg", ".jpeg"}
 
 
-def _check_auth(auth_header: Optional[str]) -> None:
+def _check_auth(authorization: Optional[str] = Header(None)) -> None:
+    """Bearer-token gate for /api/* when SATQUERY_TOKEN is configured."""
     if not _AUTH_TOKEN:
         return
-    if auth_header != f"Bearer {_AUTH_TOKEN}":
+    expected = f"Bearer {_AUTH_TOKEN}"
+    if authorization is None or not secrets.compare_digest(
+            authorization.encode(), expected.encode()):
         raise HTTPException(401, "invalid or missing bearer token")
 
 
@@ -77,17 +82,32 @@ def _save_uploads(files: List[UploadFile]) -> List[Path]:
     updir.mkdir(parents=True, exist_ok=True)
     paths = []
     for f in files:
-        ext = Path(f.filename or "").suffix.lower()
+        raw_name = Path(f.filename or "upload").name
+        ext = Path(raw_name).suffix.lower()
         if ext not in ALLOWED_EXT:
             raise HTTPException(400,
                                 f"Unsupported format '{ext}'. Use GeoTIFF/TIFF "
                                 f"or PNG/JPEG (benchmark datasets).")
-        data = f.file.read()
-        if len(data) > MAX_UPLOAD_BYTES:
-            raise HTTPException(400,
-                                f"'{f.filename}' exceeds the 50 MB limit.")
-        dest = updir / f"{uuid.uuid4().hex[:8]}_{Path(f.filename).name}"
-        dest.write_bytes(data)
+        # stream with a hard cap so a giant part can't exhaust memory
+        remaining = MAX_UPLOAD_BYTES + 1
+        chunks = []
+        try:
+            total = 0
+            while True:
+                chunk = f.file.read(1024 * 1024)
+                if not chunk:
+                    break
+                total += len(chunk)
+                if total > MAX_UPLOAD_BYTES:
+                    raise HTTPException(
+                        400, f"'{raw_name}' exceeds the 50 MB limit.")
+                chunks.append(chunk)
+            remaining = 0
+        finally:
+            if remaining:
+                f.file.close()
+        dest = updir / f"{uuid.uuid4().hex}_{raw_name}"   # full hash: no collisions
+        dest.write_bytes(b"".join(chunks))
         paths.append(dest)
     return paths
 
@@ -125,6 +145,17 @@ async def create_job(
             job.result = cached_result
             job.trace = cached_result.get("execution_summary", [])
             JOBS.cache_hits += 1
+            # persist so history/restart lookups work, and release the slot
+            # the create() consumed (cached jobs never enter run())
+            STORE.upsert_start(job.id,
+                               datetime.now().isoformat(timespec="seconds"),
+                               query, task_override or "auto", "done", ckey)
+            STORE.finish(job.id, "done", str(cached_result.get("selected_task", "")),
+                         str(cached_result.get("answer", "")),
+                         float(cached_result.get("confidence", 0)),
+                         str(cached_result.get("run_id", "")), "",
+                         cached_result, True)
+            JOBS.release_slot()
             log_event(job.id, "cache_hit", original=cached["job_id"])
             return {"job_id": job.id, "cached": True}
 

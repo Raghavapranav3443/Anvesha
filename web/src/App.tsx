@@ -57,15 +57,15 @@ export default function App() {
             <button key={n.id} onClick={() => setView(n.id)} title={n.hint}
               className={`group flex w-[60px] flex-col items-center gap-0.5 rounded-lg py-2 transition-colors ${
                 view === n.id ? 'bg-accent-soft text-accent' : 'text-muted hover:bg-elev hover:text-body'}`}>
-              <span className="text-[17px] leading-none">{n.icon}</span>
-              <span className="text-[10.5px] font-medium">{n.label}</span>
+              <span className="text-[18px] leading-none">{n.icon}</span>
+              <span className="text-[12px] font-medium">{n.label}</span>
             </button>
           ))}
         </nav>
         <button onClick={toggleTheme} title="Toggle light/dark theme"
           className="flex w-[60px] flex-col items-center gap-0.5 rounded-lg py-2 text-muted hover:bg-elev hover:text-body">
           <span className="text-[16px]">{theme === 'light' ? '🌙' : '☀️'}</span>
-          <span className="text-[10.5px]">{theme === 'light' ? 'Dark' : 'Light'}</span>
+          <span className="text-[12px]">{theme === 'light' ? 'Dark' : 'Light'}</span>
         </button>
       </aside>
 
@@ -82,11 +82,11 @@ export default function App() {
                   EO Investigation System
                 </span>
               </div>
-              <div className="-mt-0.5 font-mono text-[11px] uppercase tracking-[.16em] text-faint">
+              <div className="-mt-0.5 font-mono text-[12px] uppercase tracking-[.16em] text-faint">
                 Earth Observation &amp; Investigation System · SIH26167
               </div>
             </div>
-            <span className="hidden items-center gap-1.5 rounded-full border border-line px-3 py-1 font-mono text-[11px] text-muted md:flex">
+            <span className="hidden items-center gap-1.5 rounded-full border border-line px-3 py-1 text-[12px] text-muted md:flex">
               <span className="h-2 w-2 rounded-full bg-good" /> system ready
             </span>
           </div>

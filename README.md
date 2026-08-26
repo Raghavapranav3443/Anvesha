@@ -40,9 +40,13 @@ auto-detected and handled separately from power-scale data.
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
 pip install -r requirements.txt
 
-# web console (React build included in repo; rebuild with `npm ci && npm run build` in web/)
-python -m uvicorn satquery.server.main:app --port 8000
-# → http://localhost:8000
+# web console — one-command launcher: kills stale instances, serves API +
+# console, opens your browser; Ctrl+C exits cleanly
+python start.py                      # flags: --port / --host / --no-browser
+# → http://localhost:8000   (EO Mission Console UI)
+
+# manual alternative (React build included in repo; rebuild with `npm ci && npm run build` in web/)
+# python -m uvicorn satquery.server.main:app --port 8000
 ```
 
 Docker (offline-deployable, weights baked at build time):
@@ -81,15 +85,15 @@ Measured scorecard (public benchmark test subsets, this machine):
 
 | Benchmark | Metric | Score |
 |---|---|---|
-| RSVQA-LR (test subset) | exact-match accuracy | **0.67** |
-| LEVIR-CD (test subset) | change IoU / F1 | **0.60 / 0.75** |
+| RSVQA-LR (test subset) | exact-match accuracy (per-type specialist heads) | **0.70** |
+| LEVIR-CD (test subset) | change IoU / F1 (FPN-lite detector) | **0.60 / 0.75** |
 | BigEarthNet v2 S1+S2 (held-out val) | per-scene label recall | **0.85** |
-| BigEarthNet.txt captions (val) | BLEU, single-reference | 0.24–0.59* |
-| BigEarthNet.txt refs (test) | IoU>0.5 hit-rate — experimental head, disabled | 0.15 |
+| BigEarthNet.txt captions (val) | BLEU, multi-reference (plan-conditioned decoder + beam-3) | **0.28** |
 
-*Single-reference BLEU understates the decoder (trained against ~4 prompt
-variants per patch); training-validation BLEU is 0.59. All numbers reproducible
-via `python -m satquery.evaluate --all`.
+*Training-validation BLEU (single-reference) is 0.59; the scorecard number is
+the harder multi-reference protocol. The experimental learned-grounding heads
+were measured (hit-rate ≤ 0.15), retired and removed — see MODEL_CARDS.md.
+All numbers reproducible via `python -m satquery.evaluate --all`.
 
 The SAC batch harness consumes pre-georeferenced Cartosat-2S/RISAT-style pairs,
 writes per-item answers/confidence/run-ids to CSV without stopping on failures,
@@ -128,9 +132,88 @@ python -m pytest tests -q     # I/O · routing · all specialists · API lifecyc
 Synthetic GeoTIFF fixtures make the suite offline-capable; it passes both with
 and without trained weights (fallback paths are themselves under test).
 
+## Tech stack
+
+| Layer | Technologies |
+|---|---|
+| **Backend** | Python 3.10+ · PyTorch / torchvision (SceneEncoder ResNet-18, transformer captioner, CORAL ordinal head, TorchScript int8 export) · FastAPI + Uvicorn · rasterio · NumPy · pandas · scikit-learn · Pillow · matplotlib |
+| **Frontend** | React 18 · TypeScript 5 · Vite 5 · Tailwind CSS · Leaflet / react-leaflet (GeoJSON map overlays) |
+| **Persistence & ops** | SQLite (history + result cache, single file, air-gap friendly) · Docker · pytest (63 tests) · GitHub Actions CI |
+
 ## Architecture
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for the full diagram and design contracts.
+<details>
+<summary><b>Detailed architecture diagram</b> — click to expand</summary>
+
+```text
+                     ┌───────────────────────────────────────────────┐
+                     │ python start.py                               │
+                     │ kills stale instances · binds :8000 · opens   │
+                     │ browser when ready · clean Ctrl+C shutdown    │
+                     └──────────────────────┬────────────────────────┘
+                                            ▼
+┌───────────────────────── Client — web/dist SPA ─────────────────────────────┐
+│  React 18 + TypeScript + Tailwind · "EO Mission Console"                    │
+│   Console        History        Evaluation      Provenance     Help         │
+│   upload/query   run browser    scorecard       model cards   glossary     │
+│   live agent trace · swipe-compare · Leaflet GeoJSON overlays               │
+│   click-to-query regions · confidence gauges · report downloads             │
+└──────────────▲──────────────────────────────▲──────────────────────────────┘
+               │ REST + job polling           │ static assets (/assets/*)
+┌──────────────┴──────────────────────────────┴──────────────────────────────┐
+│ FastAPI service — satquery/server/main.py                                   │
+│  POST /api/jobs      GET /api/jobs/{id}      GET /api/history               │
+│  GET /api/samples    GET /api/provenance     POST /api/evaluate/run         │
+│  GET /api/reports/{id}/report.pdf | /report.md | visuals/*.png|*.tif        │
+│  GET /api/geo/{id} (GeoJSON overlays)        GET /healthz                   │
+│  optional bearer-token auth · CORS · SPA fallback (API paths always JSON)   │
+│                                                                             │
+│  JobStore — satquery/server/jobs.py                                         │
+│   bounded ThreadPoolExecutor (SATQUERY_WORKERS=4)                           │
+│   GPU serialised via semaphore (CUDA only) · torch threads capped           │
+│   queue cap → HTTP 429 · LRU eviction of finished jobs                      │
+│   result cache: sha256(inputs + query) → instant identical re-runs          │
+└──────────────▲─────────────────────────────────────────────────────────────┘
+               │ controller.run(..., trace_callback=publish)
+┌──────────────┴─────────────────────────────────────────────────────────────┐
+│ AgentController — satquery/agent.py                                         │
+│  1 validate_inputs   format · modality · CRS · co-registration geometry     │
+│  2 classify_task     keyword-intent rules + aliases + feasibility filter    │
+│        └ low confidence → clarification options ("did you mean…?")          │
+│  3 select_tool       registry lookup w/ input-requirement enforcement       │
+│  4 execute           specialist tool(s), params bound, timed                │
+│        └ investigation mode chains: change_analysis → grounding(water)      │
+│          → impact_analysis, each step traced & error-isolated               │
+│  5 integrate         answer + calibrated confidence + visual evidence       │
+│  6 report            runs/<id>/report.{json,md,pdf} + GeoTIFF change mask   │
+└──────────────▲─────────────────────────────────────────────────────────────┘
+               │
+┌──────────────┴─────────────────────────────────────────────────────────────┐
+│ Specialist registry (tools_impl.py)      shared backbone: SceneEncoder      │
+│                                          (ResNet-18, EuroSAT-warm-started)  │
+│  single_vqa   frozen encoder ⊕ per-type specialist heads + CORAL count      │
+│               head + flip-TTA · RSVQA-LR · exact-match 0.70                 │
+│  captioning   plan-conditioned transformer decoder ⊕ template fallback      │
+│               · BigEarthNet.txt captions · multi-ref BLEU 0.28              │
+│  grounding    spectral-index response maps + boxes (fully interpretable)    │
+│  change_*     Siamese FPN-lite detector, tiled inference · LEVIR-CD         │
+│               IoU 0.60 / F1 0.75 + description + change-VQA                 │
+│  optical_sar  dual-branch S1(dB-aware) ⊕ S2 fusion · BEN v2 pairs ·         │
+│               label recall 0.85                                             │
+└──────────────▲─────────────────────────────────────────────────────────────┘
+               │
+┌──────────────┴─────────────────────────────────────────────────────────────┐
+│ Storage & artifacts                                                         │
+│  data/satquery.db   SQLite — history + cached results (restart-safe)        │
+│  weights/*.pt       trained specialists (+ TorchScript int8 exports, ts/)   │
+│  runs/<run_id>/     reports json/md/pdf · visuals png · georeferenced tif   │
+│  samples/           ISRO-style demo inputs (Cartosat-2S optical, RISAT SAR) │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+</details>
+
+See also [ARCHITECTURE.md](ARCHITECTURE.md) for design contracts.
 Legacy Streamlit app retained (`app.py`); the React console is the primary UI.
 
 ## Data sources (verified online)

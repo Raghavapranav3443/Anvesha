@@ -27,6 +27,7 @@ class LearnedCaptioner:
         self.model = None
         self.vocab = None
         self.val_bleu = None
+        self.cond = False
         path = CONFIG.weights_dir / "captioner.pt"
         if path.exists():
             try:
@@ -36,7 +37,9 @@ class LearnedCaptioner:
                 self.vocab = CaptionVocab([])
                 self.vocab.itos = ckpt["vocab"]
                 self.vocab.stoi = {w: i for i, w in enumerate(self.vocab.itos)}
-                self.model = Captioner(len(self.vocab.itos)).to(self.device)
+                self.cond = bool(ckpt.get("cond", False))
+                self.model = Captioner(len(self.vocab.itos),
+                                       cond=self.cond).to(self.device)
                 self.model.load_state_dict(ckpt["model"])
                 self.model.eval()
                 self.val_bleu = ckpt.get("val_bleu")
@@ -132,14 +135,14 @@ def describe(img: RSImage, query_hint: str = "") -> Dict:
     mod_phrase = MODALITY_PHRASE.get(img.modality, img.modality)
     parts: List[str] = []
 
-    learned = get_learned_captioner().caption(img)
+    cap = get_learned_captioner()
+    learned = cap.caption(img)
     source = "template composition (scene evidence)"
     if learned:
         parts.append(learned.strip().rstrip(".") + ".")
         src_bits = ["BigEarthNet.txt-trained caption decoder"]
-        lc = get_learned_captioner()
-        if lc.val_bleu is not None:
-            src_bits.append(f"val BLEU {lc.val_bleu:.3f}")
+        if cap.val_bleu is not None:
+            src_bits.append(f"val BLEU {cap.val_bleu:.3f}")
         source = " · ".join(src_bits)
 
     if labels:

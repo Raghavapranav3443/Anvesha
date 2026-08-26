@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import type { GeoJSON, JobResult } from '../api'
-import { fetchGeo, fetchProvenance } from '../api'
+import {
+  createJob, fetchGeo, fetchProvenance, pollJob,
+  type GeoJSON, type JobResult,
+} from '../api'
+import { taskLabel } from '../labels'
 import { Panel, Term } from './Console'
 import MapView from './MapView'
 
@@ -21,17 +24,6 @@ function ConfidenceRing({ value }: { value: number }) {
       </span>
     </div>
   )
-}
-
-const TASK_LABEL: Record<string, string> = {
-  single_vqa: 'Visual Question Answering',
-  captioning: 'Scene Description',
-  grounding: 'Region Grounding',
-  change_analysis: 'Change Analysis',
-  change_vqa: 'Change VQA',
-  impact_analysis: 'Impact Analysis',
-  investigation: '🛰️ Investigation Report',
-  optical_sar: 'Optical–SAR Fusion',
 }
 
 function StructuredOutputs({ result }: { result: JobResult }) {
@@ -202,8 +194,8 @@ export default function Results({ result, onFollowUp }:
           <ConfidenceRing value={result.confidence} />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded border border-accent/40 bg-accent-soft px-2 py-0.5 font-mono text-[10.5px] uppercase tracking-wide text-accent">
-                {TASK_LABEL[result.selected_task] ?? result.selected_task}
+              <span className="rounded border border-accent/40 bg-accent-soft px-2 py-0.5 text-[12px] font-semibold uppercase tracking-wide text-accent">
+                {taskLabel(result.selected_task)}
               </span>
               {modelChip}
               {result.cached && (
@@ -415,7 +407,6 @@ function RegionQuery({ result }: { result: JobResult }) {
     const blob: Blob = await new Promise(res =>
       canvas.toBlob(b => res(b!), 'image/png'))
     setBusy(true); setAnswer('')
-    const { createJob, pollJob } = await import('../api')
     const jid = await createJob({
       query: 'Describe the land-cover and major objects visible in this image.',
       files: [new File([blob], 'region.png', { type: 'image/png' })],

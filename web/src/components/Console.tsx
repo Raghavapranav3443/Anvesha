@@ -3,6 +3,8 @@ import {
   createJob, fetchSamples, pollJob,
   type JobState, type SampleInfo,
 } from '../api'
+import { stepLabel as sharedStepLabel, TASK_LABELS } from '../labels'
+import Results from './Results'
 
 const EXAMPLES = [
   'Describe the land-cover and major objects visible in this image.',
@@ -13,18 +15,8 @@ const EXAMPLES = [
   'Investigate urban expansion around the water body between these dates.',
 ]
 
-const STEP_LABELS: Record<string, string> = {
-  validate_inputs: 'Validate inputs',
-  classify_task: 'Interpret query intent',
-  plan_investigation: 'Plan investigation',
-  select_tool: 'Select specialist tool',
-  finish: 'Complete',
-}
-
 function stepLabel(name: string): string {
-  if (STEP_LABELS[name]) return STEP_LABELS[name]
-  if (name.startsWith('execute:')) return `Execute ${name.slice(8)}`
-  return name
+  return sharedStepLabel(name)
 }
 
 function modalityBadge(m: string) {
@@ -178,8 +170,8 @@ export default function Console() {
             <select value={override} onChange={(e) => setOverride(e.target.value)}
               className="w-full rounded-lg border border-line bg-panel px-3 py-2 text-sm text-body outline-none focus:border-accent/60">
               <option value="auto">Auto — agentic routing</option>
-              {['single_vqa', 'captioning', 'grounding', 'change_analysis', 'change_vqa', 'impact_analysis', 'optical_sar'].map((t) => (
-                <option key={t} value={t}>{t}</option>
+              {Object.entries(TASK_LABELS).filter(([t]) => t !== 'investigation').map(([t, label]) => (
+                <option key={t} value={t}>{label}</option>
               ))}
             </select>
           )}
@@ -337,5 +329,3 @@ export function TraceTimeline({ trace, running }: { trace: JobState['trace']; ru
     </Panel>
   )
 }
-
-import Results from './Results'

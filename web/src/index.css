@@ -38,7 +38,7 @@
   --shadow-panel: none;
 }
 
-html { font-size: 17px; }
+html { font-size: 18px; }
 html, body, #root { height: 100%; }
 body { background: var(--c-bg); color: var(--c-text); font-family: Inter, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
 

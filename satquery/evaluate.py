@@ -50,7 +50,8 @@ def bench_caption_bleu(n: int = 150) -> dict | None:
     vocab.itos = ckpt["vocab"]
     vocab.stoi = {t: i for i, t in enumerate(vocab.itos)}
     device = CONFIG.resolve_device()
-    model = Captioner(len(vocab.itos)).to(device).eval()
+    cond = bool(ckpt.get("cond", False))
+    model = Captioner(len(vocab.itos), cond=cond).to(device).eval()
     model.load_state_dict(ckpt["model"])
     enc = SceneEncoder(3).to(device).eval()
     sc = torch.load(CONFIG.scene_encoder_weights, map_location="cpu",
@@ -78,7 +79,7 @@ def bench_caption_bleu(n: int = 150) -> dict | None:
             x = to_tensor(resize_np(rgb, 120)).to(device)
             with torch.no_grad():
                 fmap = enc.feature_map(x, stride=8)
-                text = model.generate(fmap, vocab)[0]
+                text = model.generate(fmap, vocab, beam=3)[0]
             refs = refs_by_patch.get(str(row["patch_id"]), [str(row["output"])])
             scores.append(max(simple_bleu(text, r) for r in refs))
         except Exception:
@@ -87,52 +88,6 @@ def bench_caption_bleu(n: int = 150) -> dict | None:
         return None
     return {"benchmark": "BigEarthNet.txt captions (val)", "metric": "BLEU",
             "n": len(scores), "score": round(float(np.mean(scores)), 4)}
-
-
-def bench_grounding_iou(n: int = 200) -> dict | None:
-    w = CONFIG.weights_dir / "grounding.pt"
-    if not w.exists():
-        return None
-    import torch
-    from scripts.train_grounding import RefDataset, GroundingHead, heat_to_box
-    from satquery.models.backbone import SceneEncoder
-    from satquery.config import CONFIG as _C
-
-    ds_all = RefDataset(_C.data_dir / "bentxt_join" / "refs.parquet",
-                        str(_C.data_dir / "bigearthnet_14k/BEN_14k/BigEarthNet-S2/{split}"))
-    va = ds_all.subset("test")
-    dl = torch.utils.data.DataLoader(va, batch_size=64)
-    device = CONFIG.resolve_device()
-    head = GroundingHead().to(device).eval()
-    head.load_state_dict(torch.load(w, map_location="cpu",
-                                    weights_only=False)["head"])
-    enc = SceneEncoder(3).to(device).eval()
-    sc = torch.load(CONFIG.scene_encoder_weights, map_location="cpu",
-                    weights_only=False)
-    enc.load_state_dict(sc["encoder"])
-    hits = []
-    with torch.no_grad():
-        for bi, (x, q, yb) in enumerate(dl):
-            fmap = enc.feature_map(x.to(device), stride=8)
-            heat = torch.sigmoid(head(fmap, q.to(device))[:, 0]).cpu().numpy()
-            for hm, yb_i in zip(heat, yb):
-                pb = torch.from_numpy(heat_to_box(hm))[None]
-                px0, py0 = pb[0, 0] - pb[0, 2] / 2, pb[0, 1] - pb[0, 3] / 2
-                px1, py1 = pb[0, 0] + pb[0, 2] / 2, pb[0, 1] + pb[0, 3] / 2
-                tx0, ty0 = yb_i[0] - yb_i[2] / 2, yb_i[1] - yb_i[3] / 2
-                tx1, ty1 = yb_i[0] + yb_i[2] / 2, yb_i[1] + yb_i[3] / 2
-                inter = (max(0.0, float(min(px1, tx1) - max(px0, tx0))) *
-                         max(0.0, float(min(py1, ty1) - max(py0, ty0))))
-                union = (float((px1 - px0) * (py1 - py0)) +
-                         float((tx1 - tx0) * (ty1 - ty0)) - inter)
-                hits.append(inter / max(union, 1e-6) > 0.5)
-            if len(hits) >= n:
-                break
-    if not hits:
-        return None
-    import numpy as _np
-    return {"benchmark": "BigEarthNet.txt refs (test)", "metric": "IoU>0.5 hit-rate",
-            "n": len(hits), "score": round(float(_np.mean(hits)), 4)}
 
 
 # --------------------------------------------------------------------- #
@@ -241,8 +196,7 @@ def main():
         return
 
     if args.all:
-        for fn in (bench_rsvqa, bench_levir, bench_caption_bleu,
-                   bench_grounding_iou):
+        for fn in (bench_rsvqa, bench_levir, bench_caption_bleu):
             try:
                 r = fn(args.n)
                 if r:

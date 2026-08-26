@@ -119,6 +119,27 @@ def test_count_head_routing(controller, rgb_png):
 
 
 # ------------------------------------------------------------------- #
+# Per-type specialist head routing
+# ------------------------------------------------------------------- #
+
+def test_type_head_routing(controller, rgb_png):
+    from satquery.config import CONFIG
+    if not (CONFIG.weights_dir / "type_heads.pt").exists():
+        pytest.skip("type heads not trained")
+    from satquery.models.vqa import get_vqa_model
+    m = get_vqa_model()
+    assert m.th is not None
+    # presence question routes to the presence specialist, decodes a string
+    res = m.answer(load_image(rgb_png), "Is there a road present in this image?")
+    assert res["source"].startswith("per-type specialist head (presence)")
+    assert isinstance(res["answer"], str) and res["answer"] in ("yes", "no")
+    # rural/urban question routes to its specialist with valid vocab
+    res2 = m.answer(load_image(rgb_png), "Is it a rural or an urban area?")
+    assert res2["source"].startswith("per-type specialist head (rural_urban)")
+    assert res2["answer"] in ("rural", "urban")
+
+
+# ------------------------------------------------------------------- #
 # TorchScript CPU path
 # ------------------------------------------------------------------- #
 
@@ -132,3 +153,35 @@ def test_torchscript_cpu_path():
     import torch.jit as jit
     assert isinstance(m.encoder, jit.ScriptModule)
     assert isinstance(m.head, jit.ScriptModule)
+
+
+# ------------------------------------------------------------------- #
+# Clarification loop (low-intent-confidence -> "did you mean" options)
+# ------------------------------------------------------------------- #
+
+def test_clarification_on_ambiguous_query(controller, rgb_png):
+    from satquery.agent import build_clarification, classify_task
+    intent = classify_task("tell me about this place", "single")
+    clar = build_clarification("tell me about this place", intent, "single")
+    if clar is not None:
+        assert clar["needed"] and clar["options"]
+        assert all(o["task"] != clar["chosen"]["task"] for o in clar["options"])
+        assert all(o.get("label") for o in clar["options"])
+
+
+def test_clarification_skips_strong_intent_and_empty_query():
+    from satquery.agent import build_clarification, classify_task
+    strong = classify_task("Highlight the water body referred to in the query.",
+                           "single")
+    assert strong["confidence"] >= 0.55
+    assert build_clarification("any query", strong, "single") is None
+    assert build_clarification("", classify_task("", "single"), "single") is None
+
+
+def test_clarification_surfaces_in_run_outputs(controller, rgb_png):
+    res = controller.run([rgb_png], "tell me about this place")
+    clar = res.outputs.get("clarification")
+    if res.confidence < 0.55:
+        assert clar and clar["needed"] and clar["options"]
+    else:
+        assert clar is None

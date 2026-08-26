@@ -16,7 +16,7 @@ import torch.nn as nn
 
 from ..config import CONFIG
 from ..io_utils import RSImage
-from ..text import content_tokens, is_question, tokenize
+from ..text import tokenize
 from .backbone import SceneEncoder, _rgb3_compat as _rgb3, normalise_for_encoder, resize_np, to_tensor
 from .scene import get_scene_classifier
 
@@ -58,6 +58,44 @@ class RSVQAModel:
                 self.trained = False
         self._maybe_torchscript()
         self._load_count_head()
+        self._load_type_heads()
+
+    def _load_type_heads(self) -> None:
+        """Per-type specialist heads (jointly trained, own encoder)."""
+        path = CONFIG.weights_dir / "type_heads.pt"
+        if not path.exists():
+            return
+        try:
+            import torch
+            ckpt = torch.load(path, map_location="cpu", weights_only=False)
+            if ckpt.get("backbone") == "dino":
+                from .dino_encoder import DinoEncoder
+                enc = DinoEncoder(
+                    weights=str(CONFIG.weights_dir / "dinov2_vits14.pt"),
+                    device=self.device)
+                enc.load_state_dict(ckpt["encoder_state"])
+                enc = enc.eval().to(self.device)
+            else:
+                enc = SceneEncoder(3)
+                enc.load_state_dict(ckpt["encoder_state"])
+                enc = enc.eval().to(self.device)
+            heads = {}
+            for t_name, state in ckpt["heads"].items():
+                n = ckpt["vocab_sizes"][t_name]
+                h = _FusionHead(n, 1)
+                h.load_state_dict(state)
+                heads[t_name] = h.eval().to(self.device)
+            self.th = {
+                "encoder": enc, "heads": heads,
+                "local_lut": ckpt["local_lut"],
+                "type_vocab": ckpt["type_vocab"],
+                "image_size": int(ckpt.get("image_size", 128)),
+                "bow_dim": int(ckpt.get("bow_dim", 512)),
+                "backbone": ckpt.get("backbone", "scene"),
+                "val_mean_acc": ckpt.get("val_mean_acc"),
+            }
+        except Exception:
+            self.th = None
 
     def _maybe_torchscript(self) -> None:
         """On CPU, prefer the exported TorchScript encoder/head (P3)."""
@@ -106,15 +144,54 @@ class RSVQAModel:
         if self.trained:
             t_idx = infer_question_type(question, self.type_vocab)
             count_idx = self.type_vocab.get("count", -1)
-            if t_idx == count_idx and count_idx >= 0 and self.count is not None:
+            t_name = next((n for n, i in self.type_vocab.items()
+                           if i == t_idx), None)
+            # route to per-type specialist head when available
+            if self.th is not None and t_name in self.th["heads"]:
+                out = self._type_answer(img, question, t_name)
+                if out is not None:
+                    return out
+            if t_idx == count_idx and self.count is not None:
                 out = self._count_answer(img, question)
                 if out is not None:
                     return out
-        if self.trained:
             out = self._model_answer(img, question)
             if out is not None:
                 return out
         return self._rule_answer(img, question)
+
+    def _type_answer(self, img: RSImage, question: str,
+                     t_name: str) -> Optional[Dict]:
+        """Per-type specialist head (own jointly-trained encoder)."""
+        import torch
+        cfg = self.th
+        rgb = _rgb3(img)
+        x = to_tensor(resize_np(normalise_for_encoder(rgb, img.modality),
+                                cfg["image_size"])).to(self.device)
+        q = np.zeros(cfg["bow_dim"], dtype=np.float32)
+        q[:] = _hashed_bow(question, dim=cfg["bow_dim"])
+        qb = torch.from_numpy(q).unsqueeze(0).to(self.device)
+        head = cfg["heads"][t_name]
+        with torch.no_grad():
+            logits = head(cfg["encoder"](x), qb,
+                          torch.zeros(1, dtype=torch.long, device=self.device))
+            probs = torch.softmax(logits, -1)[0].cpu().numpy()
+        if t_name == "count":
+            lut_inv = {i: str(i) for i in range(10)}
+        else:
+            # local_lut = {global_id: local_id}; argmax returns LOCAL ids,
+            # so decode local -> global id -> answer string
+            lut_inv = {v: self.answer_vocab[k]
+                       for k, v in cfg["local_lut"].get(t_name, {}).items()}
+        top = int(np.argmax(probs))
+        answer = str(lut_inv.get(top, top))
+        order = np.argsort(-probs)[:3]
+        cands = [(str(lut_inv.get(i, i)), round(float(probs[i]), 3))
+                 for i in order]
+        return {"answer": answer,
+                "confidence": round(float(probs[top]), 3),
+                "candidates": cands,
+                "source": f"per-type specialist head ({t_name})"}
 
     def _count_answer(self, img: RSImage, question: str) -> Optional[Dict]:
         """Dedicated counting head with flip-TTA."""

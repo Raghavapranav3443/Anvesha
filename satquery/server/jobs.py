@@ -92,6 +92,11 @@ def cache_key_for(paths: List[Path], query: str, task_override: Optional[str],
     return h.hexdigest()
 
 
+def _jsonable(obj: Any) -> Any:
+    return json.loads(json.dumps(
+        obj, default=lambda o: o.item() if hasattr(o, "item") else str(o)))
+
+
 class _Job:
     def __init__(self, query: str, task_override: str, image_paths: List[Path],
                  params: Dict[str, str], cache_key: str = ""):
@@ -109,15 +114,19 @@ class _Job:
         self.cached = False
         self._lock = threading.Lock()
 
+    def _publish_trace(self, trace: List[Dict[str, Any]]) -> None:
+        """Live trace streaming: called by the controller after every step."""
+        with self._lock:
+            try:
+                self.trace = _jsonable(trace)
+            except Exception:
+                self.trace = list(trace)
+
     def snapshot(self) -> Dict[str, Any]:
         with self._lock:
             try:
-                trace = json.loads(json.dumps(
-                    self.trace, default=lambda o: o.item()
-                    if hasattr(o, "item") else str(o)))
-                result = json.loads(json.dumps(
-                    self.result, default=lambda o: o.item()
-                    if hasattr(o, "item") else str(o))) if self.result else None
+                trace = _jsonable(self.trace)
+                result = _jsonable(self.result) if self.result else None
             except Exception:
                 trace, result = self.trace, self.result
             return {
@@ -141,12 +150,12 @@ class JobStore:
         self.cache_hits = 0
 
     def create(self, query, task_override, paths, params, cache_key="") -> _Job:
-        if self._pending >= MAX_QUEUE:
-            raise RuntimeError(
-                f"Server busy: {self._pending} analyses queued "
-                f"(limit {MAX_QUEUE}). Retry shortly.")
-        job = _Job(query, task_override, paths, params, cache_key)
-        with self._lock:
+        with self._lock:                     # bound check inside lock: no race
+            if self._pending >= MAX_QUEUE:
+                raise RuntimeError(
+                    f"Server busy: {self._pending} analyses queued "
+                    f"(limit {MAX_QUEUE}). Retry shortly.")
+            job = _Job(query, task_override, paths, params, cache_key)
             self._jobs[job.id] = job
             self._order.append(job.id)
             self._pending += 1
@@ -154,15 +163,22 @@ class JobStore:
         return job
 
     def _evict_locked(self) -> None:
-        """Keep memory bounded: drop oldest finished jobs beyond the cap.
-        Finished jobs are already persisted to SQLite before eviction."""
-        while len(self._order) > MAX_JOBS_IN_MEMORY:
-            oldest = self._order[0]
-            j = self._jobs.get(oldest)
-            if j and j.status in ("queued", "running"):
-                break                               # never evict active work
-            self._order.pop(0)
-            self._jobs.pop(oldest, None)
+        """Keep memory bounded: drop oldest *finished* jobs beyond the cap.
+        Active jobs are skipped, so finished payloads behind a long-running
+        job can still be reclaimed (no head-of-line blocking)."""
+        excess = len(self._order) - MAX_JOBS_IN_MEMORY
+        if excess <= 0:
+            return
+        evicted = 0
+        for jid in list(self._order):
+            if evicted >= excess:
+                break
+            j = self._jobs.get(jid)
+            if j is not None and j.status in ("queued", "running"):
+                continue                     # never evict active work
+            self._order.remove(jid)
+            self._jobs.pop(jid, None)
+            evicted += 1
 
     def get(self, job_id: str) -> Optional[_Job]:
         return self._jobs.get(job_id)
@@ -170,6 +186,14 @@ class JobStore:
     def release_slot(self) -> None:
         with self._lock:
             self._pending = max(0, self._pending - 1)
+
+    def submit(self, job: _Job) -> None:
+        """Dispatch a created job onto the bounded worker pool."""
+        try:
+            self._executor.submit(self.run, job.id)
+        except Exception:
+            self.release_slot()              # never leak a queue slot
+            raise
 
     def stats(self) -> Dict[str, Any]:
         with self._lock:

@@ -64,6 +64,59 @@ TASK_KEYWORDS = {
 # Intent buckets that share a registered tool
 TASK_ALIASES = {"change_description": "change_analysis"}
 
+# Human-readable labels used by the clarification loop
+TASK_LABELS = {
+    "single_vqa": "Answer a question about this image",
+    "captioning": "Describe the scene",
+    "grounding": "Locate & highlight a region",
+    "change_analysis": "Detect & map changes between the dates",
+    "change_vqa": "Answer questions about the changes",
+    "optical_sar": "Fuse optical + SAR evidence",
+    "impact_analysis": "Quantify the impact of changes",
+    "investigation": "Run a full multi-step investigation",
+}
+
+CLARIFY_THRESHOLD = 0.55
+
+_FEASIBLE_ORDER = {
+    "single": ["single_vqa", "grounding", "captioning"],
+    "bitemporal_pair": ["change_vqa", "change_analysis", "impact_analysis"],
+    "optical_sar_pair": ["optical_sar", "single_vqa"],
+}
+
+
+def build_clarification(query: str, intent: Dict[str, Any],
+                        configuration: str) -> Optional[Dict[str, Any]]:
+    """'Did you mean…?' options when intent confidence is low.
+
+    The best-guess task still executes (graceful degradation); the options
+    let the user re-run with an explicit override from the UI.
+    """
+    if intent.get("method", "").startswith("explicit"):
+        return None
+    if not query.strip():
+        return None
+    if float(intent.get("confidence", 1.0)) >= CLARIFY_THRESHOLD:
+        return None
+    scores = {t: s for t, s in intent.get("ranked_candidates", [])}
+    options = [(t, s) for t, s in scores.items() if s > 0]
+    if not options:
+        # default routing fired on a non-empty query: offer plausible tasks
+        options = [(t, 0.0) for t in _FEASIBLE_ORDER.get(configuration, [])
+                   if t != intent["task"]]
+    options = [(t, s) for t, s in options if t != intent["task"]][:2]
+    if not options:
+        return None
+    return {
+        "needed": True,
+        "question": "Low confidence in the requested analysis — did you mean:",
+        "chosen": {"task": intent["task"],
+                   "label": TASK_LABELS.get(intent["task"], intent["task"])},
+        "options": [{"task": t,
+                     "label": TASK_LABELS.get(t, t),
+                     "score": round(float(s), 3)} for t, s in options],
+    }
+
 
 def classify_task(query: str, configuration: str) -> Dict[str, Any]:
     """Rule-based intent classifier returning ranked candidate tasks."""
@@ -209,6 +262,9 @@ class AgentController:
             intent = {"task": task_override, "confidence": 1.0,
                       "method": "explicit user override",
                       "ranked_candidates": [], "infeasible_ignored": []}
+        clarification = build_clarification(query, intent, cfg["configuration"])
+        if clarification is not None:
+            intent["clarification"] = clarification
         step.update(status="ok", output=intent)
         emit()
 
@@ -250,6 +306,8 @@ class AgentController:
         from .suggestions import suggest
         out["suggestions"] = suggest({"selected_task": spec.name,
                                       "outputs": out})
+        if clarification is not None:
+            out["clarification"] = clarification
         result = AgentResult(
             run_id=datetime.now().strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:6],
             query=query, configuration={**cfg,

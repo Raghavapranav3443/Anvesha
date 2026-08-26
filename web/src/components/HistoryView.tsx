@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { fetchHistory, fetchJob, type HistoryRow, type JobState } from '../api'
+import { taskLabel } from '../labels'
 import { Panel } from './Console'
 import Results from './Results'
 
@@ -34,7 +35,7 @@ export default function HistoryView() {
             {cmpStates.map(s => (
               <div key={s.job_id} className="rounded-lg border border-line p-4">
                 <div className="font-mono text-[11px] text-muted">{s.job_id}</div>
-                <div className="mt-1 text-[13px] text-accent">{s.result?.selected_task}</div>
+                <div className="mt-1 text-[13px] font-medium text-accent">{taskLabel(s.result?.selected_task)}</div>
                 <div className="mt-2 text-sm text-body">{s.result?.answer?.slice(0, 220)}</div>
                 <div className="mt-2 font-mono text-xs text-muted">confidence {s.result?.confidence}</div>
               </div>
@@ -47,10 +48,10 @@ export default function HistoryView() {
         <div className="mb-3 flex flex-wrap gap-1.5">
           {['', 'single_vqa', 'captioning', 'grounding', 'change_vqa', 'change_analysis', 'optical_sar'].map(t => (
             <button key={t || 'all'} onClick={() => setFilter(t)}
-              className={`rounded-full border px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-wide transition-colors ${
+              className={`rounded-full border px-2.5 py-0.5 text-[11.5px] transition-colors ${
                 filter === t ? 'border-accent/60 bg-accent/10 text-accent'
                              : 'border-line text-muted hover:text-body'}`}>
-              {t || 'all'}
+              {t ? taskLabel(t) : 'all tasks'}
             </button>
           ))}
           <button onClick={refresh}
@@ -72,7 +73,7 @@ export default function HistoryView() {
               {visible.map(r => (
                 <tr key={r.job_id} className="border-b border-line/60 hover:bg-elev">
                   <td className="py-2 pr-3 font-mono text-[11px] text-muted">{r.created_at.slice(5, 16)}</td>
-                  <td className="py-2 pr-3 font-mono text-[11px] text-accent">{r.selected_task || r.status}</td>
+                  <td className="py-2 pr-3 text-[12.5px] text-accent">{taskLabel(r.selected_task) !== '—' ? taskLabel(r.selected_task) : r.status}</td>
                   <td className="max-w-[220px] truncate py-2 pr-3 text-muted">{r.query}</td>
                   <td className="max-w-[280px] truncate py-2 pr-3 text-body">{r.answer}</td>
                   <td className="py-2 pr-3 text-right font-mono text-[11px] text-muted">{r.confidence?.toFixed?.(2)}</td>
