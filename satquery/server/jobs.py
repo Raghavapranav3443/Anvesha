@@ -127,9 +127,30 @@ def _encode_image(arr, max_px: int = EVIDENCE_MAX_PX) -> Optional[str]:
 # Cache key
 # ---------------------------------------------------------------------------
 
+def weights_fingerprint() -> str:
+    """Cheap fingerprint of the model checkpoints (name + size + mtime).
+
+    Included in the cache key so that swapping/retraining weights
+    invalidates stale cached answers immediately instead of serving
+    results computed by the previous checkpoint until the TTL expires.
+    """
+    parts = []
+    for attr in ("scene_encoder_weights", "vqa_weights", "change_weights",
+                 "fusion_weights"):
+        p: Path = getattr(CONFIG, attr)
+        if p.exists():
+            st = p.stat()
+            parts.append(f"{p.name}:{st.st_size}:{int(st.st_mtime)}")
+    return "|".join(parts)
+
+
 def cache_key_for(paths: List[Path], query: str, task_override: Optional[str],
                   params: Dict[str, str]) -> str:
     """Compute a deterministic SHA-256 cache key.
+
+    Includes the model-weights fingerprint: retraining or swapping a
+    checkpoint changes the key, so stale cached answers from the previous
+    weights are never served.
 
     Guards against files that disappear between upload and hashing
     (e.g. concurrent cleanup) by propagating ``FileNotFoundError`` so the
@@ -147,6 +168,7 @@ def cache_key_for(paths: List[Path], query: str, task_override: Optional[str],
     h.update(query.strip().lower().encode())
     h.update((task_override or "auto").encode())
     h.update(json.dumps(params, sort_keys=True).encode())
+    h.update(weights_fingerprint().encode())
     return h.hexdigest()
 
 
@@ -296,7 +318,12 @@ class JobStore:
 
         sem = gpu_semaphore()
         try:
-            images     = [load_image(p) for p in job.image_paths]
+            # explicit modality override (POST /api/jobs 'modality' param)
+            # removes the dB-heuristic single point of failure for ISRO-style
+            # SAR products with ambiguous names
+            modality_override = (job.params or {}).get("modality") or None
+            images = [load_image(p, modality_override=modality_override)
+                      for p in job.image_paths]
             controller = get_controller()
             cb         = (lambda trace: (job._publish_trace(trace), time.sleep(0.08)))
             run_kw     = dict(trace_callback=cb)

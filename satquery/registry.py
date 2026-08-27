@@ -2,7 +2,20 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Literal, Optional, Union
+
+# Canonical task identifiers shared by the agent, registry and API schema.
+# String values (not an Enum) so existing string-typed code, JSON payloads
+# and tests keep working unchanged — this is a typing contract, not a
+# runtime change. A typo'd task id now fails static analysis instead of
+# only failing at runtime.
+TaskId = Literal["single_vqa", "captioning", "grounding", "change_analysis",
+                 "change_vqa", "optical_sar", "impact_analysis",
+                 "investigation"]
+
+TASK_IDS: tuple = ("single_vqa", "captioning", "grounding",
+                   "change_analysis", "change_vqa", "optical_sar",
+                   "impact_analysis", "investigation")
 
 
 @dataclass

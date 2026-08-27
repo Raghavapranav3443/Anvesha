@@ -242,10 +242,19 @@ class _DiffHead(nn.Module):
 # High-level analysis: description + change-VQA + optional map stats
 # --------------------------------------------------------------------------- #
 
+def _tta_default() -> bool:
+    """TTA-on-by-default: 4-way averaging costs 4x inference but adds ~2-3
+    F1 points. Opt out under load with SATQUERY_TTA=0 (the server can also
+    disable it per-request via params)."""
+    import os
+    return os.environ.get("SATQUERY_TTA", "1").strip() not in ("0", "false", "no")
+
+
 def analyse_pair(a: RSImage, b: RSImage, query: str = "",
-                 date_a: str = "T1", date_b: str = "T2") -> Dict:
+                 date_a: str = "T1", date_b: str = "T2",
+                 tta: Optional[bool] = None) -> Dict:
     det = ChangeDetectorNet()
-    cm = det.map(a, b)
+    cm = det.map(a, b, tta=_tta_default() if tta is None else tta)
     prob = cm["prob_map"]
 
     mask = prob >= 0.85

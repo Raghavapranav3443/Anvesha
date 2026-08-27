@@ -180,10 +180,16 @@ def test_clarification_skips_strong_intent_and_empty_query():
 
 
 def test_clarification_surfaces_in_run_outputs(controller, rgb_png):
-    # Use a deliberately ambiguous query that has weak keyword + embedding signal
+    # Use a deliberately ambiguous query that has weak keyword + embedding signal.
+    # NOTE: the clarification gate keys off the *intent* confidence, not the
+    # answer confidence (which comes from the specialist tool output).
+    from satquery.agent import CLARIFY_THRESHOLD, classify_task
     res = controller.run([rgb_png], "something")
+    intent_conf = classify_task("something", "single")["confidence"]
     clar = res.outputs.get("clarification")
-    if res.confidence < 0.55:
+    if intent_conf < CLARIFY_THRESHOLD:
         assert clar and clar["needed"] and clar["options"]
     else:
         assert clar is None
+    # the run must also surface the intent confidence for auditability
+    assert res.outputs.get("intent_confidence") == intent_conf

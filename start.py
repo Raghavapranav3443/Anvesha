@@ -134,6 +134,44 @@ def _open_browser_when_ready(server, url: str) -> None:
         webbrowser.open(url)
 
 
+def _check_frontend_build(strict: bool = False) -> None:
+    """Frontend-backend drift guard.
+
+    The committed web/dist can silently drift from web/src (it has before:
+    stale hashed chunks). If the SPA build is missing, or older than the
+    newest frontend source file, warn loudly — or abort with --strict so a
+    demo never starts against a stale console.
+    """
+    dist = REPO_ROOT / "web" / "dist" / "index.html"
+    src = REPO_ROOT / "web" / "src"
+    if not dist.exists():
+        msg = ("web/dist/index.html not found — the web console cannot be "
+               "served. Build it with:  cd web && npm ci && npm run build")
+        if strict:
+            sys.exit(f"ABORT: {msg}")
+        print(f"WARNING: {msg}")
+        return
+    if src.exists():
+        newest_src = max(p.stat().st_mtime for p in src.rglob("*")
+                         if p.is_file())
+        if newest_src > dist.stat().st_mtime:
+            msg = ("web/dist is OLDER than web/src — the console may be "
+                   "stale. Rebuild with:  cd web && npm ci && npm run build")
+            if strict:
+                sys.exit(f"ABORT: {msg}")
+            print(f"WARNING: {msg}")
+
+
+def _warn_auth_posture(host: str) -> None:
+    """Unauthenticated + LAN-exposed = anyone on the venue network can hit
+    the API. Remind the operator before the demo starts."""
+    if not os.environ.get("SATQUERY_TOKEN", "").strip() \
+            and host not in ("127.0.0.1", "localhost"):
+        print("WARNING: SATQUERY_TOKEN is not set while binding to a "
+              "non-localhost host — the API is open to the whole network. "
+              "Set SATQUERY_TOKEN for the demo venue.")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(
         description="Launch the Anvesha EO Investigation System "
@@ -144,6 +182,9 @@ def main() -> None:
                     default=int(os.environ.get("SATQUERY_PORT", "8000")))
     ap.add_argument("--no-browser", action="store_true",
                     help="do not auto-open the web console")
+    ap.add_argument("--strict", action="store_true",
+                    help="abort instead of warning when the frontend build "
+                         "is missing or stale")
     args = ap.parse_args()
 
     sys.path.insert(0, str(REPO_ROOT))
@@ -152,6 +193,8 @@ def main() -> None:
     print("=" * 64)
     print("Anvesha - Earth Observation & Investigation System")
     print("=" * 64)
+    _check_frontend_build(strict=args.strict)
+    _warn_auth_posture(args.host)
     stop_previous_instances(args.port)
 
     shown_host = "localhost" if args.host in ("0.0.0.0", "127.0.0.1") \

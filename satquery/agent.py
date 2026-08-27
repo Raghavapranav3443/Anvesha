@@ -398,6 +398,10 @@ class AgentController:
         from .suggestions import suggest
         out["suggestions"] = suggest({"selected_task": spec.name,
                                       "outputs": out})
+        # surface the intent-stage confidence separately from the answer
+        # confidence (which comes from the specialist tool output) so the
+        # clarification gate is auditable end-to-end
+        out["intent_confidence"] = float(intent.get("confidence", 1.0))
         if clarification is not None:
             out["clarification"] = clarification
         result = AgentResult(

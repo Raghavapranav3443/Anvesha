@@ -15,7 +15,7 @@ exportable GeoTIFF masks, and a fully auditable execution trace.
 
 | Requirement | Implementation | Trained on | Measured |
 |---|---|---|---|
-| RS adaptation | Shared `SceneEncoder` (band-adaptive ResNet-18) warm-starts every specialist | EuroSAT (96px, 2500/class, 12 epochs, AMP, label smoothing) | **98.86%** val acc |
+| RS adaptation | Shared `SceneEncoder` (band-adaptive ResNet-18) warm-starts every specialist | EuroSAT (96px, 2500/class, 12 epochs, AMP, label smoothing) | **98.86%** val acc (full track; quick-track 200/class warm-start: 0.91) |
 | Single-image VQA *(mandatory)* | Visual ⊕ question-type-conditioned fusion head | RSVQA-LR (full train) | see scorecard |
 | Second single-image task | Captioning **and** grounding — both implemented | BigEarthNet.txt captions + reference boxes | BLEU / IoU@0.5 |
 | Bi-temporal change *(mandatory)* | Siamese detector (tiled inference) + description + change-VQA + GeoTIFF change map | LEVIR-CD | IoU/F1 on test |
@@ -85,8 +85,8 @@ Measured scorecard (public benchmark test subsets, this machine):
 | Presence (is there X?) | exact-match | **0.91** | GeoChat-zero-shot ~0.70 |
 | Rural/Urban classification | exact-match | **0.84** | — |
 | Comparison (more/less) | exact-match | **0.71** | — |
-| Counting (how many) | exact-match | **0.45** | — |
-| Aggregate RSVQA-LR | exact-match (all types) | **0.69** | 79.08% (Lobry et al.) |
+| Counting (how many) | exact-match | **0.44** (val digit-acc; ordinal soft-CE v4) | — |
+| Aggregate RSVQA-LR | exact-match (all types) | **0.71** (test subset, n=282) | 79.08% (Lobry et al.) |
 
 *Aggregate EM is dragged down by the counting head (29.5% of test questions,
 weakest accuracy). Per-type heads are the fairer comparison against other systems.*
@@ -96,10 +96,13 @@ weakest accuracy). Per-type heads are the fairer comparison against other system
 | Benchmark | Metric | Score | Published Baseline |
 |---|---|---|---|
 | LEVIR-CD (test, thr=0.85) | IoU / F1 | **0.668 / 0.801** | BIT-RN18: 0.81/0.89 |
-| CDVQA (test) | answer accuracy | **—** | RN-18 baseline: 0.68 |
+| CDVQA (test, 35,212 Q) | answer accuracy | **0.493** (majority baseline 0.508; +7.5 pts over baseline on change-ratio, +5.2 on change-to-what) | RN-18 baseline: 0.68 |
 
 *LEVIR-CD: CPU-class Siamese FPN, 44MB weights, tiled inference — capability
-demo, not SOTA claim. TTA (+2-3 F1 points) available via `--tta` flag.*
+demo, not SOTA claim. TTA (+2-3 F1 points) available via `--tta` flag.
+Protocol note: the 0.668/0.801 headline is the thresholded full-test protocol;
+the MODEL_CARDS 0.60/0.75 figure is the n=300 test-subset protocol — same
+model, different evaluation sets. The full-test number is canonical.*
 
 ### Captioning & scene classification
 

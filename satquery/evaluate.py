@@ -98,8 +98,14 @@ def sac_batch(folder: Path, out_csv: Path | None = None,
               query: str = "Describe what changed between the two dates and where.") -> dict:
     """Run the agent over every co-registered pair found under folder.
 
-    Expected layout (flexible): folders or files named such that an optical
-    and SAR/before-after pairing can be inferred by shared stem prefix.
+    Pairing resolution order:
+      1. **Explicit manifest** — a ``pairs.csv`` next to the inputs with one
+         ``image_a,image_b`` row per pair (filenames relative to *folder*).
+         This is the recommended route for the ISRO/SAC evaluation set: it
+         removes all ambiguity from filename-based inference.
+      2. **Stem-prefix heuristic** (fallback) — greedy pairing of stems
+         sharing a long common prefix (>= 60% of the shorter stem).
+
     Writes answers.csv next to the inputs and returns a summary.
     """
     from .agent import get_controller
@@ -109,25 +115,39 @@ def sac_batch(folder: Path, out_csv: Path | None = None,
         if p.suffix.lower() in {".tif", ".tiff", ".png", ".jpg", ".jpeg"}:
             images.setdefault(p.stem.lower(), []).append(p)
 
-    groups = []
-    used = set()
-    keys = sorted(images.keys())
-    for k in keys:
-        if k in used:
-            continue
-        group = [k]
-        # greedy: pair stems sharing a long common prefix
-        for other in keys:
-            if other == k or other in used:
+    groups: list[list[str]] = []
+    manifest = folder / "pairs.csv"
+    if manifest.exists():
+        with open(manifest, newline="", encoding="utf-8") as fh:
+            for row in csv.DictReader(fh):
+                a = (row.get("image_a") or row.get("a") or "").strip()
+                b = (row.get("image_b") or row.get("b") or "").strip()
+                sa, sb = Path(a).stem.lower(), Path(b).stem.lower()
+                if sa in images and sb in images:
+                    groups.append([sa, sb])
+                else:
+                    print(f"[pairs.csv] skipping unknown file(s): {a!r}, {b!r}")
+        if groups:
+            print(f"paired via explicit manifest ({len(groups)} pairs)")
+    if not groups:
+        # fallback: greedy stem-prefix heuristic
+        used = set()
+        keys = sorted(images.keys())
+        for k in keys:
+            if k in used:
                 continue
-            common = len(os_prefix(k, other))
-            if common >= max(6, int(0.6 * min(len(k), len(other)))):
-                group.append(other)
-                used.add(other)
-                if len(group) == 2:
-                    break
-        used.add(k)
-        groups.append(sorted(group))
+            group = [k]
+            for other in keys:
+                if other == k or other in used:
+                    continue
+                common = len(os_prefix(k, other))
+                if common >= max(6, int(0.6 * min(len(k), len(other)))):
+                    group.append(other)
+                    used.add(other)
+                    if len(group) == 2:
+                        break
+            used.add(k)
+            groups.append(sorted(group))
 
     rows = []
     controller = get_controller()

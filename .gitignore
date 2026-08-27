@@ -2,7 +2,6 @@ __pycache__/
 *.pyc
 .pytest_cache/
 data/
-weights/*.pt
 runs/
 *.egg-info/
 .venv/
@@ -10,3 +9,25 @@ web/node_modules/
 .freebuff/
 pics/
 inputs.txt
+
+# Local datasets — kept on disk for reproducibility, never pushed
+data/SECOND/
+data/CDVQA/
+data/LEVIR-CD/
+data/bigearthnet_14k*
+data/eurosat/
+data/rsvqa_lr/
+data/vrsbench/
+data/bentxt_join/
+data/satquery.db
+
+# Model checkpoints: large binaries stay local; only the counting head
+# (demo-critical, 45 MB) and the TorchScript exports are tracked.
+weights/*.pt
+!weights/count_head.pt
+
+# Scratch / temp outputs
+*.log
+gitstatus.txt
+cdvqa_full_out.txt
+cdvqa_full_results.txt

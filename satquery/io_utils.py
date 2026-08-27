@@ -129,7 +129,16 @@ def _to_uint8_display(arr: np.ndarray) -> np.ndarray:
     return (a * 255).astype(np.uint8)
 
 
-def load_image(path: str | Path, max_px: Optional[int] = None) -> RSImage:
+def load_image(path: str | Path, max_px: Optional[int] = None,
+               modality_override: Optional[str] = None) -> RSImage:
+    """Load a raster.
+
+    ``modality_override``: "sar" | "optical" | None. When set, it forces the
+    modality label instead of the filename/statistics heuristic — removing
+    the single point of failure where a power-scale SAR product with an
+    optical-sounding name (or vice versa) is misrouted. The dB-vs-power
+    normalisation check still runs on the actual pixel statistics.
+    """
     path = Path(path)
     ext = path.suffix.lower()
     if ext not in ALLOWED_EXTS:
@@ -178,6 +187,20 @@ def load_image(path: str | Path, max_px: Optional[int] = None) -> RSImage:
     limit = max_px or _config_max_px()
     if max(arr.shape[0], arr.shape[1]) > limit:
         arr = _downscale(arr, limit)
+
+    # Explicit user/judge override wins over the naming heuristic
+    if modality_override:
+        ov = modality_override.strip().lower()
+        if ov in ("sar", "optical"):
+            if ov == "sar":
+                modality = "sar"
+                band_names = (["VV", "VH"] + [f"ch{i}" for i in range(arr.shape[2])])[:arr.shape[2]] \
+                    if arr.ndim == 3 and arr.shape[2] >= 2 else ["intensity"]
+            else:
+                modality = "multispectral" if (arr.ndim == 3 and arr.shape[2] >= 4) else "rgb"
+                base = ["red", "green", "blue"]
+                band_names = (base + [f"ch{i}" for i in range(arr.shape[2])])[:arr.shape[2]] \
+                    if arr.ndim == 3 else ["gray"]
 
     # SAR amplitude normalisation (log-scale); dB-scale products are kept as-is
     if modality == "sar" and arr.size and float(np.median(arr)) >= 0:

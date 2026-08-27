@@ -151,6 +151,14 @@ ALLOWED_EXT = {".tif", ".tiff", ".png", ".jpg", ".jpeg"}
 _startup_cleanup()
 _schedule_periodic_cleanup()
 
+# Security posture warning: an unauthenticated server bound beyond localhost
+# is open to anyone on the network. Warn loudly (demo venues included).
+if not _AUTH_TOKEN:
+    logger.warning(
+        "SATQUERY_TOKEN is not set — the API is UNAUTHENTICATED. If this "
+        "server is reachable from a shared network (demo venue, LAN), set "
+        "SATQUERY_TOKEN to require a bearer token on /api/*.")
+
 
 # ---------------------------------------------------------------------------
 # Auth
@@ -233,6 +241,7 @@ async def create_job(
     sample_names: str = Form(""),
     date_a: str = Form("T1"),
     date_b: str = Form("T2"),
+    modality: str = Form("auto"),
     files: List[UploadFile] = File(default=[]),
 ):
     try:
@@ -248,7 +257,14 @@ async def create_job(
         if len(paths) > 2:
             _http(400, "At most 2 images per analysis.", code="too_many_files")
 
+        modality = modality.strip().lower()
+        if modality not in ("auto", "sar", "optical"):
+            _http(400, f"Invalid modality '{modality}'.",
+                  code="invalid_modality",
+                  hint="Use 'auto' (default), 'sar' or 'optical'.")
         params = {"date_a": date_a, "date_b": date_b}
+        if modality != "auto":
+            params["modality"] = modality
 
         try:
             ckey = cache_key_for(paths, query, task_override, params)
@@ -561,6 +577,11 @@ async def healthz():
     except Exception:
         device, threads = "unknown", 0
     jstats = JOBS.stats()
+    try:
+        from ..models.status import model_status
+        mstatus = model_status()
+    except Exception:
+        mstatus = {}
     return {
         "status":           "ok",
         "device":           device,
@@ -571,9 +592,22 @@ async def healthz():
         "jobs_pending":     jstats["pending"],
         "jobs_in_memory":   jstats["in_memory"],
         "cache_hits":       JOBS.cache_hits,
+        "model_status":     mstatus,
+        "degraded":         any(v != "trained" for v in mstatus.values()),
         "uptime_s":         int(time.time() - _STARTED),
         "version":          "3.0",
     }
+
+
+@app.get("/api/model_status")
+async def model_status_endpoint():
+    """Degradation transparency: which specialists run trained weights vs
+    heuristic fallbacks. The UI renders a badge when any entry is not
+    'trained' so heuristic-mode answers are never mistaken for model output."""
+    from ..models.status import model_status
+    status = model_status()
+    return {"models": status,
+            "degraded": any(v != "trained" for v in status.values())}
 
 
 # ---------------------------------------------------------------------------
