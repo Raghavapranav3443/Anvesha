@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { fetchHistory, fetchJob, type HistoryRow, type JobState } from '../api'
 import { taskLabel } from '../labels'
 import { Panel } from './Console'
+import { SkeletonTable } from './Skeleton'
 import Results from './Results'
 
 export default function HistoryView() {
@@ -67,8 +68,11 @@ export default function HistoryView() {
                   </td>
                 </tr>
               ))}
-              {!visible.length && (
-                <tr><td colSpan={6} className="py-6 text-center text-faint">No runs yet.</td></tr>
+              {!visible.length && !rows.length && (
+                <tr><td colSpan={6} className="py-4"><SkeletonTable rows={5} /></td></tr>
+              )}
+              {!visible.length && rows.length > 0 && (
+                <tr><td colSpan={6} className="py-6 text-center text-faint">No matching runs.</td></tr>
               )}
             </tbody>
           </table>

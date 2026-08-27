@@ -85,8 +85,8 @@ Measured scorecard (public benchmark test subsets, this machine):
 | Presence (is there X?) | exact-match | **0.91** | GeoChat-zero-shot ~0.70 |
 | Rural/Urban classification | exact-match | **0.84** | — |
 | Comparison (more/less) | exact-match | **0.71** | — |
-| Counting (how many) | exact-match | **0.48** | — |
-| Aggregate RSVQA-LR | exact-match (all types) | **0.70** | 79.08% (Lobry et al.) |
+| Counting (how many) | exact-match | **0.45** | — |
+| Aggregate RSVQA-LR | exact-match (all types) | **~0.70** | 79.08% (Lobry et al.) |
 
 *Aggregate EM is dragged down by the counting head (29.5% of test questions,
 weakest accuracy). Per-type heads are the fairer comparison against other systems.*
@@ -95,7 +95,7 @@ weakest accuracy). Per-type heads are the fairer comparison against other system
 
 | Benchmark | Metric | Score | Published Baseline |
 |---|---|---|---|
-| LEVIR-CD (test) | IoU / F1 | **0.60 / 0.75** | BIT-RN18: 0.81/0.89 |
+| LEVIR-CD (test) | IoU / F1 | **0.646 / 0.78** | BIT-RN18: 0.81/0.89 |
 | CDVQA (test) | answer accuracy | **—** | RN-18 baseline: 0.68 |
 
 *LEVIR-CD: CPU-class Siamese FPN, 44MB weights, tiled inference — capability
@@ -105,11 +105,11 @@ demo, not SOTA claim. TTA (+2-3 F1 points) available via `--tta` flag.*
 
 | Benchmark | Metric | Score | Protocol Note |
 |---|---|---|---|
-| BigEarthNet.txt captions (val) | BLEU (multi-ref) | **0.28** | Multi-reference protocol |
+| BigEarthNet.txt captions (val) | BLEU (multi-ref) | **0.32** | Multi-reference protocol |
 | BigEarthNet.txt captions (val) | BLEU (single-ref) | **0.59** | Training-validation metric |
 | EuroSAT (val) | classification accuracy | **0.91** | Quick-track warm-start, 200 img/class |
 
-*Captioning BLEU varies wildly by protocol. The 0.28 is the harder multi-reference
+*Captioning BLEU varies wildly by protocol. The 0.32 is the harder multi-reference
 number; single-reference training-validation is 0.59. See `run_benchmarks.py` for
 exact protocol.*
 
@@ -211,13 +211,13 @@ and without trained weights (fallback paths are themselves under test).
 ┌──────────────┴─────────────────────────────────────────────────────────────┐
 │ Specialist registry (tools_impl.py)      shared backbone: SceneEncoder      │
 │                                          (ResNet-18, EuroSAT-warm-started)  │
-│  single_vqa   frozen encoder ⊕ per-type specialist heads + CORAL count      │
+│  single_vqa   encoder ⊕ per-type specialist heads + balanced-sampling count      │
 │               head + flip-TTA · RSVQA-LR · per-type: presence 91%          │
 │  captioning   plan-conditioned transformer decoder ⊕ template fallback      │
-│               · BigEarthNet.txt captions · multi-ref BLEU 0.28              │
+│               · BigEarthNet.txt captions · multi-ref BLEU 0.32              │
 │  grounding    spectral-index response maps + boxes (fully interpretable)    │
 │  change_*     Siamese FPN-lite detector + TTA (4-way avg), tiled infer.     │
-│               · LEVIR-CD IoU 0.60 / F1 0.75 + description + change-VQA     │
+│               · LEVIR-CD IoU 0.646 / F1 0.78 + description + change-VQA     │
 │  optical_sar  dual-branch S1(dB-aware) ⊕ S2 fusion · BEN v2 pairs ·         │
 │               label recall 0.85                                             │
 └──────────────▲─────────────────────────────────────────────────────────────┘

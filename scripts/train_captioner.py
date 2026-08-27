@@ -54,6 +54,9 @@ class CaptionVocab:
     def __init__(self, specials):
         self.itos = ["<pad>", "<sos>", "<eos>"] + list(specials)
         self.stoi = {t: i for i, t in enumerate(self.itos)}
+    @property
+    def pad(self):
+        return 0
     def __len__(self):
         return len(self.itos)
 
@@ -103,10 +106,15 @@ class CaptionDataset(Dataset):
     def __len__(self):
         return len(self.items)
     def __getitem__(self, i):
-        from PIL import Image
         f, text = self.items[i]
-        arr = np.asarray(Image.open(f).convert("RGB").resize(
-            (self.image_size,) * 2), dtype=np.float32) / 255.0
+        import rasterio
+        with rasterio.open(str(f)) as src:
+            arr = np.moveaxis(src.read()[:3].astype(np.float32), 0, -1)
+        arr = np.clip(arr / 10000.0, 0, 1)
+        from PIL import Image
+        im = Image.fromarray((arr * 255).astype(np.uint8))
+        im = im.resize((self.image_size,) * 2)
+        arr = np.asarray(im, dtype=np.float32) / 255.0
         x = torch.from_numpy(arr.transpose(2, 0, 1))
         toks = re.findall(r"[a-z0-9]+", text.lower())
         ids = [self.vocab.stoi.get("<sos>", 1)]
@@ -129,12 +137,13 @@ class Captioner(nn.Module):
         self.decoder = nn.TransformerDecoder(decoder_layer, nlayers)
         self.out = nn.Linear(d, vocab_size)
         self.plan_proj = nn.Linear(self.N_PLAN, d) if cond else None
+        self.mem_proj = nn.Linear(128, d)  # project encoder features to d
         self.plan_head = nn.Sequential(
-            nn.Linear(512, 256), nn.ReLU(), nn.Linear(256, self.N_PLAN)
+            nn.Linear(128, 256), nn.ReLU(), nn.Linear(256, self.N_PLAN)
         ) if cond else None
     def forward(self, fmap, tgt, plan=None):
         B, C, H, W = fmap.shape
-        memory = fmap.flatten(2).permute(0, 2, 1)
+        memory = self.mem_proj(fmap.flatten(2).permute(0, 2, 1))
         if self.cond and plan is not None:
             memory = memory + self.plan_proj(plan).unsqueeze(1)
         L = tgt.shape[1]
@@ -194,11 +203,37 @@ class Captioner(nn.Module):
         return results
 
 
+def collate_pad(batch):
+    """Pad target sequences to max length in batch."""
+    xs, tgts, ls, plans = zip(*batch)
+    max_len = max(t.shape[0] for t in tgts)
+    pad_id = 0  # <pad>
+    padded = torch.full((len(tgts), max_len), pad_id, dtype=torch.long)
+    for i, t in enumerate(tgts):
+        padded[i, :t.shape[0]] = t
+    return torch.stack(xs), padded, torch.tensor([t.shape[0] for t in tgts]), torch.stack(plans)
+
+
 def main(args):
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print("device:", device)
     root = Path(args.data)
-    vocab = CaptionVocab([])
+
+    # Build vocabulary from all training captions
+    import pandas as pd
+    cap_file = root / "captions.parquet"
+    if not cap_file.exists():
+        cap_file = root / "BigEarthNet-S2" / "captions.parquet"
+    df = pd.read_parquet(cap_file)
+    train_texts = df[df.split == "train"]["output"].dropna().tolist()
+    word_freq = collections.Counter()
+    for t in train_texts:
+        for tok in re.findall(r"[a-z0-9]+", str(t).lower()):
+            word_freq[tok] += 1
+    # Keep words appearing >= 3 times + top 5000
+    keep = [w for w, c in word_freq.most_common(5000) if c >= 3]
+    vocab = CaptionVocab(keep)
+    print(f"vocabulary: {len(vocab)} words (from {len(train_texts)} captions)")
     ds_tr = CaptionDataset(root, "train", vocab, image_size=120)
     ds_va = CaptionDataset(root, "validation", vocab, image_size=120,
                            max_items=300)
@@ -214,8 +249,8 @@ def main(args):
 
     model = Captioner(len(ds_tr.vocab), cond=not args.no_cond).to(device)
     dl = DataLoader(ds_tr, batch_size=args.batch_size, shuffle=True,
-                    drop_last=True)
-    dl_va = DataLoader(ds_va, batch_size=args.batch_size)
+                    drop_last=True, collate_fn=collate_pad)
+    dl_va = DataLoader(ds_va, batch_size=args.batch_size, collate_fn=collate_pad)
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=args.epochs)
     ignore = ds_tr.vocab.pad

@@ -1,8 +1,18 @@
 import type { Provenance } from '../api'
 import { Panel } from './Console'
+import { SkeletonRow } from './Skeleton'
 
 export default function ProvenanceView({ prov }: { prov: Provenance | null }) {
-  if (!prov) return <p className="text-muted">Loading provenance…</p>
+  if (!prov) return (
+    <div className="fade-up grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <Panel title="Model registry">
+        <div className="space-y-3">{[1,2,3,4].map(i => <SkeletonRow key={i} />)}</div>
+      </Panel>
+      <Panel title="Benchmark results">
+        <div className="space-y-3">{[1,2,3].map(i => <SkeletonRow key={i} />)}</div>
+      </Panel>
+    </div>
+  )
   return (
     <div className="fade-up grid grid-cols-1 gap-6 lg:grid-cols-2">
       <Panel title="Model registry — remote-sensing adaptation">
