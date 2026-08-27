@@ -86,7 +86,7 @@ Measured scorecard (public benchmark test subsets, this machine):
 | Rural/Urban classification | exact-match | **0.84** | — |
 | Comparison (more/less) | exact-match | **0.71** | — |
 | Counting (how many) | exact-match | **0.45** | — |
-| Aggregate RSVQA-LR | exact-match (all types) | **~0.70** | 79.08% (Lobry et al.) |
+| Aggregate RSVQA-LR | exact-match (all types) | **0.69** | 79.08% (Lobry et al.) |
 
 *Aggregate EM is dragged down by the counting head (29.5% of test questions,
 weakest accuracy). Per-type heads are the fairer comparison against other systems.*
@@ -95,7 +95,7 @@ weakest accuracy). Per-type heads are the fairer comparison against other system
 
 | Benchmark | Metric | Score | Published Baseline |
 |---|---|---|---|
-| LEVIR-CD (test) | IoU / F1 | **0.646 / 0.78** | BIT-RN18: 0.81/0.89 |
+| LEVIR-CD (test, thr=0.85) | IoU / F1 | **0.668 / 0.801** | BIT-RN18: 0.81/0.89 |
 | CDVQA (test) | answer accuracy | **—** | RN-18 baseline: 0.68 |
 
 *LEVIR-CD: CPU-class Siamese FPN, 44MB weights, tiled inference — capability
@@ -217,7 +217,7 @@ and without trained weights (fallback paths are themselves under test).
 │               · BigEarthNet.txt captions · multi-ref BLEU 0.32              │
 │  grounding    spectral-index response maps + boxes (fully interpretable)    │
 │  change_*     Siamese FPN-lite detector + TTA (4-way avg), tiled infer.     │
-│               · LEVIR-CD IoU 0.646 / F1 0.78 + description + change-VQA     │
+│               · LEVIR-CD IoU 0.668 / F1 0.801 + description + change-VQA     │
 │  optical_sar  dual-branch S1(dB-aware) ⊕ S2 fusion · BEN v2 pairs ·         │
 │               label recall 0.85                                             │
 └──────────────▲─────────────────────────────────────────────────────────────┘

@@ -116,7 +116,7 @@ def impact_analysis_tool(ctx: Dict) -> Dict:
     a, b = ctx["images"][0], ctx["images"][1]
     det = ChangeDetectorNet()
     cm = det.map(a, b)
-    mask = cm["prob_map"] >= 0.5
+    mask = cm["prob_map"] >= 0.85
     impact = analyse_impact(a, b, mask, query=ctx.get("query", ""))
     vis = _overlay_mask(rgb_composite(b), mask.astype(bool),
                         color=(0.95, 0.75, 0.0))

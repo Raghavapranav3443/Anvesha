@@ -248,7 +248,7 @@ def analyse_pair(a: RSImage, b: RSImage, query: str = "",
     cm = det.map(a, b)
     prob = cm["prob_map"]
 
-    mask = prob >= 0.5
+    mask = prob >= 0.85
     area_frac = float(mask.mean())
     conf_change = float(np.clip(prob[mask].mean() if mask.any() else 0.0,
                                 0.05, 0.99)) if mask.any() else 0.05

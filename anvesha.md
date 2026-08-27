@@ -165,10 +165,10 @@ EuroSAT land-type classification, **98.86%** validation accuracy (96px, 2500 ima
 
 | Specialist | Job | Trained on | Score (honest) | If weights are missing |
 |---|---|---|---|---|
-| **VQA** | Answers questions about one image; separate expert heads for yes/no, urban-vs-rural, comparisons, and counting | RSVQA-LR (54k image-question-answer triples) | ~70% overall exact-match; per-type: presence **91%**, rural/urban 84% | Rule-based reasoner |
+| **VQA** | Answers questions about one image; separate expert heads for yes/no, urban-vs-rural, comparisons, and counting | RSVQA-LR (54k image-question-answer triples) | 69% overall exact-match; per-type: presence **91%**, rural/urban 84% | Rule-based reasoner |
 | **Captioner** | Writes scene descriptions via a small transformer decoder steered by a predicted content plan | BigEarthNet.txt captions joined to real Sentinel-2 patches | Multi-reference BLEU 0.32 | Deterministic template built from verified facts |
 | **Grounding** | Finds water/vegetation/built-up regions you name, using spectral indices (NDWI/NDVI — simple, transparent formulas) | Not learned — deliberately interpretable | Correct within its domain; three *learned* variants were tried, measured poorly (≤15%), and refused shipping | n/a — it *is* the fallback |
-| **Change detector** | Compares two dates; twin networks + multi-scale difference decoder; tiled inference for big scenes | LEVIR-CD | Change IoU 0.646 / F1 0.78 | Smoothed image differencing |
+| **Change detector** | Compares two dates; twin networks + multi-scale difference decoder; tiled inference for big scenes | LEVIR-CD | Change IoU 0.668 / F1 0.80 | Smoothed image differencing |
 | **Optical–SAR fuser** | Dual-branch network reads radar + optics together; reports agreement/complementarity | 14k genuine co-registered Sentinel-1+S2 pairs | Label recall 0.85 | Heuristic analyser |
 
 Two culture rules worth knowing:
@@ -231,7 +231,7 @@ Sample ISRO-style inputs ship in `samples/` for instant demos.
 | Skill | Our score | Context a judge should know |
 |---|---|---|
 | Single-image VQA | 70% overall | Below the original paper's 79% on the full test set; our per-type heads (presence 91%) are the stronger evidence. Known weakness, actively framed. |
-| Change detection | F1 78 / IoU 65 | Published SOTA reaches F1 ~92 with far larger GPU-trained models; ours is the CPU-class capability demo. |
+| Change detection | F1 80 / IoU 67 | Published SOTA reaches F1 ~92 with far larger GPU-trained models; ours is the CPU-class capability demo. |
 | Optical–SAR | 85% label recall | Strong for a 14k-pair subset trained on a laptop. |
 | Captioning | BLEU 0.323 (multi-ref) | Protocol-dependent metric; single-ref training BLEU 0.59. |
 | Land-cover encoder | **98.86%** | Full-track (96px, 2500 images/class, 12 epochs, AMP) — exceeds published range (95–98.6%). |

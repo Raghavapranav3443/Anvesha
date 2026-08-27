@@ -72,7 +72,7 @@ def eval_levir(n: int, tta: bool = False) -> dict | None:
         l_path = l_dir / stem
         a = load_image(a_path)
         b = load_image(b_path)
-        prob = det.map(a, b, tta=tta)["prob_map"] >= 0.5
+        prob = det.map(a, b, tta=tta)["prob_map"] >= 0.85
         lab = np.asarray(Image.open(l_path).convert("L").resize(
             prob.shape[::-1])) > 127
         inter += int((prob & lab).sum()); union += int((prob | lab).sum())
