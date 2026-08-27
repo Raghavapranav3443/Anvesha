@@ -118,7 +118,7 @@ TASK_KEYWORDS = {
                    "summarise the image", "summarize the image"],
     "single_vqa": ["is there", "are there", "how many", "what type",
                    "does this", "which class", "percentage of", "area of",
-                   "is it"],
+                   "is it", "present"],
 }
 
 

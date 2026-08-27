@@ -112,6 +112,9 @@ def test_count_head_routing(controller, rgb_png):
     from satquery.config import CONFIG
     if not (CONFIG.weights_dir / "count_head.pt").exists():
         pytest.skip("count head not trained")
+    if not CONFIG.vqa_weights.exists():
+        pytest.skip("VQA weights not present (count head loads via the "
+                    "trained VQA model; CI has no vqa_head.pt)")
     from satquery.models.vqa import get_vqa_model
     m = get_vqa_model()
     res = m.answer(load_image(rgb_png), "How many roads are visible in this image?")
@@ -148,6 +151,9 @@ def test_torchscript_cpu_path():
     from satquery.config import CONFIG
     if not (CONFIG.weights_dir / "ts" / "vqa_encoder_int8.ts").exists():
         pytest.skip("TorchScript export not present")
+    if not CONFIG.vqa_weights.exists():
+        pytest.skip("VQA weights not present (TorchScript path activates "
+                    "only on a trained model; CI has no vqa_head.pt)")
     from satquery.models.vqa import RSVQAModel
     m = RSVQAModel(device="cpu")
     assert m.trained
