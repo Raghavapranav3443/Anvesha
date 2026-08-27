@@ -99,6 +99,78 @@ class ChangeDetectorNet:
 
         return {"prob_map": prob.astype(np.float32), "method": method}
 
+    def difference_features(self, a: RSImage, b: RSImage,
+                            tile: int = 192) -> "tuple[np.ndarray, float]":
+        """Change-conditioning features for downstream heads (CDVQA).
+
+        Returns (diff_vec, area_frac): a 256-d vector = the SE-attended
+        multi-scale difference tensor (stride-8 + upsampled stride-16),
+        spatially average-pooled; and the changed-area fraction at thr=0.85.
+        Reuses the v2 FPN-lite encoder path so the features are exactly what
+        the change decoder sees.
+        """
+        t = self.torch
+        fa, fb = _rgb3_compat(a), _rgb3_compat(b)
+        h, w = a.height, a.width
+        if not self.trained or self.arch != "v2":
+            # fallback: pooled raw-difference statistics (5-d)
+            da = np.abs(resize_np(fa.mean(axis=2), 64).astype(np.float32) -
+                        resize_np(fb.mean(axis=2), 64).astype(np.float32))
+            vec = np.array([da.mean(), da.std(), da.max(),
+                            float((da > 0.1).mean()), float((da > 0.2).mean())],
+                           dtype=np.float32)
+            return vec, float((da > 0.2).mean())
+        acc = np.zeros((h, w), np.float32)
+        weight = np.zeros((h, w), np.float32)
+        step = tile // 2
+        ys = list(range(0, max(h - tile, 0) + 1, step)) or [0]
+        xs = list(range(0, max(w - tile, 0) + 1, step)) or [0]
+        if ys[-1] + tile < h:
+            ys.append(h - tile)
+        if xs[-1] + tile < w:
+            xs.append(w - tile)
+        feat_acc = np.zeros(256, np.float32)   # SE diff = cat(d8 128, d16u 128)
+        n_tiles = 0
+        with t.no_grad():
+            for y0 in ys:
+                for x0 in xs:
+                    y1, x1 = min(y0 + tile, h), min(x0 + tile, w)
+                    ca = fa[y0:y1, x0:x1]
+                    cb = fb[y0:y1, x0:x1]
+                    pad_y, pad_x = tile - ca.shape[0], tile - ca.shape[1]
+                    if pad_y or pad_x:
+                        ca = np.pad(ca, ((0, pad_y), (0, pad_x), (0, 0)))
+                        cb = np.pad(cb, ((0, pad_y), (0, pad_x), (0, 0)))
+                    xa = to_tensor(resize_np(ca, tile)).to(self.device)
+                    xb = to_tensor(resize_np(cb, tile)).to(self.device)
+                    f8a = self.encoder.feature_map(xa, stride=8)
+                    f16a = self.encoder.feature_map(xa, stride=16)
+                    f8b = self.encoder.feature_map(xb, stride=8)
+                    f16b = self.encoder.feature_map(xb, stride=16)
+                    d8 = self.head.reduce8(t.cat([f8a, f8b], dim=1))
+                    d16 = self.head.reduce16(t.cat([f16a, f16b], dim=1))
+                    d16u = nn.functional.interpolate(
+                        d16, size=d8.shape[-2:], mode="bilinear",
+                        align_corners=False)
+                    d = self.head.se(torch.cat([d8, d16u], dim=1))
+                    feat_acc += d.mean(dim=(2, 3))[0].cpu().numpy()
+                    n_tiles += 1
+                    logits = self.head.dec1(d)
+                    logits = self.head.dec2(nn.functional.interpolate(
+                        logits, scale_factor=2, mode="bilinear",
+                        align_corners=False))
+                    logits = self.head.final(nn.functional.interpolate(
+                        logits, scale_factor=2, mode="bilinear",
+                        align_corners=False))
+                    pm = t.sigmoid(logits)[0, 0].cpu().numpy()
+                    ph, pw = min(y1, h) - y0, min(x1, w) - x0
+                    pm_full = _resize_prob(pm, pw, ph)
+                    acc[y0:y0 + ph, x0:x0 + pw] += pm_full
+                    weight[y0:y0 + ph, x0:x0 + pw] += 1.0
+        prob = acc / np.maximum(weight, 1e-6)
+        af = float((prob >= 0.85).mean())
+        return feat_acc / max(n_tiles, 1), af
+
     def _tiled_infer_v2(self, fa_rgb, fb_rgb, h: int, w: int,
                         tile: int = 192) -> np.ndarray:
         """Sliding-window inference for the v2 FPN-lite head. Tiles of 192px,

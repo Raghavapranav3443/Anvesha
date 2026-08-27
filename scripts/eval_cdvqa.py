@@ -209,9 +209,47 @@ def predict_change_to_what(source_cat, deltas):
 # Evaluation
 # --------------------------------------------------------------------- #
 
-def evaluate_cdvqa(split="test", max_pairs=0):
+def _load_learned_head():
+    """Load the promoted change-conditioned CDVQA head if present.
+
+    Returns None when the checkpoint is missing or failed its promotion
+    gate — the calibrated rule-based predictor remains the default.
+    """
+    p = CONFIG.weights_dir / "cdvqa_head.pt"
+    if not p.exists():
+        return None
+    try:
+        import torch
+        from scripts.train_cdvqa_head import ChangeCondCDVQA
+        ck = torch.load(p, map_location="cpu", weights_only=False)
+        if ck.get("arch") != "change_cond_v1":
+            return None
+        model = ChangeCondCDVQA()
+        model.load_state_dict(ck["model"])
+        model.eval()
+        return {"model": model, "val_acc": ck.get("val_acc")}
+    except Exception:
+        return None
+
+
+def evaluate_cdvqa(split="test", max_pairs=0, model="rules"):
+    """model: 'rules' (calibrated rule-based, default) | 'learned' | 'compare'.
+
+    'learned'/'compare' require the promoted change-conditioned head
+    (weights/cdvqa_head.pt); they fall back to rules with a warning if the
+    checkpoint is absent.
+    """
     from satquery.io_utils import load_image
     from satquery.models.change import ChangeDetectorNet
+
+    learned = None
+    if model in ("learned", "compare"):
+        learned = _load_learned_head()
+        if learned is None:
+            print("  [warn] no promoted learned head; falling back to rules")
+            model = "rules"
+        else:
+            print(f"  learned head loaded (val_acc={learned['val_acc']})")
 
     base = CONFIG.data_dir / "CDVQA"
     imgs = json.loads((base / f"{split.capitalize()}_images.json").read_text())["images"]
@@ -251,9 +289,13 @@ def evaluate_cdvqa(split="test", max_pairs=0):
             continue
         try:
             ia, ib = load_image(p1), load_image(p2)
-            cm = det.map(ia, ib)
-            prob = cm["prob_map"]
-            af = float((prob >= 0.85).mean())
+            if model in ("learned", "compare"):
+                diff_feat, af = det.difference_features(ia, ib)
+                prob = None
+            else:
+                cm = det.map(ia, ib)
+                prob = cm["prob_map"]
+                af = float((prob >= 0.85).mean())
         except Exception:
             skipped += 1
             continue
@@ -279,7 +321,20 @@ def evaluate_cdvqa(split="test", max_pairs=0):
             cat = _parse_cat(question)
             cd = deltas.get(cat, 0.0) if cat else 0.0
 
-            if qt == "change_or_not":
+            if model in ("learned", "compare"):
+                import torch
+                from scripts.train_cdvqa_head import ANSWER_LUTS, bow
+                if qt in ANSWER_LUTS:
+                    d_t = torch.tensor([deltas[c] for c in CDVQA_CATS],
+                                       dtype=torch.float32).unsqueeze(0)
+                    f_t = torch.tensor(diff_feat, dtype=torch.float32).unsqueeze(0)
+                    q_t = torch.from_numpy(bow(question)).unsqueeze(0)
+                    with torch.no_grad():
+                        logits = learned["model"](f_t, d_t, q_t, qt)
+                    pred = ANSWER_LUTS[qt][int(logits.argmax(1))]
+                else:
+                    pred = bp
+            elif qt == "change_or_not":
                 pred = predict_change_or_not(cd, af)
             elif qt == "increase_or_not":
                 pred = predict_increase_or_not(cd, af)
@@ -488,15 +543,20 @@ def main():
                    help="grid-search per-type thresholds on the val split "
                         "and persist them to weights/cdvqa_thresholds.json")
     p.add_argument("--calibrate-pairs", type=int, default=400)
+    p.add_argument("--model", default="rules",
+                   choices=["rules", "learned", "compare"],
+                   help="'rules' = calibrated rule-based (default); "
+                        "'learned' = promoted change-conditioned head; "
+                        "'compare' = learned head, rules fallback")
     a = p.parse_args()
     if a.calibrate:
         print("CDVQA threshold calibration (val split)")
         print("=" * 60)
         calibrate(a.calibrate_pairs)
         return
-    print(f"CDVQA Evaluation v4 ({a.split})")
+    print(f"CDVQA Evaluation v4 ({a.split}, model={a.model})")
     print("=" * 60)
-    r = evaluate_cdvqa(a.split, a.max_pairs)
+    r = evaluate_cdvqa(a.split, a.max_pairs, model=a.model)
     print(f"\n{'='*60}")
     print(f"Overall: {r['overall']:.1%} ({r['questions']} questions, "
           f"{r['pairs']} pairs)")

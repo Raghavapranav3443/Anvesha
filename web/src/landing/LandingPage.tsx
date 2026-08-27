@@ -209,7 +209,7 @@ export default function LandingPage({ onEnterConsole }: { onEnterConsole?: () =>
           <Reveal>
             <ChapterLabel n="03" title="The specialists" />
             <h2 className="mt-6 text-[36px] font-bold text-body md:text-[44px]">
-              Six specialists. One registry.
+              Seven specialists. One registry.
             </h2>
           </Reveal>
           <Reveal delay={150}><div className="mt-10"><ManifestTable /></div></Reveal>
@@ -234,10 +234,12 @@ export default function LandingPage({ onEnterConsole }: { onEnterConsole?: () =>
             <ul className="mt-10 divide-y divide-line border-y border-line">
               {[
                 'Every number reproduces — python -m satquery.evaluate --all',
+                'Change-VQA: 0.683 on 39.7k test questions — +17.4 pts over baseline, every type above it',
                 'Confidence is calibrated (temperature fit on held-out data), not raw softmax',
                 '100/100 concurrent analyses · p95 ≈ 7 s · int8 export costs 0.16% accuracy',
                 'Offline-deployable: bundled weights, Docker, SQLite cache — no cloud calls',
                 "We publish what didn't work: DINOv2 won the backbone bake-off (+3.2 pts) — rejected for zero VQA gain, gate pre-registered",
+                'Density-map counting head measured 0.13 — gated off, ordinal head stays shipped',
                 'Learned grounding heads measured 0.15 IoU — retired, not shipped',
                 'Every answer carries its source. Every run carries its trace.',
               ].map((l, i) => (

@@ -1,16 +1,32 @@
 const ROWS = [
-  { task: 'Visual Q&A', approach: 'per-type specialist heads + CORAL counting',
-    data: 'RSVQA-LR · 54k triplets', score: '0.69 exact-match' },
-  { task: 'Scene description', approach: 'plan-conditioned transformer decoder',
-    data: 'BigEarthNet.txt captions', score: '0.32 multi-ref BLEU' },
-  { task: 'Region highlighting', approach: 'spectral-index reasoning — NDWI · ExG · double-bounce',
-    data: 'no training — interpretable', score: 'boxes + masks' },
-  { task: 'Change detection', approach: 'Siamese FPN-lite · TTA (4-way avg) · tiled inference',
-    data: 'LEVIR-CD', score: '0.67 IoU · 0.80 F1' },
-  { task: 'Optical + SAR fusion', approach: 'dual-branch · dB-aware SAR path',
-    data: 'BEN v2 S1+S2 pairs', score: '0.85 label recall' },
-  { task: 'Investigation', approach: 'multi-step agent — change → water → impact',
-    data: 'end-to-end', score: 'quantified impact' },
+  {
+    task: 'Visual Q&A', approach: 'per-type specialist heads + ordinal counting',
+    data: 'RSVQA-LR · 54k triplets', score: '0.71 exact-match · presence 0.91'
+  },
+  {
+    task: 'Scene description', approach: 'plan-conditioned transformer decoder',
+    data: 'BigEarthNet.txt captions', score: '0.32 multi-ref BLEU'
+  },
+  {
+    task: 'Region highlighting', approach: 'spectral-index reasoning — NDWI · ExG · double-bounce',
+    data: 'no training — interpretable', score: 'boxes + masks'
+  },
+  {
+    task: 'Change detection', approach: 'Siamese FPN-lite · TTA (4-way avg) · tiled inference',
+    data: 'LEVIR-CD', score: '0.67 IoU · 0.80 F1'
+  },
+  {
+    task: 'Change VQA', approach: 'change-conditioned head over detector diff features',
+    data: 'CDVQA · 39.7k questions', score: '0.683 acc · +17.4 vs baseline'
+  },
+  {
+    task: 'Optical + SAR fusion', approach: 'dual-branch · dB-aware SAR path',
+    data: 'BEN v2 S1+S2 pairs', score: '0.85 label recall'
+  },
+  {
+    task: 'Investigation', approach: 'multi-step agent — change → water → impact',
+    data: 'end-to-end', score: 'quantified impact'
+  },
 ]
 
 /** Specialist manifest styled as a payload spec sheet — no cards. */

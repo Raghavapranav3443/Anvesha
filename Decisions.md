@@ -479,3 +479,148 @@ The model was always this good; we were just thresholding at the wrong operating
 distribution is heavily skewed toward extremes (near-0 for background, near-1 for real change).
 The optimal threshold depends on the model's calibration, not on convention.
 **Applied:** Default threshold changed from 0.50 to 0.85 in satquery/models/change.py.
+
+---
+
+## Phase 14 — Audit-driven hardening & the CDVQA breakthrough
+
+### D14.1 — Full market/competitor audit before more engineering
+**Decision:** Before touching more code, run a structured market analysis
+(MARKET_ANALYSIS_AND_AUDIT.md): benchmark the project against published SOTA
+(RSVQA 79.1%, LEVIR-CD SOTA F1 ~0.92, CDVQA paper baseline ~0.68), profile the
+three closest competitors (GeoChat, TEOChat/Change-Agent, Picterra/SkyFi), and
+line-verify every claimed weakness against the actual code.
+**Discovery:** the audit surfaced a critical finding the team's own weakness
+table had missed — the CDVQA full-test result (0.488) was **below the majority
+baseline** (0.508), and one test was failing on the current tree. Both were
+invisible because no one had re-run the full evaluation recently.
+**Why:** engineering without a measured gap analysis optimizes the wrong thing.
+
+### D14.2 — Silent-fallback regression tests for every specialist
+**Decision:** `tests/test_model_loading.py` asserts `trained=True` for VQA,
+Change, and Fusion whenever their checkpoint files exist — mirroring the
+SceneEncoder regression test that caught the original swallowed-NameError bug.
+Plus a `model_status()` helper (`satquery/models/status.py`) surfaced via
+`/healthz` and a new `GET /api/model_status`, so heuristic-mode answers are
+never mistaken for model output.
+**Why:** the graceful-degradation design (D1.3) had exactly one guard for four
+specialists. The failure mode produces zero crashes and green tests — only
+probes catch it.
+
+### D14.3 — Weights-fingerprinted cache keys
+**Decision:** `cache_key_for()` now hashes checkpoint name+size+mtime into the
+key. Retraining or swapping weights instantly invalidates stale cached answers.
+**Why:** previously, a retrained model would keep serving answers computed by
+the *previous* checkpoint until the TTL expired — a correctness bug disguised
+as a performance feature.
+
+### D14.4 — Modality override + SAC pairing manifest
+**Decision:** `POST /api/jobs` accepts `modality: sar|optical|auto`, plumbed
+through `load_image()`; SAC batch mode reads an explicit `pairs.csv` manifest
+with the stem-prefix heuristic as fallback.
+**Why:** the `median < 0` dB-detection heuristic (D1.5) is a guess; for the
+hidden ISRO set, an explicit override removes the single point of failure, and
+an explicit pairing manifest removes filename-inference ambiguity entirely.
+
+### D14.5 — TTA-on-by-default for change detection
+**Decision:** 4-way TTA enabled by default (`SATQUERY_TTA=0` to opt out),
+since the measured +2-3 F1 outweighs the 4× inference cost for interactive use.
+**Why:** the flag existed but was off; an off-by-default accuracy feature is a
+wasted measurement.
+
+### D14.6 — Counting head v4: ordinal soft-CE (modest win, honestly framed)
+**Decision:** retrain the count head with soft-ordinal cross-entropy (σ=0.7)
+over adjacent digits — encoding that predicting 3 for a true 4 is far less
+wrong than predicting 9 — plus class-balanced sampling.
+**Result:** val digit-acc 0.436; RSVQA test-subset aggregate 0.70 → 0.71.
+**Honest framing:** counting remains the weakest type; the aggregate is still
+below the paper's 79% and we lead with per-type numbers (D12.6).
+
+### D14.7 — Density-map counting head: built, measured, GATED OFF
+**Decision:** the planned "next lever" for counting — a density-regression head
+with count-only supervision (density-map sum regressed to the label, L1, plus an
+auxiliary ordinal digit head) — was implemented (`scripts/train_count_density.py`,
+`satquery/models/count_density.py`) and trained for 13 epochs.
+**Result:** best val digit-acc **0.133** vs the 0.436 gate → **NOT PROMOTED**;
+the ordinal v4 head stays shipped, the negative result is logged in the
+experiment record and MODEL_CARDS.
+**Why it likely failed:** count-only supervision gives the density branch no
+spatial signal to learn from — the rescaled-target trick provides a gradient,
+but no localization information. True density estimation needs point
+annotations RSVQA doesn't have. Documented so nobody retries it blind.
+
+### D14.8 — CDVQA change-conditioned head: the breakthrough
+**Decision:** the shipped CDVQA predictor was a rule-based reasoner sitting
+1.5 pts below the majority baseline. Built a learned head conditioned on the
+change detector's **SE-attended multi-scale difference features** (new
+`ChangeDetectorNet.difference_features()` — the exact 256-d tensor the FPN-lite
+decoder consumes, spatially pooled) ⊕ spectral-presence deltas ⊕ question BOW,
+with one output head per CDVQA question type (mirroring the RSVQA per-type
+specialist pattern).
+**Gate:** beat the calibrated rule-based predictor (0.4942 val) — **passed at
+0.7134**. Promoted to `weights/cdvqa_head.pt`; the rule-based predictor is
+retained as `--model rules` fallback.
+**Full-test result (39,686 questions): 0.683 overall, +17.4 pts over the
+majority baseline, every one of the 8 question types above baseline**
+(change_or_not 0.828, ratio_types 0.707, change_to_what 0.575). This beats the
+CDVQA paper's own RN-18 baseline (~0.68) and transforms the project's weakest
+metric into one of its strongest.
+**Key insight:** the winning move was *reusing the change detector's internal
+representation* rather than training a second encoder — the diff features
+already encode what changed; the head only had to learn the question mapping.
+
+### D14.9 — Intent-routing robustness: novel-phrasing tests caught a real bug
+**Decision:** added 8 novel-phrasing routing tests ("show me where the
+buildings are", "compare these two dates for me", …). One failed immediately:
+"show me where…" routed to single_vqa instead of grounding.
+**Fix:** added `where are` / `where exactly` / `show me where` grounding
+keywords. 12/12 agent tests pass.
+**Why:** the routing layer had only ever been tested with the PS's own
+representative queries — testing with paraphrases found the gap in minutes.
+
+### D14.10 — Frontend drift eliminated at the source
+**Decision:** rebuilt `web/dist` fresh, deleted two stale chunk generations,
+removed the legacy Streamlit `app.py` and the `streamlit` dependency, updated
+the landing page (ManifestTable, "Why Anvesha" list, "Seven specialists") with
+the new measured values, and added the `start.py --strict` drift guard (D9-era
+work, completed here).
+**Lesson recorded:** one "stale" chunk turned out to be a legitimate
+code-split landing-page chunk — verify what a file *is* before deleting it;
+the build regenerated it identically.
+
+### D14.11 — Repo hygiene for the push
+**Decision:** `.gitignore` tuned to track only demo-critical checkpoints
+(`count_head.pt`, `cdvqa_head.pt`) and TorchScript exports; all datasets
+(SECOND zips, CDVQA, LEVIR-CD, reBEN, EuroSAT, RSVQA, VRSBench) explicitly
+ignored but kept on disk; feature caches ignored; scratch files cleaned.
+**Why:** a 7 GB dataset directory must never reach GitHub, but the promoted
+checkpoints *are* the product and must.
+
+---
+
+# The greatest challenges (continued)
+
+**The audit paradox.** The most valuable engineering session of the project
+started not with code but with an adversarial audit of our own claims. It
+found a below-baseline benchmark result that everyone had stopped looking at,
+a failing test nobody had re-run, and a misrouted intent that only a
+paraphrase — never a PS-representative query — would expose. The lesson: a
+system this size accumulates silent drift faster than features; scheduled
+adversarial review of *measurements* (not just code) is now part of the
+process.
+
+**The gate that said no.** The density-map counting head was the plan's
+promising "next lever" — and it failed decisively (0.133 vs 0.436). The
+discipline that mattered was letting it fail: the checkpoint was refused
+promotion, the negative result was written into MODEL_CARDS next to the
+DINOv2 and grounding failures, and the shipped product never regressed. In
+the same session, the CDVQA head passed its gate by +22 points. A process
+that can say no to one idea is what makes yes meaningful for another.
+
+**Feature-dimension archaeology.** The CDVQA head initially crashed with a
+broadcast error because the SE-attended difference tensor is 256-d
+(cat(stride-8 128, upsampled stride-16 128)), not the 128-d assumed from the
+reduce-layer name. The fix was one number, but finding it required probing
+the detector's internals tensor-by-tensor — the same class of
+silent-assumption bug as the D2.1 hash-dimension mismatch, caught this time
+by a probe-first habit before any training hours were wasted.

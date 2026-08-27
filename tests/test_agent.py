@@ -106,6 +106,34 @@ def test_scene_encoder_loads_when_weights_exist():
     assert sc.encoder is not None
 
 
+def test_intent_routing_novel_phrasings():
+    """Robustness: natural-language variations that keyword rules may miss.
+    Documents current routing behaviour; misroutes here indicate the keyword
+    lists or centroids need expansion (see scripts/precompute_task_centroids)."""
+    novel = [
+        # (query, configuration, acceptable tasks)
+        ("can you tell me if water is present here", "single",
+         {"single_vqa"}),
+        ("show me where the buildings are", "single",
+         {"grounding"}),
+        ("compare these two dates for me", "bitemporal_pair",
+         {"change_analysis", "change_vqa"}),
+        ("what is the difference between these two images", "bitemporal_pair",
+         {"change_analysis", "change_vqa"}),
+        ("give me a summary of this scene", "single",
+         {"captioning", "single_vqa"}),
+        ("where exactly is the river", "single", {"grounding"}),
+        ("did the forest area shrink between the two dates", "bitemporal_pair",
+         {"change_vqa", "change_analysis"}),
+        ("combine the radar and the colour image to find water", "optical_sar_pair",
+         {"optical_sar"}),
+    ]
+    for query, cfg, acceptable in novel:
+        intent = classify_task(query, cfg)
+        assert intent["task"] in acceptable, \
+            f"{query!r} routed to {intent['task']}, expected {acceptable}"
+
+
 def test_report_written(controller, rgb_png):
     from satquery.config import CONFIG
     res = controller.run([rgb_png], "Is there water in this image?")

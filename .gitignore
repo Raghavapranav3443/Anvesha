@@ -21,10 +21,13 @@ data/vrsbench/
 data/bentxt_join/
 data/satquery.db
 
-# Model checkpoints: large binaries stay local; only the counting head
-# (demo-critical, 45 MB) and the TorchScript exports are tracked.
+# Model checkpoints: large binaries stay local; only the demo-critical
+# promoted checkpoints (counting head, CDVQA head) and TorchScript exports
+# are tracked.
 weights/*.pt
 !weights/count_head.pt
+!weights/cdvqa_head.pt
+weights/*_cache_*.json
 
 # Scratch / temp outputs
 *.log

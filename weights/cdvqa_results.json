@@ -1,18 +1,18 @@
 {
   "split": "test",
-  "pairs": 13715,
-  "skipped": 109,
-  "questions": 35212,
-  "overall": 0.4926,
-  "baseline": 0.5079,
-  "delta": -0.0153,
-  "time_s": 464.1,
+  "pairs": 15457,
+  "skipped": 0,
+  "questions": 39686,
+  "overall": 0.6827,
+  "baseline": 0.5084,
+  "delta": 0.1743,
+  "time_s": 270.5,
   "per_type": {
     "change_or_not": {
-      "n": 12322,
-      "acc": 0.5599,
-      "base": 0.5627,
-      "delta": -0.0028,
+      "n": 13882,
+      "acc": 0.8281,
+      "base": 0.5617,
+      "delta": 0.2664,
       "examples": [
         {
           "q": "Have the regions of non-vegetated ground surface changed?",
@@ -31,8 +31,8 @@
         {
           "q": "Did the areas of trees change?",
           "gt": "yes",
-          "pred": "no",
-          "ok": false,
+          "pred": "yes",
+          "ok": true,
           "d": {
             "buildings": 0.0317,
             "water": 0.1093,
@@ -59,16 +59,16 @@
       ]
     },
     "change_ratio": {
-      "n": 1718,
-      "acc": 0.2317,
-      "base": 0.1566,
-      "delta": 0.0751,
+      "n": 1936,
+      "acc": 0.3342,
+      "base": 0.1529,
+      "delta": 0.1813,
       "examples": [
         {
           "q": "How much of the area has changed?",
           "gt": "10_to_20",
-          "pred": "0_to_10",
-          "ok": false,
+          "pred": "10_to_20",
+          "ok": true,
           "d": {
             "buildings": 0.0317,
             "water": 0.1093,
@@ -81,8 +81,8 @@
         {
           "q": "How much of the area has not changed?",
           "gt": "80_to_90",
-          "pred": "90_to_100",
-          "ok": false,
+          "pred": "80_to_90",
+          "ok": true,
           "d": {
             "buildings": 0.0317,
             "water": 0.1093,
@@ -95,7 +95,7 @@
         {
           "q": "What is the percentage of changed areas?",
           "gt": "60_to_70",
-          "pred": "0_to_10",
+          "pred": "20_to_30",
           "ok": false,
           "d": {
             "buildings": -0.0945,
@@ -109,10 +109,10 @@
       ]
     },
     "change_ratio_types": {
-      "n": 5154,
-      "acc": 0.4593,
-      "base": 0.4754,
-      "delta": -0.0161,
+      "n": 5811,
+      "acc": 0.7066,
+      "base": 0.477,
+      "delta": 0.2296,
       "examples": [
         {
           "q": "What is the change proportion of trees in the pre-event image?",
@@ -131,8 +131,8 @@
         {
           "q": "What is the change ratio of non-vegetated ground surface in the post-event image?",
           "gt": "0_to_10",
-          "pred": "0",
-          "ok": false,
+          "pred": "0_to_10",
+          "ok": true,
           "d": {
             "buildings": 0.0317,
             "water": 0.1093,
@@ -159,15 +159,15 @@
       ]
     },
     "change_to_what": {
-      "n": 2660,
-      "acc": 0.4263,
-      "base": 0.3744,
-      "delta": 0.0519,
+      "n": 2991,
+      "acc": 0.5751,
+      "base": 0.3805,
+      "delta": 0.1946,
       "examples": [
         {
           "q": "What have the regions of non-vegetated ground surface in the first image mainly changed to?",
           "gt": "low_vegetation",
-          "pred": "water",
+          "pred": "buildings",
           "ok": false,
           "d": {
             "buildings": 0.0317,
@@ -195,7 +195,7 @@
         {
           "q": "What have the regions of low vegetation in the pre-event image mainly changed to?",
           "gt": "trees",
-          "pred": "water",
+          "pred": "NVG_surface",
           "ok": false,
           "d": {
             "buildings": 0.0317,
@@ -209,10 +209,10 @@
       ]
     },
     "decrease_or_not": {
-      "n": 4125,
-      "acc": 0.6291,
-      "base": 0.6885,
-      "delta": -0.0594,
+      "n": 4658,
+      "acc": 0.7445,
+      "base": 0.69,
+      "delta": 0.0545,
       "examples": [
         {
           "q": "Did the regions of non-vegetated ground surface decrease?",
@@ -259,10 +259,10 @@
       ]
     },
     "increase_or_not": {
-      "n": 4079,
-      "acc": 0.6335,
-      "base": 0.6666,
-      "delta": -0.0331,
+      "n": 4600,
+      "acc": 0.7402,
+      "base": 0.6663,
+      "delta": 0.0739,
       "examples": [
         {
           "q": "Did the areas of non-vegetated ground surface increase?",
@@ -309,10 +309,10 @@
       ]
     },
     "largest_change": {
-      "n": 2577,
-      "acc": 0.3411,
-      "base": 0.4288,
-      "delta": -0.0877,
+      "n": 2904,
+      "acc": 0.4848,
+      "base": 0.4291,
+      "delta": 0.0558,
       "examples": [
         {
           "q": "What is the largest change?",
@@ -331,7 +331,7 @@
         {
           "q": "What type of change is the largest in the pre-event image?",
           "gt": "trees",
-          "pred": "NVG_surface",
+          "pred": "low_vegetation",
           "ok": false,
           "d": {
             "buildings": 0.0317,
@@ -359,15 +359,15 @@
       ]
     },
     "smallest_change": {
-      "n": 2577,
-      "acc": 0.1901,
-      "base": 0.2216,
-      "delta": -0.0314,
+      "n": 2904,
+      "acc": 0.291,
+      "base": 0.2231,
+      "delta": 0.0678,
       "examples": [
         {
           "q": "What is the smallest change?",
           "gt": "NVG_surface",
-          "pred": "buildings",
+          "pred": "water",
           "ok": false,
           "d": {
             "buildings": 0.0317,
@@ -395,7 +395,7 @@
         {
           "q": "What type of change is the smallest in the post-event image?",
           "gt": "low_vegetation",
-          "pred": "buildings",
+          "pred": "NVG_surface",
           "ok": false,
           "d": {
             "buildings": 0.0317,

@@ -36,6 +36,7 @@ class RSVQAModel:
         self.bow_dim = 512
         self.type_vocab: Dict[str, int] = {}
         self.count = None
+        self.count_density = None
         self.temperature = 1.0
         path = CONFIG.vqa_weights
         if path.exists():
@@ -59,7 +60,47 @@ class RSVQAModel:
                 self.trained = False
         self._maybe_torchscript()
         self._load_count_head()
+        self._load_density_head()
         self._load_type_heads()
+
+    def _load_density_head(self) -> None:
+        """Density-map counting head (v5) — used only if it beat the ordinal
+        v4 head's val digit-accuracy at training time (promotion gate baked
+        into the checkpoint by scripts/train_count_density.py)."""
+        path = CONFIG.weights_dir / "count_head_density.pt"
+        if not path.exists():
+            return
+        try:
+            import torch
+            ckpt = torch.load(path, map_location="cpu", weights_only=False)
+            if ckpt.get("arch") != "density_v5":
+                return
+            v4_path = CONFIG.weights_dir / "count_head.pt"
+            v4_acc = None
+            if v4_path.exists():
+                try:
+                    v4_acc = float(torch.load(
+                        v4_path, map_location="cpu",
+                        weights_only=False).get("val_digit_acc") or 0.0)
+                except Exception:
+                    v4_acc = None
+            if v4_acc is not None and \
+                    float(ckpt.get("val_digit_acc") or 0.0) <= v4_acc:
+                return                      # gate: v4 is at least as good
+            from .count_density import DensityHead
+            enc = SceneEncoder(3)
+            enc.load_state_dict(ckpt["encoder"])
+            head = DensityHead(n_classes=len(ckpt["classes"]))
+            head.load_state_dict(ckpt["head"])
+            self.count_density = {
+                "encoder": enc.eval().to(self.device),
+                "head": head.eval().to(self.device),
+                "classes": ckpt["classes"],
+                "input_size": int(ckpt.get("input_size", 192)),
+                "val_digit_acc": ckpt.get("val_digit_acc"),
+            }
+        except Exception:
+            self.count_density = None
 
     def _load_type_heads(self) -> None:
         """Per-type specialist heads (jointly trained, own encoder)."""
@@ -156,6 +197,10 @@ class RSVQAModel:
                 out = self._count_answer(img, question)
                 if out is not None:
                     return out
+            if t_idx == count_idx and self.count_density is not None:
+                out = self._density_answer(img, question)
+                if out is not None:
+                    return out
             out = self._model_answer(img, question)
             if out is not None:
                 return out
@@ -193,6 +238,34 @@ class RSVQAModel:
                 "confidence": round(float(probs[top]), 3),
                 "candidates": cands,
                 "source": f"per-type specialist head ({t_name})"}
+
+    def _density_answer(self, img: RSImage, question: str) -> Optional[Dict]:
+        """Density-map counting head (v5) with flip-TTA."""
+        import torch
+        cfg = self.count_density
+        rgb = _rgb3(img)
+        x = to_tensor(resize_np(normalise_for_encoder(rgb, img.modality),
+                                cfg["input_size"])).to(self.device)
+        xf = torch.flip(x, dims=[3])
+        with torch.no_grad():
+            fmap = 0.5 * (cfg["encoder"].feature_map(x, stride=8) +
+                          cfg["encoder"].feature_map(xf, stride=8))
+            dmap, logits = cfg["head"](fmap)
+            dens = torch.nn.functional.softplus(dmap)
+            pred_count = float(dens.sum().item())
+            probs = torch.softmax(logits, -1)[0].cpu().numpy()
+        classes = cfg["classes"]
+        pred_d = int(min(classes, key=lambda c: abs(c - pred_count)))
+        top = int(np.argmax(probs))
+        pred_c = classes[top]
+        # density wins when it agrees with the digit head within +-1
+        digit = pred_d if abs(pred_d - pred_c) <= 1 else pred_c
+        return {"answer": str(digit),
+                "confidence": round(float(probs[top]), 3),
+                "candidates": [(str(classes[i]), round(float(probs[i]), 3))
+                               for i in np.argsort(-probs)[:3]],
+                "source": ("density counting head v5 "
+                           f"(val {cfg['val_digit_acc']})")}
 
     def _count_answer(self, img: RSImage, question: str) -> Optional[Dict]:
         """Dedicated counting head with flip-TTA."""

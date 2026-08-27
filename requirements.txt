@@ -3,7 +3,6 @@ torchvision
 rasterio
 numpy
 pillow
-streamlit
 fastapi
 uvicorn
 python-multipart

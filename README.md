@@ -96,7 +96,7 @@ weakest accuracy). Per-type heads are the fairer comparison against other system
 | Benchmark | Metric | Score | Published Baseline |
 |---|---|---|---|
 | LEVIR-CD (test, thr=0.85) | IoU / F1 | **0.668 / 0.801** | BIT-RN18: 0.81/0.89 |
-| CDVQA (test, 35,212 Q) | answer accuracy | **0.493** (majority baseline 0.508; +7.5 pts over baseline on change-ratio, +5.2 on change-to-what) | RN-18 baseline: 0.68 |
+| CDVQA (test, 39,686 Q) | answer accuracy | **0.683** (+17.4 pts over majority baseline; **every** question type above baseline) | RN-18 baseline: 0.68 |
 
 *LEVIR-CD: CPU-class Siamese FPN, 44MB weights, tiled inference — capability
 demo, not SOTA claim. TTA (+2-3 F1 points) available via `--tta` flag.
