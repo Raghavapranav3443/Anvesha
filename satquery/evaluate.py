@@ -182,67 +182,27 @@ def bench_vrsbench_grounding(n: int = 200) -> dict | None:
 
 
 def bench_cdvqa(n: int = 200) -> dict | None:
-    """CDVQA val question-answer accuracy over real bi-temporal pairs.
+    """CDVQA val question-answer accuracy via the project's specialist predictor.
 
-    CDVQA JSONs ship in data/CDVQA; the actual change pairs are SECOND images
-    (data/SECOND/SECOND_test/{im1,im2}) keyed by the same <id>.png file_name.
-    Answers are keyed by question id.
+    Delegates to scripts/eval_cdvqa.evaluate_cdvqa — the same question-type-
+    routed machinery (change-conditioned learned head over detector diff
+    features, calibrated rules fallback) behind the D14.8 full-test 0.683
+    result. Ground truth is joined by answers_ids, the dataset's own key.
     """
-    import json as _json
-    root = CONFIG.data_dir / "CDVQA"
-    qf = root / "Val_questions.json"
-    if not qf.exists():
-        return None
-    img_q = _json.loads(qf.read_text(encoding="utf-8"))
-    qs = {q["id"]: q for q in img_q.get("questions", [])}
-    # image id -> info comes from Val_images.json (separate file)
-    imgs = {}
+    import sys as _sys
+    root = str(Path(__file__).resolve().parents[1])
+    if root not in _sys.path:
+        _sys.path.insert(0, root)
     try:
-        ifq = root / "Val_images.json"
-        idata = _json.loads(ifq.read_text(encoding="utf-8"))
-        imgs = {i["id"]: i for i in idata.get("images", [])}
-    except Exception:
-        pass
-    # answers by question id
-    ans_map = {}
-    try:
-        adata = _json.loads((root / "Val_answers.json").read_text(encoding="utf-8"))
-        ans_map = {a["question_id"]: a.get("answer", "") for a in adata.get("answers", [])}
-    except Exception:
-        pass
-
-    im_root = CONFIG.data_dir / "SECOND" / "SECOND_test"
-    correct = 0
-    n_tot = 0
-    for qid in sorted(qs.keys())[:n]:
-        q = qs[qid]
-        if not q.get("active", True):
-            continue
-        info = imgs.get(q.get("img_id"))
-        if not info:
-            continue
-        fname = info.get("file_name")
-        fa = im_root / "im1" / fname if fname else None
-        fb = im_root / "im2" / fname if fname else None
-        if not fa or not fa.exists() or not fb or not fb.exists():
-            continue
-        from satquery.models.change import analyse_pair
-        try:
-            out = analyse_pair(load_image(fa), load_image(fb), query=q["question"])
-            pred = str(out.get("answer", "")).lower().strip()
-        except Exception:
-            continue
-        gt = ans_map.get(qid, "").lower()
-        n_tot += 1
-        if not gt:
-            continue
-        correct += float(gt in pred or pred in gt or gt == pred)
-    if n_tot == 0:
+        from scripts.eval_cdvqa import evaluate_cdvqa
+        r = evaluate_cdvqa(split="val", max_pairs=max(n // 6, 4), model="learned")
+    except Exception as e:
         return {"benchmark": "CDVQA (val subset)", "metric": "answer-match",
-                "n": 0, "score": None,
-                "note": "no image pairs resolvable under data/SECOND"}
+                "n": 0, "score": None, "note": f"evaluator error: {e}"}
     return {"benchmark": "CDVQA (val subset)", "metric": "answer-match",
-            "n": n_tot, "score": round(correct / max(n_tot, 1), 4)}
+            "n": int(r["questions"]), "score": r["overall"],
+            "note": (f"majority-baseline={r['baseline']} "
+                     f"delta=+{r['delta']} (learned change-conditioned head)")}
 
 
 def bench_caption_bleu(n: int = 150) -> dict | None:
