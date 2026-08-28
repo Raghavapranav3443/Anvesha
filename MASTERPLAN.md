@@ -127,6 +127,47 @@ Deadlines: **internal round ≈ 1 week** (ship frozen + one visible new capabili
 3. `pytest` green on clean machine/Docker; cold-start demo recorded.
 4. Cut release tag. Failed gates published as honest negatives.
 
+### Phase 6 — Landing page: content overhaul (final-prep week + iterate, ~2 days, judge-facing)
+
+**Goal: a judge lands on the page and answers within ~10 seconds — "all mandated
+capabilities covered, measured on every named suite, real outputs, runs without
+cloud."** Current page (web/src/landing) keeps the globe animation (retain), but its
+content sells short:
+- Hero has no proof above the fold (name + tagline only).
+- "The specialists" table shows stale/pre-network numbers (0.71 / 0.32 / 0.67) and no
+  VRSBench or ISRO/SAC story.
+- "Why Anvesha" leads with *negatives* (what failed) and buries the headline strengths.
+- No evidence section (no change overlay image, no GeoTIFF mask, no SAR example, no trace
+  snippet), and no explicit PS-mandate coverage table.
+
+**Content spec (in priority order):**
+1. **Hero (keep globe animation):** add a proof chip-line under the tagline — e.g.
+   "6/6 PS-named benchmarks on one scorecard · Cartosat-2S + RISAT ready · no cloud".
+2. **Stat band (new, first scroll section):** 3–5 headline numbers — RS adaptation
+   98.86% (EuroSAT full-track), change-VQA +17.4 pts over the paper baseline, 100/100
+   concurrent @ p95≈7s, int8 export costs 0.16%, fully offline deployable.
+3. **"The mandate" (new):** a PS-requirement coverage table (mandate → implementation →
+   measured), the compliance story judges check first: single-image VQA, captioning/
+   grounding, multitemporal change + change-VQA, optical–SAR, agentic orchestration,
+   remote-sensing-adapted vision-language component.
+4. **"The scorecard" (new):** the 6-row named-benchmark table (RSVQA-LR, VRSBench
+   caption, VRSBench grounding, CDVQA, LEVIR-CD, BigEarthNet captions) + "hidden
+   ISRO/SAC set: pre-georeferenced Cartosat-2S + RISAT, boxes/masks" band. Numbers come
+   from the live scorecard at ship time (Phase 0 rows → Phase 2/3 lifts).
+5. **"Evidence" (new):** 3 visual cards — a change-detection overlay, a georeferenced
+   mask export (GeoTIFF), an optical+SAR fused pair; plus a tiny execution-trace snippet.
+   Judges trust what they can see. Assets sourced from runs/<id>/visuals.
+6. **"Why Anvesha":** reorder to headline strengths first (reproducible numbers,
+   calibrated confidence, offline, honest gates); keep the negative-results list SECOND
+   as integrity proof.
+7. **CTA:** keep "Launch the console", strengthen subtext ("demo samples included").
+
+**Rules:** never ship a number that isn't reproduced by `python -m satquery.evaluate
+--all` at that exact moment (pulls from `runs/scorecard.json`); the globe animation and
+all motion stays; frontend must rebuild cleanly (`cd web && npm run build`); the page
+must load offline (no external fonts/CDNs). Landing is part of the final demo — a judge
+browser-cold-check is a Phase 5 gate.
+
 ---
 
 ## PART D — STOP conditions (hard)
@@ -149,8 +190,9 @@ Deadlines: **internal round ≈ 1 week** (ship frozen + one visible new capabili
 ## PART E — Agent operating notes
 
 - **Order (dependency graph):** Phase 0 → (Phase 1 ‖ Phase 0-cdvqa) → Phase 2 → Phase 3
-  (parallel-safe) → Phase 4 (anywhere) → Phase 5. Phase 1 and 3 independent — if one stops,
-  the other continues.
+  (parallel-safe) → Phase 4 (anywhere) → Phase 5 → Phase 6 (landing; needs final
+  scorecard, so lands late but copy/components can start anytime). Phase 1 and 3
+  independent — if one stops, the other continues.
 - **Reuse patterns, don't invent:** gate_dinov2.py, DinoEncoder (VLCEncoder clones it),
   fallback source_model labeling, CONFIG.resolve_device(), run_benchmarks stubs,
   export_torchscript.py (re-gate every adopted model, prev Δ−0.16%).
@@ -183,6 +225,7 @@ Deadlines: **internal round ≈ 1 week** (ship frozen + one visible new capabili
 | LEVIR-CD full-test IoU/F1 | 0.668 / 0.801 | ≥ 0.75 / ≥ 0.88 | 0.78 / 0.89 |
 | CDVQA | 0.683 | ≥ 0.70 | ~0.72 |
 | Combined normalized | 0.5291 | — | ≥ 0.70 |
+| **Landing page (Phase 6)** | content-thin, stale numbers | judge 10s test | proof band + mandate + 6-row scorecard + evidence cards |
 
 Win-chance: from ~single digits → ~25%. The win is decided on the hidden ISRO/SAC set
 (SAR dB handling, georeferenced masks, co-registration, offline deploy).
