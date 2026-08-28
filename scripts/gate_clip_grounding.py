@@ -53,7 +53,9 @@ def load_clip(args, device):
 def region_scores(model, proc, loader, img, query, device):
     """Score sliding-window regions of img against query via CLIP similarity."""
     from PIL import Image
-    im = Image.fromarray(img).convert("RGB")
+    from satquery.io_utils import _to_uint8_display
+    # load_image returns float32 [0,1]; PIL needs uint8
+    im = Image.fromarray(_to_uint8_display(np.asarray(img))).convert("RGB")
     W, H = im.size
     boxes = []
     for scale in (0.6, 1.0):
