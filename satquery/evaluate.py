@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -17,6 +18,33 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from .config import CONFIG  # noqa: E402
+from .io_utils import load_image  # noqa: E402
+
+
+# --------------------------------------------------------------------- #
+# Shared BLEU util (same protocol as scripts/train_captioner.simple_bleu)
+# --------------------------------------------------------------------- #
+
+def _bleu4(pred: str, ref: str) -> float:
+    """BLEU-4 with brevity penalty (no external deps)."""
+    import re
+    import collections
+    pt = re.findall(r"[a-z0-9]+", pred.lower())
+    rt = re.findall(r"[a-z0-9]+", ref.lower())
+    if not pt or not rt:
+        return 0.0
+    log_prec = 0.0
+    for n in range(1, 5):
+        p_ngrams = collections.Counter(tuple(pt[i:i + n]) for i in range(len(pt) - n + 1))
+        r_ngrams = collections.Counter(tuple(rt[i:i + n]) for i in range(len(rt) - n + 1))
+        clipped = sum(min(c, r_ngrams.get(ng, 0)) for ng, c in p_ngrams.items())
+        total = sum(p_ngrams.values())
+        if total == 0:
+            return 0.0
+        log_prec += np.log(max(clipped / total, 1e-10))
+    bleu = np.exp(log_prec / 4.0)
+    bp = min(1.0, np.exp(1 - len(rt) / max(len(pt), 1)))
+    return float(bp * bleu)
 
 
 # --------------------------------------------------------------------- #
@@ -32,6 +60,189 @@ def bench_rsvqa(n: int) -> dict | None:
 def bench_levir(n: int) -> dict | None:
     from scripts.run_benchmarks import eval_levir
     return eval_levir(n)
+
+
+# --------------------------------------------------------------------- #
+# VRSBench (manual route — upstream HF parquet is schema-broken).
+# Images + annotations ship under data/vrsbench on disk.
+#     caption bench   -> BLEU-4 against val captions
+#     grounding bench -> IoU@0.5 against val referring-expression boxes
+# --------------------------------------------------------------------- #
+
+def _vrsbench_val():
+    """Yield (stem, image_path, caption, objects) for VRSBench validation."""
+    root = CONFIG.data_dir / "vrsbench"
+    ann_dir = root / "Annotations_val"
+    img_root = root / "Images_val"
+    if not (ann_dir.exists() and img_root.exists()):
+        return None
+    import json as _json
+    items = []
+    for jf in sorted(ann_dir.glob("*.json")):
+        try:
+            d = _json.loads(jf.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        stem = jf.stem
+        img = img_root / f"{stem}.png"
+        if not img.exists():
+            continue
+        objs = [o for o in d.get("objects", []) if o.get("obj_coord")]
+        if not d.get("caption") or not objs:
+            continue
+        items.append({"stem": stem, "image": img,
+                      "caption": d["caption"], "objects": objs})
+    return items
+
+
+def bench_vrsbench_caption(n: int = 300) -> dict | None:
+    """BLEU-4 of the captioning specialist vs VRSBench val captions."""
+    from satquery.models import describe
+    items = _vrsbench_val()
+    if not items:
+        return None
+    scores = []
+    for it in items[:n]:
+        try:
+            out = describe(load_image(it["image"]))
+            text = out["caption"]
+        except Exception as _e:
+            continue
+        if not text:
+            continue
+        scores.append(_bleu4(text, it["caption"]))
+    if not scores:
+        return None
+    return {"benchmark": "VRSBench-val (captioning)", "metric": "BLEU-4",
+            "n": len(scores), "score": round(float(np.mean(scores)), 4)}
+
+
+def _parse_coord(s):
+    """Parse '[0.8, 0.25, 0.99, 0.33]' / list / string (x0,y0,x1,y1)."""
+    if isinstance(s, (list, tuple)):
+        if len(s) == 4:
+            try:
+                return [float(v) for v in s]
+            except Exception:
+                return None
+        return None
+    if not s or not isinstance(s, str):
+        return None
+    toks = re.findall(r"[0-9.]+", s.replace(",", " "))
+    if len(toks) == 4:
+        return [float(t) for t in toks]
+    return None
+
+
+def bench_vrsbench_grounding(n: int = 200) -> dict | None:
+    """Spectral grounding specialist vs VRSBench val referring boxes (IoU@0.5).
+
+    This is the gate baseline for Phase 1 (VL grounding). Expected ≈ 0.15.
+    """
+    from satquery.models import ground
+    items = _vrsbench_val()
+    if not items:
+        return None
+    ious = []
+    n_det = 0
+    for it in items[:n]:
+        img = load_image(it["image"])
+        img_wh = (img.width, img.height) if hasattr(img, "width") else (img.shape[1], img.shape[0])
+        for o in it["objects"]:
+            coord = _parse_coord(o.get("obj_coord"))
+            if not coord or len(coord) != 4:
+                continue
+            gt = np.array(coord, dtype=np.float32)  # normalized [x0,y0,x1,y1]
+            expr = o.get("referring_sentence") or it["caption"]
+            try:
+                res = ground(img, expr)
+            except Exception:
+                continue
+            if not res.boxes:
+                continue
+            best = 0.0
+            for b in res.boxes:
+                x0, y0, x1, y1 = b
+                x0n, y0n = x0 / img_wh[0], y0 / img_wh[1]
+                x1n, y1n = x1 / img_wh[0], y1 / img_wh[1]
+                inter = max(0.0, min(gt[2], max(x0n, x1n)) - max(gt[0], min(x0n, x1n))) * \
+                        max(0.0, min(gt[3], max(y0n, y1n)) - max(gt[1], min(y0n, y1n)))
+                union = (max(gt[2], max(x0n, x1n)) - min(gt[0], min(x0n, x1n))) * \
+                        (max(gt[3], max(y0n, y1n)) - min(gt[1], min(y0n, y1n)))
+                best = max(best, inter / union if union > 0 else 0.0)
+            ious.append(best)
+            if best >= 0.5:
+                n_det += 1
+    if not ious:
+        return None
+    return {"benchmark": "VRSBench-val (grounding)", "metric": "IoU@0.5",
+            "n": len(ious),
+            "score": round(float(np.mean(ious)), 4),
+            "det_rate@0.5": round(n_det / len(ious), 4)}
+
+
+def bench_cdvqa(n: int = 200) -> dict | None:
+    """CDVQA val question-answer accuracy over real bi-temporal pairs.
+
+    CDVQA JSONs ship in data/CDVQA; the actual change pairs are SECOND images
+    (data/SECOND/SECOND_test/{im1,im2}) keyed by the same <id>.png file_name.
+    Answers are keyed by question id.
+    """
+    import json as _json
+    root = CONFIG.data_dir / "CDVQA"
+    qf = root / "Val_questions.json"
+    if not qf.exists():
+        return None
+    img_q = _json.loads(qf.read_text(encoding="utf-8"))
+    qs = {q["id"]: q for q in img_q.get("questions", [])}
+    # image id -> info comes from Val_images.json (separate file)
+    imgs = {}
+    try:
+        ifq = root / "Val_images.json"
+        idata = _json.loads(ifq.read_text(encoding="utf-8"))
+        imgs = {i["id"]: i for i in idata.get("images", [])}
+    except Exception:
+        pass
+    # answers by question id
+    ans_map = {}
+    try:
+        adata = _json.loads((root / "Val_answers.json").read_text(encoding="utf-8"))
+        ans_map = {a["question_id"]: a.get("answer", "") for a in adata.get("answers", [])}
+    except Exception:
+        pass
+
+    im_root = CONFIG.data_dir / "SECOND" / "SECOND_test"
+    correct = 0
+    n_tot = 0
+    for qid in sorted(qs.keys())[:n]:
+        q = qs[qid]
+        if not q.get("active", True):
+            continue
+        info = imgs.get(q.get("img_id"))
+        if not info:
+            continue
+        fname = info.get("file_name")
+        fa = im_root / "im1" / fname if fname else None
+        fb = im_root / "im2" / fname if fname else None
+        if not fa or not fa.exists() or not fb or not fb.exists():
+            continue
+        from satquery.models.change import analyse_pair
+        try:
+            out = analyse_pair(load_image(fa), load_image(fb), query=q["question"])
+            pred = str(out.get("answer", "")).lower().strip()
+        except Exception:
+            continue
+        gt = ans_map.get(qid, "").lower()
+        n_tot += 1
+        if not gt:
+            continue
+        correct += float(gt in pred or pred in gt or gt == pred)
+    if n_tot == 0:
+        return {"benchmark": "CDVQA (val subset)", "metric": "answer-match",
+                "n": 0, "score": None,
+                "note": "no image pairs resolvable under data/SECOND"}
+    return {"benchmark": "CDVQA (val subset)", "metric": "answer-match",
+            "n": n_tot, "score": round(correct / max(n_tot, 1), 4)}
 
 
 def bench_caption_bleu(n: int = 150) -> dict | None:
@@ -216,7 +427,10 @@ def main():
         return
 
     if args.all:
-        for fn in (bench_rsvqa, bench_levir, bench_caption_bleu):
+        benches = (bench_rsvqa, bench_levir, bench_caption_bleu,
+                   bench_vrsbench_caption, bench_vrsbench_grounding,
+                   bench_cdvqa)
+        for fn in benches:
             try:
                 r = fn(args.n)
                 if r:
