@@ -66,11 +66,22 @@ without them (and are themselves under test).
   | Expression→box regression | BEN.txt refs (26.8k) | 0.15 | gated off |
   | Expression→heatmap | BEN.txt refs | 0.12 | gated off |
   | Point→heatmap | VRSBench objects (13.6k) | 0.018 | gated off |
+  | Zero-shot CLIP window-argmax (v2 multi-scale grid, 80 val refs) | none (zero-shot) | 0.081 generic / 0.091 RemoteCLIP; grid oracle ceiling 0.273 | gated off — pre-registered ≥0.30 |
   Root cause: a frozen ImageNet→RS encoder lacks the spatial/class resolution
   for tight-box localization; this needs a detection-grade architecture
   (FPN + fine-tuned backbone) — documented as the upgrade path. Checkpoints
   removed from `weights/`; training scripts retained for reproduction.
   The click-to-query feature works regardless (region-crop VQA).
+   **CLIP spike negative (Phase 1 gate):** both zero-shot dual-encoder probes —
+   generic CLIP ViT-B-32 (0.081) and RS-domain RemoteCLIP ViT-B-32 (0.091) —
+   fell far below the pre-registered 0.30 gate, and the harness's own oracle
+   ceiling (0.273) proves window-argmax is *structurally* incapable of 0.30
+   mean IoU on VRSBench's small objects. RS-domain pretraining adds only
+   +0.01 IoU — the bottleneck is similarity granularity for referring
+   expressions, not domain; caption fine-tuning could not bridge a 3.5× gap.
+   Grounding upgrades, if any, come from a detection-grade open-vocabulary
+   detector (Grounding DINO / OWL-ViT class), not more CLIP.
+   Full record: `Decisions.md` D15.1; `scripts/gate_clip_grounding.py`.
 
 ## Change Specialist (`change_analysis` / `change_vqa`)
 - **Architecture:** Siamese SceneEncoder with an **FPN-lite multi-scale

@@ -624,3 +624,37 @@ reduce-layer name. The fix was one number, but finding it required probing
 the detector's internals tensor-by-tensor — the same class of
 silent-assumption bug as the D2.1 hash-dimension mismatch, caught this time
 by a probe-first habit before any training hours were wasted.
+
+### D15.1 — CLIP grounding gate: both zero-shot probes REJECT → STOP fires, VL effort redirected
+**Decision:** ran the pre-registered Phase 1 gate (`scripts/gate_clip_grounding.py`,
+adopt iff VRSBench-val grounding IoU@0.5 ≥ 0.30 = 2× the spectral baseline).
+Results (n=50 items, 80 refs, corrected multi-scale 0.2–1.0 window-argmax harness):
+generic CLIP ViT-B-32 **0.0811**, RemoteCLIP ViT-B-32 **0.0906**, proposal-grid
+**oracle ceiling 0.2725**. Both REJECT. Per pre-registration: STOP — no
+contrastive fine-tune on `bentxt_join` for grounding, no harness re-rolls.
+**Why this is the right call, and what the numbers actually say:**
+1. The v1 harness (0.6/1.0-scale windows only) was confounded — a 0.6-scale
+   window against a 0.2-scale GT box tops out near IoU 0.11, so small objects
+   could never score. v2 added finer scales *and* an oracle diagnostic that
+   reports the grid's best-achievable IoU. Verdict: even a perfect text-image
+   matcher reaches only **0.273 < 0.30** on this harness — the gate was
+   testing something the harness class cannot deliver.
+2. Both checkpoints extract ~33% of their own ceiling, and RS-domain
+   pretraining (RemoteCLIP, RSICD-trained) adds only +0.01 IoU over generic
+   CLIP. The bottleneck is CLIP-class similarity granularity for compositional
+   referring expressions — which contrastive caption fine-tuning does not fix.
+   Spending the month's GPU budget on that fine-tune would have been re-rolling
+   loaded dice.
+3. The pre-registered threshold was **not** relaxed after seeing results. The
+   honest conclusion is recorded instead: grounding at SIH-competitive quality
+   requires a detection-grade open-vocabulary detector (Grounding DINO /
+   OWL-ViT class, box *regression* instead of window argmax). If pursued, it
+   enters as its own zero-shot probe with its own gate.
+**Consequence:** the `grounding` tool ships the calibrated spectral path
+(VRSBench-val 0.177 — honest, interpretable, nonzero row); the "RS-adapted
+VL component" PS bullet is now pursued where the evidence supports it — as the
+image–text **backbone for captioning and VQA** under Phase 2's separate,
+achievable gates (retrieval metrics on BEN, RSVQA ≥ 0.75, BLEU ≥ 0.35) — and
+GPU budget rebalances to Phase 3 change detection (`data/SECOND` train/test
+already on disk; `scripts/train_change.py` in place), the largest remaining
+public-score lever.
