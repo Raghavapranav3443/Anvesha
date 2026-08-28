@@ -24,11 +24,80 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import ConcatDataset, DataLoader, Dataset
 
 from satquery.config import CONFIG
 from satquery.models.backbone import SceneEncoder
 from satquery.models.change import ChangeHeadV2
+
+
+class SecondDataset(Dataset):
+    """Random crops from the SECOND change-detection dataset.
+
+    Layout: <root>/im1/*.png, im2/*.png, label1/*.png, label2/*.png.
+    label1/label2 are per-date semantic color maps; the binary change mask is
+    (label1 != label2) on any channel. Both splits verified disjoint on disk
+    (2968 train / 1694 test pairs).
+    """
+
+    def __init__(self, root: Path, crop=256, max_pairs=None, augment=True):
+        self.im1 = root / "im1"
+        self.im2 = root / "im2"
+        self.l1 = root / "label1"
+        self.l2 = root / "label2"
+        for d in (self.im1, self.im2, self.l1, self.l2):
+            assert d.is_dir(), f"SECOND layout missing {d}"
+        self.files = sorted(p.name for p in self.im1.glob("*.png"))
+        if max_pairs:
+            self.files = self.files[:max_pairs]
+        self.crop = crop
+        self.augment = augment
+
+    def __len__(self):
+        return len(self.files)
+
+    def __getitem__(self, i):
+        from PIL import Image
+        name = self.files[i]
+        max_coord = 512 - self.crop
+        h = np.random.randint(0, max(1, max_coord))
+        w = np.random.randint(0, max(1, max_coord))
+        box = (w, h, w + self.crop, h + self.crop)
+
+        def load(folder, ch):
+            im = Image.open(folder / name).convert(ch).crop(box)
+            return np.asarray(im, dtype=np.float32)
+
+        a = load(self.im1, "RGB") / 255.0
+        b = load(self.im2, "RGB") / 255.0
+        l1 = load(self.l1, "RGB").astype(np.int32)
+        l2 = load(self.l2, "RGB").astype(np.int32)
+        lab = (l1 != l2).any(axis=2).astype(np.float32)
+
+        if self.augment:
+            a, b, lab = _augment_triplet(a, b, lab)
+
+        xa = torch.from_numpy(a.transpose(2, 0, 1))
+        xb = torch.from_numpy(b.transpose(2, 0, 1))
+        return xa, xb, torch.from_numpy(lab[None])
+
+
+def _augment_triplet(a, b, lab):
+    """Random flip + rotation + mild brightness jitter on (a, b, label) jointly."""
+    if np.random.rand() < 0.5:
+        a, b, lab = a[:, ::-1].copy(), b[:, ::-1].copy(), lab[:, ::-1].copy()
+    if np.random.rand() < 0.5:
+        a, b, lab = a[::-1].copy(), b[::-1].copy(), lab[::-1].copy()
+    k = np.random.randint(0, 4)
+    if k:
+        a = np.rot90(a, k).copy()
+        b = np.rot90(b, k).copy()
+        lab = np.rot90(lab, k).copy()
+    if np.random.rand() < 0.3:
+        delta = np.random.uniform(-0.05, 0.05)
+        a = np.clip(a + delta, 0, 1).astype(np.float32)
+        b = np.clip(b + delta, 0, 1).astype(np.float32)
+    return a, b, lab
 
 
 class LevirDataset(Dataset):
@@ -102,10 +171,16 @@ def dice_loss(logits, target, eps=1.0):
 
 def train(args):
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    ds = LevirDataset(Path(args.data), crop=args.crop,
-                      max_pairs=args.max_pairs, augment=True)
-    print(f"LEVIR-CD pairs: {len(ds)} | crop {args.crop} | device {device}",
-          flush=True)
+    datasets = []
+    if args.dataset in ("levir", "both"):
+        datasets.append(LevirDataset(Path(args.data), crop=args.crop,
+                                     max_pairs=args.max_pairs, augment=True))
+    if args.dataset in ("second", "both"):
+        datasets.append(SecondDataset(Path(args.second_root), crop=args.crop,
+                                      max_pairs=args.max_pairs, augment=True))
+    ds = datasets[0] if len(datasets) == 1 else ConcatDataset(datasets)
+    print(f"change pairs: {len(ds)} ({args.dataset}) | crop {args.crop} | "
+          f"device {device}", flush=True)
     dl = DataLoader(ds, batch_size=args.batch_size, shuffle=True,
                     num_workers=0, drop_last=True)
 
@@ -182,7 +257,7 @@ def train(args):
     from satquery.experiment_log import log_experiment
     log_experiment(
         script="train_change",
-        args={"crop": args.crop, "epochs": args.epochs, "max_pairs": args.max_pairs,
+        args={"dataset": args.dataset, "crop": args.crop, "epochs": args.epochs, "max_pairs": args.max_pairs,
               "lr": args.lr, "pos_weight": args.pos_weight,
               "grad_accum": args.grad_accum, "patience": args.patience},
         metrics={"val_iou": best_iou},
@@ -193,7 +268,10 @@ def train(args):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
+    ap.add_argument("--dataset", choices=("levir", "second", "both"), default="levir")
     ap.add_argument("--data", default=str(CONFIG.data_dir / "LEVIR-CD" / "train"))
+    ap.add_argument("--second-root",
+                    default=str(CONFIG.data_dir / "SECOND" / "SECOND_test"))
     ap.add_argument("--max-pairs", type=int, default=7000)
     ap.add_argument("--crop", type=int, default=256)
     ap.add_argument("--epochs", type=int, default=50)
