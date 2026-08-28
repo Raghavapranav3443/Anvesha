@@ -50,37 +50,65 @@ def load_clip(args, device):
 
 
 @torch.no_grad()
-def region_scores(model, proc, loader, img, query, device):
-    """Score sliding-window regions of img against query via CLIP similarity."""
+def region_scores(model, proc, loader, img, query, device, batch=64):
+    """Score sliding-window regions of img against query via CLIP similarity.
+
+    v2 harness correction (documented, pre-registered threshold unchanged):
+    v1 only proposed 0.6/1.0-scale windows, which mathematically caps IoU@0.5
+    below reach for small GT objects (a 0.6-scale window vs a 0.2-scale GT box
+    tops out near IoU 0.11). v2 proposes a denser multi-scale grid and reports
+    an oracle ceiling in main() so harness limits are separable from model
+    capability. Threshold stays 0.30.
+    """
     from PIL import Image
     from satquery.io_utils import _to_uint8_display
     # load_image returns float32 [0,1]; PIL needs uint8
     im = Image.fromarray(_to_uint8_display(np.asarray(img))).convert("RGB")
     W, H = im.size
     boxes = []
-    for scale in (0.6, 1.0):
+    for scale in (0.2, 0.35, 0.6, 1.0):
         rw, rh = int(W * scale), int(H * scale)
-        step = max(16, int(min(rw, rh) * 0.33))
+        if rw < 16 or rh < 16:
+            continue
+        step = max(8, int(min(rw, rh) * 0.4))
         for y in range(0, H - rh + 1, step):
             for x in range(0, W - rw + 1, step):
                 boxes.append((x, y, x + rw, y + rh))
     crops = [im.crop((x, y, x1, y1)) for (x, y, x1, y1) in boxes]
     if not crops:
         return [], []
+    # encode the query text once
     if loader == "open_clip":
         tok, preprocess = proc
-        toks = tok([query] * len(crops)).to(device)
-        t_emb = model.encode_text(toks)
-        imgs = torch.stack([preprocess(c) for c in crops]).to(device)
-        i_emb = model.encode_image(imgs)
-        sims = (i_emb * t_emb).sum(dim=-1).cpu().numpy()
+        t_emb = model.encode_text(tok([query]).to(device))
     else:
-        inp = proc(text=[query] * len(crops), images=crops,
-                   return_tensors="pt", padding=True).to(device)
-        out = model(**inp)
-        sims = (out.text_embeds * out.image_embeds).sum(dim=-1).cpu().numpy()
+        tin = proc(text=[query], return_tensors="pt", padding=True).to(device)
+        t_emb = model.get_text_features(**tin)
+    t_emb = t_emb / t_emb.norm(dim=-1, keepdim=True)
+    sims_all = []
+    for i in range(0, len(crops), batch):
+        chunk = crops[i:i + batch]
+        if loader == "open_clip":
+            imgs = torch.stack([preprocess(c) for c in chunk]).to(device)
+            i_emb = model.encode_image(imgs)
+        else:
+            pin = proc(images=chunk, return_tensors="pt").to(device)
+            i_emb = model.get_image_features(pixel_values=pin["pixel_values"])
+        i_emb = i_emb / i_emb.norm(dim=-1, keepdim=True)
+        sims_all.append((i_emb * t_emb).sum(dim=-1).cpu().numpy())
+    sims = np.concatenate(sims_all)
     sims = (sims - sims.min()) / (sims.max() - sims.min() + 1e-9)
     return boxes, sims.tolist()
+
+
+def _iou_norm(gt, box, H, W):
+    x0, y0, x1, y1 = box
+    bx = np.array([x0 / W, y0 / H, x1 / W, y1 / H], dtype=np.float32)
+    inter = max(0.0, min(gt[2], bx[2]) - max(gt[0], bx[0])) * \
+            max(0.0, min(gt[3], bx[3]) - max(gt[1], bx[1]))
+    union = (max(gt[2], bx[2]) - min(gt[0], bx[0])) * \
+            (max(gt[3], bx[3]) - min(gt[1], bx[1]))
+    return inter / union if union > 0 else 0.0
 
 
 def main():
@@ -111,7 +139,7 @@ def main():
         return 1
     print(f"[vrsbench] {len(items)} items available, testing {args.n}", flush=True)
 
-    ious, det = [], 0
+    ious, oracles, det = [], [], 0
     t0 = time.time()
     for it in items[:args.n]:
         from satquery.io_utils import load_image
@@ -121,6 +149,7 @@ def main():
             arr = np.stack([arr] * 3, axis=-1)
         if arr.shape[2] not in (3, 4):
             arr = arr[..., :3]
+        H, Wc = arr.shape[:2]
         for o in it["objects"]:
             coord = _parse_coord(o.get("obj_coord"))
             if not coord:
@@ -134,30 +163,28 @@ def main():
                 continue
             if not boxes:
                 continue
+            # oracle ceiling: best IoU this proposal grid could ever produce
+            oracles.append(max(_iou_norm(gt, b, H, Wc) for b in boxes))
             best_idx = int(np.argmax(sims))
-            x0, y0, x1, y1 = boxes[best_idx]
-            H, Wc = arr.shape[:2]
-            bx = np.array([x0 / Wc, y0 / H, x1 / Wc, y1 / H], dtype=np.float32)
-            inter = max(0.0, min(gt[2], bx[2]) - max(gt[0], bx[0])) * \
-                    max(0.0, min(gt[3], bx[3]) - max(gt[1], bx[1]))
-            union = (max(gt[2], bx[2]) - min(gt[0], bx[0])) * \
-                    (max(gt[3], bx[3]) - min(gt[1], bx[1]))
-            iou = inter / union if union > 0 else 0.0
+            iou = _iou_norm(gt, boxes[best_idx], H, Wc)
             ious.append(iou)
             if iou >= 0.5:
                 det += 1
         print(f"  [{len(ious):4d}] IoU={np.mean(ious):.3f} "
-              f"det={det}/{len(ious)} elapsed={time.time()-t0:.0f}s", flush=True)
+              f"oracle={np.mean(oracles):.3f} det={det}/{len(ious)} "
+              f"elapsed={time.time()-t0:.0f}s", flush=True)
 
     if not ious:
         print("[clip] no results", flush=True)
         return 1
     mean_iou = float(np.mean(ious))
     det_rate = det / len(ious)
+    oracle = float(np.mean(oracles))
     gate = 0.30
     verdict = "ADOPT" if mean_iou >= gate else "REJECT"
     print(f"\n[clip] VRSBench-val grounding IoU@0.5 = {mean_iou:.4f} "
           f"({len(ious)} refs) det@0.5={det_rate:.3f}", flush=True)
+    print(f"[clip] proposal-grid oracle IoU (ceiling) = {oracle:.4f}", flush=True)
     print(f"[clip] gate (>= {gate}) -> {verdict}", flush=True)
 
     out = CONFIG.runs_dir / "clip_grounding_gate.json"
@@ -165,6 +192,7 @@ def main():
         "loader": args.loader, "model": args.model, "arch": args.arch,
         "pretrained": args.pretrained, "device": device, "n": args.n,
         "mean_iou": round(mean_iou, 4), "det_rate": round(det_rate, 4),
+        "oracle_iou": round(oracle, 4),
         "gate": gate, "verdict": verdict}, indent=2), encoding="utf-8")
     return 0 if verdict == "ADOPT" else 2
 
