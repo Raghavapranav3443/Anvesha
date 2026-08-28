@@ -134,6 +134,7 @@ class RSVQAModel:
                 "image_size": int(ckpt.get("image_size", 128)),
                 "bow_dim": int(ckpt.get("bow_dim", 512)),
                 "backbone": ckpt.get("backbone", "scene"),
+                "qfeat_kind": ckpt.get("qfeat_kind", "bow"),
                 "val_mean_acc": ckpt.get("val_mean_acc"),
             }
         except Exception:
@@ -215,8 +216,22 @@ class RSVQAModel:
         x = to_tensor(resize_np(normalise_for_encoder(rgb, img.modality),
                                 cfg["image_size"])).to(self.device)
         q = np.zeros(cfg["bow_dim"], dtype=np.float32)
-        q[:] = _hashed_bow(question, dim=cfg["bow_dim"])
-        qb = torch.from_numpy(q).unsqueeze(0).to(self.device)
+        if cfg.get("qfeat_kind", "bow") == "clip":
+            # Phase 2: question features come from the CLIP text tower (the
+            # RS-adapted VL component's text side) when the promoted
+            # checkpoint was trained with them. If the VL text side cannot
+            # load, fall through to the fallback path rather than silently
+            # feeding BOW features into CLIP-trained heads.
+            from .clip_text import get_clip_text
+            enc_t = get_clip_text()
+            if enc_t is None:
+                return None
+            qb = torch.from_numpy(np.asarray(enc_t.embed([question])[0],
+                                             dtype=np.float32)
+                                  ).unsqueeze(0).to(self.device)
+        else:
+            q[:] = _hashed_bow(question, dim=cfg["bow_dim"])
+            qb = torch.from_numpy(q).unsqueeze(0).to(self.device)
         head = cfg["heads"][t_name]
         with torch.no_grad():
             logits = head(cfg["encoder"](x), qb,
