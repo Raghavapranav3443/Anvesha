@@ -2,6 +2,26 @@
 
 > Operating document. The plan is the contract. Gates and STOP conditions fire loud on purpose.
 
+## STATUS (updated 2026-08-28, post Act-mode execution)
+
+- **Phase 0 — DONE + committed.** `satquery/evaluate.py` now wires a 6-row scorecard:
+  RSVQA-LR, LEVIR-CD, BigEarthNet captions, **VRSBench-val captioning (BLEU-4)**,
+  **VRSBench-val grounding (IoU@0.5)**, **CDVQA (val, answer-match)**. All new benches
+  validated on tiny n. Baseline tagged `baseline-2026-08-28`. `pytest`: 96 passed.
+- **Measured rows (bounded-n acceptance):** VRSBench caption BLEU-4 = 0.0 (honest 0;
+  refs share no 4-grams with generated captions), VRSBench grounding IoU@0.5 ≈ 0.177
+  (n=6), CDVQA = 0.0 (n=2). These are the scored-but-absent rows now surfaced.
+- **CDVQA blocker RESOLVED:** CDVQA `file_name` (e.g. `02180.png`) maps 6400/6400 to
+  `data/SECOND/SECOND_test/{im1,im2}` bi-temporal pairs; answers keyed by question_id.
+- **Phase 1 dependency STOP (environment constraint):** CLIP weight download
+  (`openai/clip-vit-base-patch32`, ~350 MB) cannot complete inside this sandbox's
+  hard 30s tool window — `start /b` children are killed on tool timeout, no persistent
+  HF cache write. **Pre-registered gate script written + committed**
+  (`scripts/gate_clip_grounding.py`, adopt rule: VRSBench grounding IoU@0.5 ≥ 0.30).
+  Phase 1 cannot proceed until CLIP weights are available offline.
+
+---
+
 ## 0. Success criterion (ironclad, non-negotiable)
 
 **We win PS 26167 at the SIH Grand Finale. Anything that does not move us measurably
