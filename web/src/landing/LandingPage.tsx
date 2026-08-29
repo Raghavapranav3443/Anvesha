@@ -133,6 +133,11 @@ export default function LandingPage({ onEnterConsole }: { onEnterConsole?: () =>
             <div className="mt-6 pl-[.28em] font-mono text-[15px] uppercase tracking-[.28em] text-white/75">
               Earth Observation &amp; Investigation System
             </div>
+            <div className="pointer-events-auto mt-7 flex flex-wrap items-center justify-center gap-2 font-mono text-[12px] uppercase tracking-[.18em] text-white/70">
+              <span className="rounded-full border border-white/20 bg-white/5 px-3 py-1 backdrop-blur">6 benchmarks measured</span>
+              <span className="rounded-full border border-white/20 bg-white/5 px-3 py-1 backdrop-blur">Cartosat-2S + RISAT ready</span>
+              <span className="rounded-full border border-white/20 bg-white/5 px-3 py-1 backdrop-blur">runs fully offline</span>
+            </div>
             <button
               onClick={onEnterConsole}
               className="pointer-events-auto mt-9 rounded-lg bg-[#1f5fd6] px-8 py-3 text-[16px] font-semibold text-white transition-colors hover:bg-[#174ba8]"
@@ -213,6 +218,27 @@ export default function LandingPage({ onEnterConsole }: { onEnterConsole?: () =>
             </h2>
           </Reveal>
           <Reveal delay={150}><div className="mt-10"><ManifestTable /></div></Reveal>
+          <Reveal delay={220}>
+            <div className="mt-12">
+              <div className="font-mono text-[12px] uppercase tracking-[.25em] text-faint">the scorecard — every row measured, one command</div>
+              <div className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-line bg-line md:grid-cols-3">
+                {[
+                  ['RSVQA-LR', '0.773', 'exact-match · n=282'],
+                  ['LEVIR-CD', '0.724', 'change IoU · n=300'],
+                  ['CDVQA', '0.646', 'answer-match · n=2,088'],
+                  ['BigEarthNet captions', '0.306', 'multi-ref BLEU · n=300'],
+                  ['VRSBench grounding', '0.126', 'IoU@0.5 · spectral · n=455'],
+                  ['VRSBench captioning', '0.000', 'reported honestly — see below'],
+                ].map(([name, v, sub]) => (
+                  <div key={name} className="bg-[var(--c-bg)] p-4">
+                    <div className="font-mono text-[11.5px] uppercase tracking-[.18em] text-faint">{name}</div>
+                    <div className="mt-1.5 text-[28px] font-bold leading-none text-accent">{v}</div>
+                    <div className="mt-1.5 font-mono text-[11.5px] text-faint">{sub}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Reveal>
           <Reveal delay={250}>
             <div className="mt-6 font-mono text-[13px] uppercase tracking-[.2em] text-faint">
               measured on public test subsets · reproduce: python -m satquery.evaluate --all
@@ -233,15 +259,14 @@ export default function LandingPage({ onEnterConsole }: { onEnterConsole?: () =>
           <Reveal delay={120}>
             <ul className="mt-10 divide-y divide-line border-y border-line">
               {[
-                'Every number reproduces — python -m satquery.evaluate --all',
-                'Change-VQA: 0.683 on 39.7k test questions — +17.4 pts over baseline, every type above it',
+                'Change detection trained jointly on LEVIR-CD + SECOND (9.9k pairs): 0.72 IoU / 0.84 F1 — up from 0.67/0.80',
+                'VQA question understanding runs on a CLIP text encoder — compositional accuracy +11 pts over bag-of-words, adopted behind a pre-registered A/B gate',
+                'Captions decode from CLIP vision features — same gate discipline, +13% relative BLEU over the previous stack',
+                'Change-VQA: 0.683 on 39.7k test questions — +17.4 pts over baseline, every question type above it',
                 'Confidence is calibrated (temperature fit on held-out data), not raw softmax',
                 '100/100 concurrent analyses · p95 ≈ 7 s · int8 export costs 0.16% accuracy',
                 'Offline-deployable: bundled weights, Docker, SQLite cache — no cloud calls',
-                "We publish what didn't work: DINOv2 won the backbone bake-off (+3.2 pts) — rejected for zero VQA gain, gate pre-registered",
-                'Density-map counting head measured 0.13 — gated off, ordinal head stays shipped',
-                'Learned grounding heads measured 0.15 IoU — retired, not shipped',
-                'Every answer carries its source. Every run carries its trace.',
+                'And the record of what we refused to ship: DINOv2 won the backbone bake-off but added zero VQA gain — rejected. Learned grounding heads peaked at 0.15 IoU — retired. CLIP failed our grounding gate twice — rejected with the numbers published. A VRSBench caption fine-tune was declined rather than half-done. Every answer still carries its source; every run still carries its trace.',
               ].map((l, i) => (
                 <li key={i} className="flex gap-5 py-4">
                   <span className="shrink-0 font-mono text-[13px] text-accent">{String(i + 1).padStart(2, '0')}</span>

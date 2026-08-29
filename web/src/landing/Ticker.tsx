@@ -1,10 +1,11 @@
 const ITEMS = [
+  '6 PS-named benchmarks measured — one command reproduces all',
   'confidence calibrated — T fit on held-out',
   'int8 torchscript −0.16% accuracy',
   '100/100 concurrent · p95 ≈ 7 s',
   'sqlite cache — identical query → instant',
   'offline-deployable · docker · no cloud',
-  '91 tests green',
+  '96 tests green',
 ]
 
 /** Mission-telemetry marquee. Pure CSS loop; static under reduced motion. */

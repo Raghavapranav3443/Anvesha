@@ -1,23 +1,23 @@
 const ROWS = [
   {
-    task: 'Visual Q&A', approach: 'per-type specialist heads + ordinal counting',
-    data: 'RSVQA-LR · 54k triplets', score: '0.71 exact-match · presence 0.91'
+    task: 'Visual Q&A', approach: 'per-type specialist heads + CLIP text encoder + ordinal counting',
+    data: 'RSVQA-LR · 54k triplets', score: '0.77 exact-match · presence 0.88'
   },
   {
-    task: 'Scene description', approach: 'plan-conditioned transformer decoder',
-    data: 'BigEarthNet.txt captions', score: '0.32 multi-ref BLEU'
+    task: 'Scene description', approach: 'plan-conditioned decoder on CLIP vision features',
+    data: 'BigEarthNet.txt captions', score: '0.31 multi-ref BLEU'
   },
   {
     task: 'Region highlighting', approach: 'spectral-index reasoning — NDWI · ExG · double-bounce',
-    data: 'no training — interpretable', score: 'boxes + masks'
+    data: 'no training — interpretable', score: 'boxes + masks · 0.13 IoU@0.5 (VRSBench-val)'
   },
   {
-    task: 'Change detection', approach: 'Siamese FPN-lite · TTA (4-way avg) · tiled inference',
-    data: 'LEVIR-CD', score: '0.67 IoU · 0.80 F1'
+    task: 'Change detection', approach: 'Siamese FPN-lite · joint LEVIR+SECOND training · tiled inference',
+    data: 'LEVIR-CD + SECOND · 9.9k pairs', score: '0.72 IoU · 0.84 F1'
   },
   {
     task: 'Change VQA', approach: 'change-conditioned head over detector diff features',
-    data: 'CDVQA · 39.7k questions', score: '0.683 acc · +17.4 vs baseline'
+    data: 'CDVQA · 39.7k questions', score: '0.65 val (n=2,088) · 0.68 full test · +17.4 vs baseline'
   },
   {
     task: 'Optical + SAR fusion', approach: 'dual-branch · dB-aware SAR path',
