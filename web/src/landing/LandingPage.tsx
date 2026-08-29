@@ -166,24 +166,36 @@ export default function LandingPage({ onEnterConsole }: { onEnterConsole?: () =>
             </h2>
           </Reveal>
           <Reveal delay={120}>
-            <p className="mt-8 max-w-3xl text-[22px] font-semibold leading-snug text-body md:text-[27px]">
+            <p className="mt-8 max-w-3xl text-[19px] font-medium leading-snug text-body md:text-[22px]">
               Every day, satellites photograph the entire planet. Far more than
               any human team can analyse. So the changes that matter most go
               unnoticed.
             </p>
           </Reveal>
-          <Reveal delay={200}>
-            <div className="mt-12 space-y-3 font-mono">
-              <div className="text-[18px] uppercase tracking-[.14em] text-faint line-through decoration-faint">
-                1 question → days of GIS tooling
+          <Reveal delay={180}>
+            <div className="mt-10 text-[40px] font-bold text-accent md:text-[48px]">Why?</div>
+          </Reveal>
+          <Reveal delay={240}>
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
+              <div className="rounded-xl border border-line bg-panel p-6">
+                <div className="font-mono text-[12px] uppercase tracking-[.25em] text-faint">Before</div>
+                <div className="mt-3 text-[19px] font-medium leading-snug text-muted">
+                  One question meant days of GIS tooling and specialist hours.
+                </div>
               </div>
-              <div className="text-[32px] font-bold uppercase tracking-[.1em] text-body md:text-[40px]">
-                2 images + 1 sentence → what changed, where, and why it matters
+              <div className="rounded-xl border border-accent/40 bg-panel p-6">
+                <div className="font-mono text-[12px] uppercase tracking-[.25em] text-accent">After</div>
+                <div className="mt-3 text-[19px] font-medium leading-snug text-body">
+                  One or two images and one sentence: what changed, where, and
+                  why it matters.
+                </div>
               </div>
             </div>
-            <p className="mt-8 max-w-2xl text-[17px] leading-relaxed text-muted">
-              That is the whole idea. You bring two satellite images and ask a
-              question in plain words. Anvesha finds the change, shows you
+          </Reveal>
+          <Reveal delay={300}>
+            <p className="mt-10 max-w-2xl text-[17px] leading-relaxed text-muted">
+              That is the whole idea. You bring one or two satellite images and
+              ask a question in plain words. Anvesha finds the change, shows you
               exactly where it is, and tells you what it means. You never touch
               a GIS tool.
             </p>
@@ -328,7 +340,7 @@ export default function LandingPage({ onEnterConsole }: { onEnterConsole?: () =>
             <Reveal delay={120}>
               <ul className="mt-10 space-y-7">
                 {[
-                  'Two satellite images and one question go in. A decision-ready answer comes out: what changed, where it is, and what it means.',
+                  'One or two images and one question go in. A decision-ready answer comes out: what changed, where it is, and what it means.',
                   'Every answer shows its work: the change highlighted on the map, a confidence score you can hover to understand, and every step it took.',
                   'It runs on an ordinary laptop, fully offline. Your data never leaves the room.',
                   'It reads both optical cameras and radar, so clouds and darkness are not a problem.',
