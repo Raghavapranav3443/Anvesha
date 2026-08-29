@@ -692,3 +692,24 @@ from committed scripts + logged args, but re-training costs ~2 GPU-hours.
 **Action:** copy `weights/type_heads.pt` + `weights/change_net.pt` to an
 external backup before the next destructive experiment.
 
+
+### D16.4 — Definitive full-test results: Phase 3 gate REJECTED honestly; Phase 2 adoption stands
+**LEVIR-CD full test (n=1500, thr=0.85): IoU 0.6921 / F1 0.818** vs 0.668/0.801
+pre-promotion. Real improvement (+0.024 IoU / +0.017 F1), but **below the
+pre-registered 0.75/0.88 gate → REJECT recorded, no goalpost movement.** The
+promotion itself stands (it strictly improved production). Follow-up probes:
+(a) threshold recalibration — dead end; train-tail sweep shows the optimum at
+0.85–0.90, current operating point already near-optimal (+≤0.01); (b) TTA —
+directional n=40: IoU 0.742 / F1 0.852 (+~0.02), worth one definitive run but
+cannot reach the gate. **Per STOP discipline: no further change-detection
+training this cycle.**
+**RSVQA full test (n=9491): EM 0.7001** with the promoted CLIP stack. The old
+0.7021 was measured at n=282 — not comparable. The val A/B (0.7463 vs 0.7222,
+comp +11.2 pts) remains the adoption evidence; test EM is flat, i.e. the val
+gain did not generalize to count-heavy full-test EM. CLIP stack stays deployed
+(model selection on val, honest reporting on test). Optional deferred probe:
+retrain BOW-only for a same-n full-test A/B (~30 GPU-min) — not scheduled.
+**Headline numbers for the scorecard, effective immediately:** RSVQA-LR 0.7001
+(n=9491) · LEVIR-CD full-test IoU 0.6921 / F1 0.818 (TTA number pending one
+definitive run) · CDVQA 0.654 (val, n=162).
+
