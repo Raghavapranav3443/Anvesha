@@ -8,9 +8,9 @@ import './landing.css'
 
 function ChapterLabel({ n, title }: { n: string; title: string }) {
   return (
-    <div className="flex items-center gap-3 font-mono text-[13px] uppercase tracking-[.3em]">
+    <div className="flex items-center gap-4 font-mono text-[19px] uppercase tracking-[.3em]">
       <span className="text-accent">{n}</span>
-      <span className="h-px w-10 bg-accent/50" />
+      <span className="h-px w-14 bg-accent/50" />
       <span className="text-muted">{title}</span>
     </div>
   )
@@ -86,8 +86,8 @@ export default function LandingPage({ onEnterConsole }: { onEnterConsole?: () =>
     }
   }, [])
 
-  const zoom = reduced ? 0 : Math.min(progress / 0.6, 1)
-  const fade = reduced ? 0 : Math.min(1, Math.max(0, progress - 0.18) / 0.3)
+  const zoom = reduced ? 0 : Math.min(progress / 0.8, 1)
+  const fade = reduced ? 0 : Math.min(1, Math.max(0, progress - 0.5) / 0.3)
   const [whyTab, setWhyTab] = useState<'plain' | 'stats'>('plain')
 
   return (
@@ -161,7 +161,7 @@ export default function LandingPage({ onEnterConsole }: { onEnterConsole?: () =>
         <div className="mx-auto max-w-5xl px-8 pb-24 pt-14">
           <Reveal>
             <ChapterLabel n="01" title="The problem" />
-            <h2 className="mt-6 text-[48px] font-bold leading-[1.05] text-body md:text-[64px]">
+            <h2 className="mt-6 text-[36px] font-bold leading-[1.05] text-body md:text-[44px]">
               Satellites see everything.<br />No one can read it all.
             </h2>
           </Reveal>
@@ -195,7 +195,7 @@ export default function LandingPage({ onEnterConsole }: { onEnterConsole?: () =>
         <div className="mx-auto max-w-5xl px-8 py-24">
           <Reveal>
             <ChapterLabel n="02" title="The solution" />
-            <h2 className="mt-6 text-[44px] font-bold leading-[1.05] text-body md:text-[60px]">
+            <h2 className="mt-6 text-[36px] font-bold text-body md:text-[44px]">
               One sentence in. An investigation out.
             </h2>
             <p className="mt-4 max-w-2xl text-[16.5px] leading-relaxed text-muted">
@@ -217,7 +217,7 @@ export default function LandingPage({ onEnterConsole }: { onEnterConsole?: () =>
         <div className="mx-auto max-w-5xl px-8 py-24">
           <Reveal>
             <ChapterLabel n="03" title="The specialists" />
-            <h2 className="mt-6 text-[44px] font-bold text-body md:text-[60px]">
+            <h2 className="mt-6 text-[36px] font-bold text-body md:text-[44px]">
               Seven specialists. One registry.
             </h2>
           </Reveal>
@@ -255,7 +255,7 @@ export default function LandingPage({ onEnterConsole }: { onEnterConsole?: () =>
         <div className="mx-auto max-w-5xl px-8 py-24">
           <Reveal>
             <ChapterLabel n="04" title="Evidence" />
-            <h2 className="mt-6 text-[44px] font-bold text-body md:text-[60px]">
+            <h2 className="mt-6 text-[36px] font-bold text-body md:text-[44px]">
               Real imagery. Real weights. One pass.
             </h2>
             <p className="mt-4 max-w-2xl text-[16.5px] leading-relaxed text-muted">
@@ -303,7 +303,7 @@ export default function LandingPage({ onEnterConsole }: { onEnterConsole?: () =>
         <div className="mx-auto max-w-5xl px-8 py-24">
           <Reveal>
             <ChapterLabel n="05" title="Why Anvesha" />
-            <h2 className="mt-6 text-[44px] font-bold text-body md:text-[60px]">
+            <h2 className="mt-6 text-[36px] font-bold text-body md:text-[44px]">
               Proof, not promises.
             </h2>
             <div className="mt-7 inline-flex rounded-full border border-line bg-panel p-1">
