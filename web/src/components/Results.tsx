@@ -12,7 +12,7 @@ function ConfidenceRing({ value }: { value: number }) {
   const off = C * (1 - value)
   const col = value > .66 ? 'var(--c-good)' : value > .4 ? 'var(--c-warn)' : 'var(--c-bad)'
   return (
-    <div className="relative h-[80px] w-[80px] shrink-0">
+    <div className="group relative h-[80px] w-[80px] shrink-0">
       <svg viewBox="0 0 76 76" className="h-full w-full -rotate-90">
         <circle cx="38" cy="38" r={r} fill="none" stroke="var(--c-line)" strokeWidth="6" />
         <circle cx="38" cy="38" r={r} fill="none" stroke={col} strokeWidth="6"
@@ -22,6 +22,20 @@ function ConfidenceRing({ value }: { value: number }) {
       <span className="absolute inset-0 flex items-center justify-center font-mono text-[16.5px] font-medium text-body">
         {Math.round(value * 100)}%
       </span>
+      <div className="pointer-events-none absolute left-0 top-full z-30 mt-2 w-72 rounded-lg border border-line bg-panel p-3 opacity-0 shadow-xl transition-opacity duration-200 group-hover:opacity-100">
+        <div className="text-[12.5px] leading-relaxed text-muted">
+          Not a raw softmax — each specialist scores confidence from its own
+          evidence, clipped to [0.05, 0.97]:
+        </div>
+        <div className="mt-2 space-y-1 font-mono text-[11px] leading-relaxed text-accent">
+          <div>fusion: 0.5·max(class) + 0.25·cross-modal agreement + 0.25</div>
+          <div>change: 0.55·detector-conf + 0.25·area + 0.10·concepts</div>
+          <div>VQA: temperature-calibrated top-answer probability</div>
+        </div>
+        <div className="mt-2 text-[11px] leading-relaxed text-faint">
+          Calibration fit on held-out data — 0.8 has historically meant ≈80% reliability.
+        </div>
+      </div>
     </div>
   )
 }

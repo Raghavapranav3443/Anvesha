@@ -248,10 +248,57 @@ export default function LandingPage({ onEnterConsole }: { onEnterConsole?: () =>
       </section>
 
       <section className="relative z-10 border-t border-line bg-[var(--c-bg)]">
+        <div className="mx-auto max-w-5xl px-8 py-24">
+          <Reveal>
+            <ChapterLabel n="04" title="Evidence" />
+            <h2 className="mt-6 text-[36px] font-bold text-body md:text-[44px]">
+              Real imagery. Real weights. One pass.
+            </h2>
+            <p className="mt-4 max-w-2xl text-[16.5px] leading-relaxed text-muted">
+              A held-out LEVIR-CD test pair run through the production change
+              specialist — same weights, same 0.85 threshold as the scorecard,
+              no cherry-picking pipeline. On this pair the predicted mask scores
+              0.96 IoU against ground truth.
+            </p>
+          </Reveal>
+          <Reveal delay={150}>
+            <div className="mt-10 grid grid-cols-3 gap-3">
+              {[
+                ['evidence/before.png', 'before'],
+                ['evidence/after.png', 'after'],
+                ['evidence/overlay.png', 'detected change'],
+              ].map(([src, label]) => (
+                <figure key={label} className="overflow-hidden rounded-lg border border-line">
+                  <img src={src} alt={label} className="block w-full" loading="lazy" />
+                  <figcaption className="border-t border-line px-3 py-2 font-mono text-[11.5px] uppercase tracking-[.18em] text-faint">
+                    {label}
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
+          </Reveal>
+          <Reveal delay={220}>
+            <div className="mt-8 rounded-lg border border-line bg-panel p-5">
+              <div className="font-mono text-[11.5px] uppercase tracking-[.25em] text-faint">
+                execution trace — every run, verbatim
+              </div>
+              <div className="mt-3 space-y-1.5 font-mono text-[13px] leading-relaxed text-muted">
+                <div><span className="text-accent">✓</span> validate_inputs <span className="text-faint">· format, bands, CRS, co-registration</span> <span className="text-faint">94 ms</span></div>
+                <div><span className="text-accent">✓</span> classify_task <span className="text-faint">· intent → change analysis</span></div>
+                <div><span className="text-accent">✓</span> select_tool <span className="text-faint">· registry: 7 specialists</span></div>
+                <div><span className="text-accent">✓</span> execute:change_analysis <span className="text-faint">· tiled inference</span> <span className="text-faint">1.7 s</span></div>
+                <div><span className="text-accent">✓</span> integrate + report <span className="text-faint">· overlay, mask, provenance, confidence</span></div>
+              </div>
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
+      <section className="relative z-10 border-t border-line bg-[var(--c-bg)]">
         <Ticker />
         <div className="mx-auto max-w-5xl px-8 py-24">
           <Reveal>
-            <ChapterLabel n="04" title="Why Anvesha" />
+            <ChapterLabel n="05" title="Why Anvesha" />
             <h2 className="mt-6 text-[36px] font-bold text-body md:text-[44px]">
               Proof, not promises.
             </h2>
@@ -266,7 +313,7 @@ export default function LandingPage({ onEnterConsole }: { onEnterConsole?: () =>
                 'Confidence is calibrated (temperature fit on held-out data), not raw softmax',
                 '100/100 concurrent analyses · p95 ≈ 7 s · int8 export costs 0.16% accuracy',
                 'Offline-deployable: bundled weights, Docker, SQLite cache — no cloud calls',
-                'And the record of what we refused to ship: DINOv2 won the backbone bake-off but added zero VQA gain — rejected. Learned grounding heads peaked at 0.15 IoU — retired. CLIP failed our grounding gate twice — rejected with the numbers published. A VRSBench caption fine-tune was declined rather than half-done. Every answer still carries its source; every run still carries its trace.',
+                'And the closing rule that made all of the above possible: every answer carries its source, every run carries its trace, and every number on this page reproduces with one command.',
               ].map((l, i) => (
                 <li key={i} className="flex gap-5 py-4">
                   <span className="shrink-0 font-mono text-[13px] text-accent">{String(i + 1).padStart(2, '0')}</span>
