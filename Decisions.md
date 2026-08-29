@@ -739,6 +739,19 @@ matches the model's training distribution.
 ### D17.3 — Honest post-fix measurement status
 Reloaded-checkpoint val BLEU **0.347** (300 items; batch variance 0.09–0.56 —
 batch composition matters) vs 0.3711 trainer-side; both above the control.
+
+### D17.4 — Canonical scorecard (post-Phase-2/3) and the freeze call
+Canonical `--all` run (2026-08-29, n=300 defaults): RSVQA **0.773** (n=282,
++7.1 pts like-for-like), LEVIR **IoU 0.7236 / F1 0.8396** (n=300, +0.12 IoU),
+BEN captions **0.306** (n=300), VRSBench caption **0.0**, VRSBench grounding
+**0.1257** (spectral, honest), CDVQA **0.6456** (n=2088). Combined **0.429**.
+**Decision:** a VRSBench-caption fine-tune was considered and declined — the
+train split is not on disk (val only), making it a multi-GB download gamble
+late in the cycle for an uncertain ~+0.1 combined. The 0.0 row stays, explained
+by the measured style-mismatch finding (D17.3). Remaining effort goes to
+presentation (landing page, real numbers only) and freeze. The era of new
+training experiments is closed; only regression-safe fixes remain.
+
 BEN multi-ref bench at n=30: 0.279 ± wide sampling noise; the canonical n=300
 scorecard is the number that counts. VRSBench-caption remains 0.0: BigEarthNet
 template captions share no 4-grams with VRSBench human references — a BEN-only
