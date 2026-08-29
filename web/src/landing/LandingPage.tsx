@@ -107,9 +107,12 @@ export default function LandingPage({ onEnterConsole }: { onEnterConsole?: () =>
             localStorage.setItem('anvesha-theme', next)
           }}
           title="Toggle light/dark theme"
-          className="rounded-lg border border-transparent bg-panel/80 px-3 py-1.5 text-[15px] text-body backdrop-blur transition-colors hover:border-accent/50"
+          className="rounded-lg border border-transparent bg-panel/80 px-2.5 py-1.5 text-body backdrop-blur transition-colors hover:border-accent/50"
         >
-          ☀ / ☾
+          <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor"
+            strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M20 13.5A8 8 0 1 1 10.5 4 6.5 6.5 0 0 0 20 13.5z" />
+          </svg>
         </button>
       </div>
 

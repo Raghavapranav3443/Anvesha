@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react'
 import type { ComponentType } from 'react'
 import Console from './components/Console'
 import ProvenanceView from './components/Provenance'
@@ -24,12 +24,65 @@ const LandingPage = hasLanding
 type View = 'home' | 'console' | 'history' | 'evaluation' | 'provenance' | 'help'
 
 const NAV: { id: View; label: string; icon: string; hint: string }[] = [
-  { id: 'console', label: 'Console', icon: '🛰️', hint: 'Upload imagery & ask questions' },
-  { id: 'history', label: 'History', icon: '🗂️', hint: 'Past analyses & comparison' },
-  { id: 'evaluation', label: 'Evaluation', icon: '📊', hint: 'Measured benchmark scorecard' },
-  { id: 'provenance', label: 'Provenance', icon: '🧠', hint: 'Models, training data, metrics' },
-  { id: 'help', label: 'Help', icon: '❓', hint: 'Glossary & how it works' },
+  { id: 'console', label: 'Console', icon: 'console', hint: 'Upload imagery & ask questions' },
+  { id: 'history', label: 'History', icon: 'history', hint: 'Past analyses & comparison' },
+  { id: 'evaluation', label: 'Evaluation', icon: 'evaluation', hint: 'Measured benchmark scorecard' },
+  { id: 'provenance', label: 'Provenance', icon: 'provenance', hint: 'Models, training data, metrics' },
+  { id: 'help', label: 'Help', icon: 'help', hint: 'Glossary & how it works' },
 ]
+
+/** Professional line icons (stroke inherits text color; theme-safe). */
+function NavIcon({ name, className = 'h-5 w-5' }: { name: string; className?: string }) {
+  const glyphs: Record<string, ReactNode> = {
+    console: (
+      <>
+        <rect x="3" y="4" width="18" height="16" rx="2" />
+        <path d="M7 9l3 3-3 3" />
+        <path d="M12 15h5" />
+      </>
+    ),
+    history: (
+      <>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7v5l3 2" />
+      </>
+    ),
+    evaluation: (
+      <>
+        <path d="M4 20h16" />
+        <path d="M7 16v-5" />
+        <path d="M12 16V6" />
+        <path d="M17 16v-8" />
+      </>
+    ),
+    provenance: (
+      <>
+        <path d="M12 3l9 5-9 5-9-5 9-5z" />
+        <path d="M3 13l9 5 9-5" />
+      </>
+    ),
+    help: (
+      <>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M9.6 9.4a2.5 2.5 0 1 1 3.4 2.3c-.8.35-1 .9-1 1.7" />
+        <path d="M12 16.8v.2" />
+      </>
+    ),
+    moon: <path d="M20 13.5A8 8 0 1 1 10.5 4 6.5 6.5 0 0 0 20 13.5z" />,
+    sun: (
+      <>
+        <circle cx="12" cy="12" r="4" />
+        <path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.5 4.5l1.4 1.4M18 18l1.4 1.4M19.5 4.5L18 5.9M6 18l-1.4 1.4" />
+      </>
+    ),
+  }
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor"
+      strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      {glyphs[name] ?? null}
+    </svg>
+  )
+}
 
 function OrbitMark() {
   return (
@@ -81,14 +134,14 @@ export default function App() {
             <button key={n.id} onClick={() => setView(n.id)} title={n.hint}
               className={`group flex w-[60px] flex-col items-center gap-0.5 rounded-lg py-2 transition-colors ${
                 view === n.id ? 'bg-accent-soft text-accent' : 'text-muted hover:bg-elev hover:text-body'}`}>
-              <span className="text-[18px] leading-none">{n.icon}</span>
+              <NavIcon name={n.icon} />
               <span className="text-[11px] font-medium leading-tight text-center">{n.label}</span>
             </button>
           ))}
         </nav>
         <button onClick={toggleTheme} title="Toggle light/dark theme"
           className="flex w-[60px] flex-col items-center gap-0.5 rounded-lg py-2 text-muted hover:bg-elev hover:text-body">
-          <span className="text-[17px]">{theme === 'light' ? '🌙' : '☀️'}</span>
+          <NavIcon name={theme === 'light' ? 'moon' : 'sun'} className="h-[18px] w-[18px]" />
           <span className="text-[11px] font-medium leading-tight">{theme === 'light' ? 'Dark' : 'Light'}</span>
         </button>
       </aside>

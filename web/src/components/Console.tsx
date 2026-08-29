@@ -225,7 +225,7 @@ export default function Console() {
             <div className="flex items-center gap-2">
               <button onClick={run} disabled={busy || !nInputs || (investigate && nInputs !== 2)}
                 className="relative overflow-hidden rounded-lg bg-accent px-7 py-2 text-[16.5px] font-semibold text-white transition-all hover:bg-accent-dim disabled:cursor-not-allowed disabled:opacity-40">
-                {busy ? 'Analysing…' : investigate ? '🛰️ Run investigation' : 'Run analysis'}
+                {busy ? 'Analysing…' : investigate ? 'Run investigation' : 'Run analysis'}
                 {busy && <span className="scanning absolute inset-0" />}
               </button>
               {(job || busy) && (
