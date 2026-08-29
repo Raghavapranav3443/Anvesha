@@ -2,27 +2,27 @@ import { useState } from 'react'
 import { Panel } from './Console'
 
 const GLOSSARY = [
-  ['ANVESHA', 'From Sanskrit आन्वेषा — "search, investigation, discovery". Named for what it does: investigate Earth observation imagery.'],
-  ['Agentic analysis', 'The system doesn\'t apply one model — it plans a sequence of specialist models, runs them, and fuses their outputs. Every step is visible in the execution trace.'],
+  ['ANVESHA', 'From Sanskrit आन्वेषा: "search, investigation, discovery". Named for what it does: investigate Earth observation imagery.'],
+  ['Agentic analysis', 'The system doesn\'t apply one model: it plans a sequence of specialist models, runs them, and fuses their outputs. Every step is visible in the execution trace.'],
   ['Investigation Mode', 'A full autonomous workflow: change detection → water extraction → impact quantification → zone ranking → analyst recommendations, in one click.'],
   ['Impact quantification', 'Change converted to decision-ready numbers: hectares affected, % within buffer distances of water, ranked priority zones.'],
-  ['Calibrated confidence', 'Confidence scores fit against held-out data (temperature scaling) — 0.8 genuinely means ~80% historical reliability.'],
-  ['GeoTIFF awareness', 'Geographic reference, resolution and CRS are preserved and used — areas are computed in real-world units, overlays export as GeoJSON.'],
+  ['Calibrated confidence', 'Confidence scores fit against held-out data (temperature scaling): 0.8 genuinely means ~80% historical reliability.'],
+  ['GeoTIFF awareness', 'Geographic reference, resolution and CRS are preserved and used: areas are computed in real-world units, overlays export as GeoJSON.'],
   ['Change mask', 'Pixel-level map of where the surface changed between two dates. Exportable as a GeoTIFF for GIS comparison against reference annotations.'],
   ['Execution trace', 'The observable audit trail: validation, query interpretation, tool selection, execution with parameters and timings.'],
-  ['SAR', 'Synthetic Aperture Radar — works through clouds and at night. Calm water appears dark; urban structures appear bright.'],
-  ['NDVI / NDWI / ExG', 'Spectral indices that highlight vegetation, water, and greenness respectively — the interpretable evidence behind grounding.'],
-  ['GSD', 'Ground Sample Distance — the real-world size of one pixel in metres.'],
-  ['Bi-temporal pair', 'Two images of the same place at different dates — the basis of change detection.'],
+  ['SAR', 'Synthetic Aperture Radar: works through clouds and at night. Calm water appears dark; urban structures appear bright.'],
+  ['NDVI / NDWI / ExG', 'Spectral indices that highlight vegetation, water, and greenness respectively: the interpretable evidence behind grounding.'],
+  ['GSD', 'Ground Sample Distance: the real-world size of one pixel in metres.'],
+  ['Bi-temporal pair', 'Two images of the same place at different dates: the basis of change detection.'],
 ]
 
 const CAPABILITIES = [
   ['🛰️ Console', 'Upload imagery and ask questions. Query mode for direct answers, Investigation Mode for a full multi-step analysis with quantified findings.'],
   ['🗂️ History', 'Every run is persisted in a local database. Reopen past analyses, filter by task, compare two runs side by side.'],
-  ['📊 Evaluation', 'The reproducible benchmark scorecard — the same numbers reported in the README, re-runnable live from the browser.'],
+  ['📊 Evaluation', 'The reproducible benchmark scorecard: the same numbers reported in the README, re-runnable live from the browser.'],
   ['🧠 Provenance', 'Which models are loaded, what public data they were fine-tuned on, and their measured validation metrics.'],
   ['🗺️ Map & exports', 'Georeferenced runs render on a map as GeoJSON overlays; change masks export as GeoTIFF; reports as PDF/Markdown/JSON.'],
-  ['❓ Click-to-query', 'Drag a box on any single image and ask what\'s inside it — the region is cropped and analysed on the spot.'],
+  ['❓ Click-to-query', 'Drag a box on any single image and ask what\'s inside it: the region is cropped and analysed on the spot.'],
 ]
 
 const PIPELINE = [
@@ -72,7 +72,7 @@ export default function HelpView({ onStart }: { onStart?: () => void }) {
         </div>
       </Panel>
 
-      <Panel title="Glossary — tap a term to expand">
+      <Panel title="Glossary: tap a term to expand">
         <div className="grid gap-2 md:grid-cols-2">
           {GLOSSARY.map(([t, d]) => (
             <button key={t} onClick={() => setOpen(open === t ? null : t)}

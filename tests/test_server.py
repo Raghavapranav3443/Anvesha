@@ -29,8 +29,8 @@ def test_provenance_endpoint():
 
 def test_job_lifecycle():
     samples_dir = Path(__file__).resolve().parents[1] / "samples"
-    with open(samples_dir / "isro_cartosat2s_optical.tif", "rb") as f1, \
-            open(samples_dir / "isro_risat_sar.tif", "rb") as f2:
+    with open(samples_dir / "demo_isroformat_optical.tif", "rb") as f1, \
+            open(samples_dir / "demo_isroformat_sar.tif", "rb") as f2:
         r = client.post("/api/jobs",
                         data={"query": "Use the optical and SAR images together "
                                        "to identify built-up regions.",

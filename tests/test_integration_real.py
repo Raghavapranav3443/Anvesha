@@ -23,14 +23,14 @@ def controller():
 
 
 @pytest.mark.skipif(
-    not (SAMPLES / "isro_cartosat2s_optical.tif").exists(),
+    not (SAMPLES / "demo_isroformat_optical.tif").exists(),
     reason="ISRO sample not available"
 )
 class TestISROIntegration:
     def test_single_image_vqa(self, controller):
         """Full VQA pipeline on ISRO Cartosat-2S optical image."""
         from satquery.io_utils import load_image
-        img = load_image(SAMPLES / "isro_cartosat2s_optical.tif")
+        img = load_image(SAMPLES / "demo_isroformat_optical.tif")
         result = controller.run([img], "Is there water in this image?")
         assert result.selected_task in ("single_vqa", "grounding", "captioning")
         assert result.answer
@@ -45,7 +45,7 @@ class TestISROIntegration:
     def test_single_image_captioning(self, controller):
         """Full captioning pipeline on ISRO sample."""
         from satquery.io_utils import load_image
-        img = load_image(SAMPLES / "isro_cartosat2s_optical.tif")
+        img = load_image(SAMPLES / "demo_isroformat_optical.tif")
         result = controller.run([img], "Describe the scene")
         assert result.selected_task in ("captioning", "single_vqa")
         assert result.answer
@@ -54,7 +54,7 @@ class TestISROIntegration:
     def test_trace_completeness(self, controller):
         """Verify the execution trace has all required pipeline steps."""
         from satquery.io_utils import load_image
-        img = load_image(SAMPLES / "isro_cartosat2s_optical.tif")
+        img = load_image(SAMPLES / "demo_isroformat_optical.tif")
         result = controller.run([img], "What is shown in this image?")
         step_names = [s["name"] for s in result.trace]
         assert "validate_inputs" in step_names, "Missing validate step"

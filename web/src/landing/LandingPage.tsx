@@ -88,6 +88,7 @@ export default function LandingPage({ onEnterConsole }: { onEnterConsole?: () =>
 
   const zoom = reduced ? 0 : Math.min(progress / 0.6, 1)
   const fade = reduced ? 0 : Math.min(1, Math.max(0, progress - 0.18) / 0.3)
+  const [whyTab, setWhyTab] = useState<'plain' | 'stats'>('plain')
 
   return (
     <div className="relative bg-black">
@@ -113,13 +114,13 @@ export default function LandingPage({ onEnterConsole }: { onEnterConsole?: () =>
       </div>
 
       {/* scroll track: hero stays pinned while the camera dollies in */}
-      <div ref={trackRef} className="relative" style={{ height: '220vh' }}>
+      <div ref={trackRef} className="relative" style={{ height: '150vh' }}>
         <div className="sticky top-0 h-screen overflow-hidden">
           <div className="absolute inset-0">
             {webgl ? <HeroGlobe zoom={zoom} reduced={reduced} /> : <StaticGlobeFallback />}
           </div>
 
-          {/* centered overlay — name + tagline + CTA, fading as the globe grows */}
+          {/* centered overlay: name + tagline + CTA, fading as the globe grows */}
           <div
             className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center px-6 text-center"
             style={{ opacity: 1 - fade, transform: `translateY(${-fade * 120}px)` }}
@@ -135,7 +136,7 @@ export default function LandingPage({ onEnterConsole }: { onEnterConsole?: () =>
             </div>
             <div className="pointer-events-auto mt-7 flex flex-wrap items-center justify-center gap-2 font-mono text-[12px] uppercase tracking-[.18em] text-white/70">
               <span className="rounded-full border border-white/20 bg-white/5 px-3 py-1 backdrop-blur">6 benchmarks measured</span>
-              <span className="rounded-full border border-white/20 bg-white/5 px-3 py-1 backdrop-blur">Cartosat-2S + RISAT ready</span>
+              <span className="rounded-full border border-white/20 bg-white/5 px-3 py-1 backdrop-blur">ISRO-format ready</span>
               <span className="rounded-full border border-white/20 bg-white/5 px-3 py-1 backdrop-blur">runs fully offline</span>
             </div>
             <button
@@ -157,31 +158,34 @@ export default function LandingPage({ onEnterConsole }: { onEnterConsole?: () =>
 
       {/* next section slides up OVER the pinned globe (reference frame 4) */}
       <section id="chapter-01" className="relative z-10 border-t border-line bg-[var(--c-bg)]">
-        <div className="mx-auto max-w-5xl px-8 py-28">
+        <div className="mx-auto max-w-5xl px-8 pb-24 pt-14">
           <Reveal>
             <ChapterLabel n="01" title="The problem" />
-            <h2 className="mt-6 text-[36px] font-bold leading-tight text-body md:text-[44px]">
-              The data arrived.<br />The answer didn't.
+            <h2 className="mt-6 text-[48px] font-bold leading-[1.05] text-body md:text-[64px]">
+              Satellites see everything.<br />No one can read it all.
             </h2>
           </Reveal>
           <Reveal delay={120}>
-            <ul className="mt-10 space-y-3 font-mono text-[14.5px] leading-relaxed text-muted">
-              <li className="flex gap-3"><span className="text-accent">▸</span>every satellite pass — hundreds of km² of pixels</li>
-              <li className="flex gap-3"><span className="text-accent">▸</span>change hides between two dates</li>
-              <li className="flex gap-3"><span className="text-accent">▸</span>finding it is specialist work: GIS tools, manual digitising, hours per pair</li>
-            </ul>
+            <p className="mt-8 max-w-3xl text-[22px] font-semibold leading-snug text-body md:text-[27px]">
+              Every day, satellites photograph the entire planet. Far more than
+              any human team can analyse. So the changes that matter most go
+              unnoticed.
+            </p>
           </Reveal>
           <Reveal delay={200}>
-            <div className="mt-12 space-y-2 font-mono">
-              <div className="text-[16.5px] uppercase tracking-[.18em] text-faint line-through decoration-faint">
-                1 question → days of tooling
+            <div className="mt-12 space-y-3 font-mono">
+              <div className="text-[18px] uppercase tracking-[.14em] text-faint line-through decoration-faint">
+                1 question → days of GIS tooling
               </div>
-              <div className="text-[30px] font-bold uppercase tracking-[.12em] text-body md:text-[38px]">
-                1 sentence → minutes
+              <div className="text-[32px] font-bold uppercase tracking-[.1em] text-body md:text-[40px]">
+                2 images + 1 sentence → what changed, where, and why it matters
               </div>
             </div>
-            <p className="mt-10 max-w-xl text-[17px] text-muted">
-              Decision-makers don't need more pixels. They need answers.
+            <p className="mt-8 max-w-2xl text-[17px] leading-relaxed text-muted">
+              That is the whole idea. You bring two satellite images and ask a
+              question in plain words. Anvesha finds the change, shows you
+              exactly where it is, and tells you what it means. You never touch
+              a GIS tool.
             </p>
           </Reveal>
         </div>
@@ -191,19 +195,19 @@ export default function LandingPage({ onEnterConsole }: { onEnterConsole?: () =>
         <div className="mx-auto max-w-5xl px-8 py-24">
           <Reveal>
             <ChapterLabel n="02" title="The solution" />
-            <h2 className="mt-6 text-[36px] font-bold text-body md:text-[44px]">
+            <h2 className="mt-6 text-[44px] font-bold leading-[1.05] text-body md:text-[60px]">
               One sentence in. An investigation out.
             </h2>
             <p className="mt-4 max-w-2xl text-[16.5px] leading-relaxed text-muted">
               An agent validates your imagery, interprets the query, routes it to
-              fine-tuned remote-sensing specialists, and returns evidence —
+              fine-tuned remote-sensing specialists, and returns evidence :
               every step timed and auditable.
             </p>
           </Reveal>
           <Reveal delay={150}><div className="mt-8"><PipelineTrack /></div></Reveal>
           <Reveal delay={250}>
             <div className="mt-6 font-mono text-[13px] uppercase tracking-[.25em] text-faint">
-              investigation mode — change → water → impact → priority zones, chained automatically
+              investigation mode: change → water → impact → priority zones, chained automatically
             </div>
           </Reveal>
         </div>
@@ -213,14 +217,14 @@ export default function LandingPage({ onEnterConsole }: { onEnterConsole?: () =>
         <div className="mx-auto max-w-5xl px-8 py-24">
           <Reveal>
             <ChapterLabel n="03" title="The specialists" />
-            <h2 className="mt-6 text-[36px] font-bold text-body md:text-[44px]">
+            <h2 className="mt-6 text-[44px] font-bold text-body md:text-[60px]">
               Seven specialists. One registry.
             </h2>
           </Reveal>
           <Reveal delay={150}><div className="mt-10"><ManifestTable /></div></Reveal>
           <Reveal delay={220}>
             <div className="mt-12">
-              <div className="font-mono text-[12px] uppercase tracking-[.25em] text-faint">the scorecard — every row measured, one command</div>
+              <div className="font-mono text-[12px] uppercase tracking-[.25em] text-faint">the scorecard: every row measured, one command</div>
               <div className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-line bg-line md:grid-cols-3">
                 {[
                   ['RSVQA-LR', '0.773', 'exact-match · n=282'],
@@ -228,7 +232,7 @@ export default function LandingPage({ onEnterConsole }: { onEnterConsole?: () =>
                   ['CDVQA', '0.646', 'answer-match · n=2,088'],
                   ['BigEarthNet captions', '0.306', 'multi-ref BLEU · n=300'],
                   ['VRSBench grounding', '0.126', 'IoU@0.5 · spectral · n=455'],
-                  ['VRSBench captioning', '0.000', 'reported honestly — see below'],
+                  ['VRSBench captioning', '0.000', 'reported honestly: see below'],
                 ].map(([name, v, sub]) => (
                   <div key={name} className="bg-[var(--c-bg)] p-4">
                     <div className="font-mono text-[11.5px] uppercase tracking-[.18em] text-faint">{name}</div>
@@ -251,12 +255,12 @@ export default function LandingPage({ onEnterConsole }: { onEnterConsole?: () =>
         <div className="mx-auto max-w-5xl px-8 py-24">
           <Reveal>
             <ChapterLabel n="04" title="Evidence" />
-            <h2 className="mt-6 text-[36px] font-bold text-body md:text-[44px]">
+            <h2 className="mt-6 text-[44px] font-bold text-body md:text-[60px]">
               Real imagery. Real weights. One pass.
             </h2>
             <p className="mt-4 max-w-2xl text-[16.5px] leading-relaxed text-muted">
               A held-out LEVIR-CD test pair run through the production change
-              specialist — same weights, same 0.85 threshold as the scorecard,
+              specialist: same weights, same 0.85 threshold as the scorecard,
               no cherry-picking pipeline. On this pair the predicted mask scores
               0.96 IoU against ground truth.
             </p>
@@ -280,7 +284,7 @@ export default function LandingPage({ onEnterConsole }: { onEnterConsole?: () =>
           <Reveal delay={220}>
             <div className="mt-8 rounded-lg border border-line bg-panel p-5">
               <div className="font-mono text-[11.5px] uppercase tracking-[.25em] text-faint">
-                execution trace — every run, verbatim
+                execution trace: every run, verbatim
               </div>
               <div className="mt-3 space-y-1.5 font-mono text-[13px] leading-relaxed text-muted">
                 <div><span className="text-accent">✓</span> validate_inputs <span className="text-faint">· format, bands, CRS, co-registration</span> <span className="text-faint">94 ms</span></div>
@@ -299,29 +303,65 @@ export default function LandingPage({ onEnterConsole }: { onEnterConsole?: () =>
         <div className="mx-auto max-w-5xl px-8 py-24">
           <Reveal>
             <ChapterLabel n="05" title="Why Anvesha" />
-            <h2 className="mt-6 text-[36px] font-bold text-body md:text-[44px]">
+            <h2 className="mt-6 text-[44px] font-bold text-body md:text-[60px]">
               Proof, not promises.
             </h2>
+            <div className="mt-7 inline-flex rounded-full border border-line bg-panel p-1">
+              {([['plain', 'Why Anvesha'], ['stats', 'Stats for professionals']] as const).map(
+                ([key, label]) => (
+                  <button
+                    key={key}
+                    onClick={() => setWhyTab(key)}
+                    className={`rounded-full px-5 py-2 font-mono text-[13px] uppercase tracking-[.15em] transition-colors ${
+                      whyTab === key
+                        ? 'bg-accent text-white'
+                        : 'text-muted hover:text-accent'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ),
+              )}
+            </div>
           </Reveal>
-          <Reveal delay={120}>
-            <ul className="mt-10 divide-y divide-line border-y border-line">
-              {[
-                'Change detection trained jointly on LEVIR-CD + SECOND (9.9k pairs): 0.72 IoU / 0.84 F1 — up from 0.67/0.80',
-                'VQA question understanding runs on a CLIP text encoder — compositional accuracy +11 pts over bag-of-words, adopted behind a pre-registered A/B gate',
-                'Captions decode from CLIP vision features — same gate discipline, +13% relative BLEU over the previous stack',
-                'Change-VQA: 0.683 on 39.7k test questions — +17.4 pts over baseline, every question type above it',
-                'Confidence is calibrated (temperature fit on held-out data), not raw softmax',
-                '100/100 concurrent analyses · p95 ≈ 7 s · int8 export costs 0.16% accuracy',
-                'Offline-deployable: bundled weights, Docker, SQLite cache — no cloud calls',
-                'And the closing rule that made all of the above possible: every answer carries its source, every run carries its trace, and every number on this page reproduces with one command.',
-              ].map((l, i) => (
-                <li key={i} className="flex gap-5 py-4">
-                  <span className="shrink-0 font-mono text-[13px] text-accent">{String(i + 1).padStart(2, '0')}</span>
-                  <span className="text-[16.5px] leading-relaxed text-muted">{l}</span>
-                </li>
-              ))}
-            </ul>
-          </Reveal>
+          {whyTab === 'plain' ? (
+            <Reveal delay={120}>
+              <ul className="mt-10 space-y-7">
+                {[
+                  'Two satellite images and one question go in. A decision-ready answer comes out: what changed, where it is, and what it means.',
+                  'Every answer shows its work: the change highlighted on the map, a confidence score you can hover to understand, and every step it took.',
+                  'It runs on an ordinary laptop, fully offline. Your data never leaves the room.',
+                  'It reads both optical cameras and radar, so clouds and darkness are not a problem.',
+                  'It was measured on the exact public benchmarks the problem statement names, and it accepts ISRO-format inputs.',
+                ].map((l, i) => (
+                  <li key={i} className="flex items-start gap-5">
+                    <span className="shrink-0 pt-1 font-mono text-[20px] font-bold text-accent">{String(i + 1).padStart(2, '0')}</span>
+                    <span className="text-[21px] font-medium leading-snug text-body">{l}</span>
+                  </li>
+                ))}
+              </ul>
+            </Reveal>
+          ) : (
+            <Reveal delay={120}>
+              <ul className="mt-10 divide-y divide-line border-y border-line">
+                {[
+                  'Change detection trained jointly on LEVIR-CD + SECOND (9.9k pairs): 0.72 IoU / 0.84 F1, up from 0.67/0.80',
+                  'VQA question understanding runs on a CLIP text encoder: compositional accuracy +11 pts over bag-of-words, adopted behind a pre-registered A/B gate',
+                  'Captions decode from CLIP vision features: same gate discipline, +13% relative BLEU over the previous stack',
+                  'Change-VQA: 0.683 on 39.7k test questions: +17.4 pts over baseline, every question type above it',
+                  'Confidence is calibrated (temperature fit on held-out data), not raw softmax',
+                  '100/100 concurrent analyses, p95 ≈ 7 s, int8 export costs 0.16% accuracy',
+                  'Offline-deployable: bundled weights, Docker, SQLite cache, no cloud calls',
+                  'Every answer carries its source, every run carries its trace, and every number on this page reproduces with one command.',
+                ].map((l, i) => (
+                  <li key={i} className="flex gap-5 py-4">
+                    <span className="shrink-0 font-mono text-[13px] text-accent">{String(i + 1).padStart(2, '0')}</span>
+                    <span className="text-[16.5px] leading-relaxed text-muted">{l}</span>
+                  </li>
+                ))}
+              </ul>
+            </Reveal>
+          )}
           <Reveal delay={200}>
             <p className="mt-12 text-[24px] font-semibold text-body md:text-[30px]">
               If it isn't measured, it isn't on this page.
@@ -349,7 +389,7 @@ export default function LandingPage({ onEnterConsole }: { onEnterConsole?: () =>
               Launch the console →
             </button>
             <div className="mt-4 font-mono text-[13px] uppercase tracking-[.2em] text-faint">
-              demo samples included — no data needed
+              demo samples included: no data needed
             </div>
           </Reveal>
         </div>

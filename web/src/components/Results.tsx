@@ -23,17 +23,12 @@ function ConfidenceRing({ value }: { value: number }) {
         {Math.round(value * 100)}%
       </span>
       <div className="pointer-events-none absolute left-0 top-full z-30 mt-2 w-72 rounded-lg border border-line bg-panel p-3 opacity-0 shadow-xl transition-opacity duration-200 group-hover:opacity-100">
-        <div className="text-[12.5px] leading-relaxed text-muted">
-          Not a raw softmax — each specialist scores confidence from its own
-          evidence, clipped to [0.05, 0.97]:
+        <div className="text-[13.5px] font-medium leading-snug text-body">
+          How sure the specialist is, tuned so 80% has historically meant about
+          80% correct.
         </div>
-        <div className="mt-2 space-y-1 font-mono text-[11px] leading-relaxed text-accent">
-          <div>fusion: 0.5·max(class) + 0.25·cross-modal agreement + 0.25</div>
-          <div>change: 0.55·detector-conf + 0.25·area + 0.10·concepts</div>
-          <div>VQA: temperature-calibrated top-answer probability</div>
-        </div>
-        <div className="mt-2 text-[11px] leading-relaxed text-faint">
-          Calibration fit on held-out data — 0.8 has historically meant ≈80% reliability.
+        <div className="mt-2 font-mono text-[11.5px] leading-relaxed text-accent">
+          confidence = ½ × strongest evidence + ¼ × sensor agreement + ¼ base
         </div>
       </div>
     </div>
@@ -55,7 +50,7 @@ function StructuredOutputs({ result }: { result: JobResult }) {
           <Stat label="Changed area" value={`${impact.changed_area_ha} ha`} />
           <Stat label="Changed pixels" value={`${(impact.changed_fraction * 100).toFixed(1)}%`} />
           <Stat label="Within 500 m of water" value={`${((impact.near_water?.within_500m ?? 0) * 100).toFixed(0)}%`} />
-          <Stat label="Priority zone" value={impact.priority_zone || '—'} />
+          <Stat label="Priority zone" value={impact.priority_zone || ':'} />
         </div>
         <div className="overflow-hidden rounded-lg border border-line">
           <table className="w-full text-left text-[14.5px]">
@@ -88,7 +83,7 @@ function StructuredOutputs({ result }: { result: JobResult }) {
         )}
         {impact.gsd_assumed && (
           <p className="text-[14px] italic text-warn">
-            Ground resolution assumed 10 m/pixel (input is not georeferenced) — areas are estimates.
+            Ground resolution assumed 10 m/pixel (input is not georeferenced): areas are estimates.
           </p>
         )}
       </div>
@@ -244,7 +239,7 @@ export default function Results({ result, onFollowUp }:
 
       {suggestions.length > 0 && onFollowUp && (
         <div>
-          <Term t="Ask the data back" d="One click launches a follow-up analysis on the same imagery — the investigative loop." />
+          <Term t="Ask the data back" d="One click launches a follow-up analysis on the same imagery: the investigative loop." />
           <div className="mt-2 flex flex-wrap gap-2">
             {suggestions.map(q => (
               <button key={q} onClick={() => onFollowUp(q)}
@@ -311,9 +306,9 @@ export default function Results({ result, onFollowUp }:
       <Panel title="Why trust this answer?">
         <ul className="space-y-1.5 text-[15px] text-muted">
           <li>✓ Every step recorded: validation, routing, tool selection, execution timings (see the execution trace above).</li>
-          <li>✓ Models fine-tuned on public remote-sensing benchmarks — provenance and metrics in the Provenance tab.</li>
+          <li>✓ Models fine-tuned on public remote-sensing benchmarks: provenance and metrics in the Provenance tab.</li>
           <li>✓ Confidence is temperature-calibrated against held-out data, not a raw softmax.</li>
-          <li>✓ Visual evidence is derived from the same pixels the models saw — click the overlays to verify.</li>
+          <li>✓ Visual evidence is derived from the same pixels the models saw: click the overlays to verify.</li>
         </ul>
       </Panel>
     </div>
@@ -435,7 +430,7 @@ function RegionQuery({ result }: { result: JobResult }) {
   return (
     <div className="rounded-lg border border-line p-4">
       <div className="mb-2 text-[13px] uppercase tracking-wider text-faint">
-        Interrogate a region — drag a rectangle, then ask
+        Interrogate a region: drag a rectangle, then ask
       </div>
       <div className="relative inline-block max-w-full overflow-hidden rounded border border-line"
         onMouseDown={onDown} onMouseMove={onMove} onMouseUp={() => startRef.current = null}>

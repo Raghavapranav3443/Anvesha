@@ -4,13 +4,13 @@ const STEPS = [
   {
     icon: '🛰️',
     title: '1 · Bring your imagery',
-    body: 'Upload one satellite image, a bi-temporal pair (two dates), or a co-registered optical + SAR pair. GeoTIFF, TIFF, PNG and JPEG are understood — geographic reference, band counts and sensor type are detected automatically.',
+    body: 'Upload one satellite image, a bi-temporal pair (two dates), or a co-registered optical + SAR pair. GeoTIFF, TIFF, PNG and JPEG are understood: geographic reference, band counts and sensor type are detected automatically.',
     demo: 'No imagery handy? Load a bundled demo sample from the sidebar.',
   },
   {
     icon: '💬',
     title: '2 · Ask in plain language',
-    body: '"What changed between these two dates?", "Highlight the water body", "Is there a road?" — no GIS or remote-sensing vocabulary required. The agent interprets your question, picks the right specialist models and runs them.',
+    body: '"What changed between these two dates?", "Highlight the water body", "Is there a road?": no GIS or remote-sensing vocabulary required. The agent interprets your question, picks the right specialist models and runs them.',
     demo: 'Toggle 🛰 Investigation Mode for a full multi-step analysis with quantified findings.',
   },
   {

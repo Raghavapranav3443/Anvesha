@@ -15,8 +15,8 @@ def test_sac_batch(tmp_path):
     pairs = [
         ("siteA_t1.tif", "demo_change_2020.tif"),
         ("siteA_t2.tif", "demo_change_2024.tif"),
-        ("siteB_opt.tif", "isro_cartosat2s_optical.tif"),
-        ("siteB_sar.tif", "isro_risat_sar.tif"),
+        ("siteB_opt.tif", "demo_isroformat_optical.tif"),
+        ("siteB_sar.tif", "demo_isroformat_sar.tif"),
     ]
     for name, src_name in pairs:
         shutil.copy(src / src_name, tmp_path / name)

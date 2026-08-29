@@ -8,8 +8,8 @@ const ROWS = [
     data: 'BigEarthNet.txt captions', score: '0.31 multi-ref BLEU'
   },
   {
-    task: 'Region highlighting', approach: 'spectral-index reasoning — NDWI · ExG · double-bounce',
-    data: 'no training — interpretable', score: 'boxes + masks · 0.13 IoU@0.5 (VRSBench-val)'
+    task: 'Region highlighting', approach: 'spectral-index reasoning: NDWI · ExG · double-bounce',
+    data: 'no training: interpretable', score: 'boxes + masks · 0.13 IoU@0.5 (VRSBench-val)'
   },
   {
     task: 'Change detection', approach: 'Siamese FPN-lite · joint LEVIR+SECOND training · tiled inference',
@@ -24,12 +24,12 @@ const ROWS = [
     data: 'BEN v2 S1+S2 pairs', score: '0.85 label recall'
   },
   {
-    task: 'Investigation', approach: 'multi-step agent — change → water → impact',
+    task: 'Investigation', approach: 'multi-step agent: change → water → impact',
     data: 'end-to-end', score: 'quantified impact'
   },
 ]
 
-/** Specialist manifest styled as a payload spec sheet — no cards. */
+/** Specialist manifest styled as a payload spec sheet: no cards. */
 export default function ManifestTable() {
   return (
     <div className="overflow-x-auto">

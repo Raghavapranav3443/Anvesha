@@ -1,9 +1,9 @@
 const ITEMS = [
-  '6 PS-named benchmarks measured — one command reproduces all',
-  'confidence calibrated — T fit on held-out',
+  '6 PS-named benchmarks measured: one command reproduces all',
+  'confidence calibrated: T fit on held-out',
   'int8 torchscript −0.16% accuracy',
   '100/100 concurrent · p95 ≈ 7 s',
-  'sqlite cache — identical query → instant',
+  'sqlite cache: identical query → instant',
   'offline-deployable · docker · no cloud',
   '96 tests green',
 ]

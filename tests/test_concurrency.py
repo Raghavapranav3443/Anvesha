@@ -58,7 +58,7 @@ def test_concurrent_jobs_traces_isolated():
         "change", "demo_change_2020.tif", "demo_change_2024.tif",
         "What changed between these two dates?"))
     t2 = threading.Thread(target=run_job, args=(
-        "optsar", "isro_cartosat2s_optical.tif", "isro_risat_sar.tif",
+        "optsar", "demo_isroformat_optical.tif", "demo_isroformat_sar.tif",
         "Use the optical and SAR images together."))
     t1.start(); t2.start(); t1.join(180); t2.join(180)
 
