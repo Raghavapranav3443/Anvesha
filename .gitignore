@@ -34,3 +34,7 @@ weights/*_cache_*.json
 gitstatus.txt
 cdvqa_full_out.txt
 cdvqa_full_results.txt
+
+# Internal planning & strategy (never tracked, never pushed)
+MASTERPLAN.md
+
