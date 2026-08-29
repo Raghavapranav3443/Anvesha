@@ -420,7 +420,7 @@ class AgentController:
 
         # 6. report -------------------------------------------------------------
         if save_report:
-            visual_paths = self._save_visuals(result)
+            visual_paths = self._save_visuals(result, imgs)
             result.report_paths = write_report(result, imgs, extra={
                 "tools_used": [s.get("name", "") for s in trace
                                if s.get("name", "").startswith("execute")],
@@ -600,9 +600,15 @@ class AgentController:
         return spec
 
     @staticmethod
-    def _save_visuals(result: "AgentResult") -> Dict[str, Path]:
+    def _save_visuals(result: "AgentResult", imgs: list = None) -> Dict[str, Path]:
         """Persist evidence rasters (change masks, overlays) next to the report
-        so judges can compare them against reference masks."""
+        so judges can compare them against reference masks.
+
+        The change mask is additionally written as a georeferenced GeoTIFF
+        (``change_mask.tif``) whenever the first input carries a CRS and
+        ground-control bounds — so the product can be overlaid in GIS and
+        compared directly against ISRO/SAC reference masks.
+        """
         from PIL import Image
         if not result.visuals:
             return {}
@@ -620,6 +626,26 @@ class AgentController:
             path = vis_dir / fname
             img.save(path)
             saved[key] = path
+            # georeferenced GeoTIFF of the change mask when we have georef
+            if key == "mask" and imgs:
+                img0 = imgs[0]
+                tb = getattr(img0, "transform_bounds", None)
+                crs = getattr(img0, "crs", None)
+                if tb and crs:
+                    try:
+                        import rasterio
+                        from rasterio.transform import from_bounds
+                        H, W = a.shape[:2]
+                        transform = from_bounds(tb[0], tb[1], tb[2], tb[3], W, H)
+                        tpath = vis_dir / "change_mask.tif"
+                        with rasterio.open(
+                                str(tpath), "w", driver="GTiff",
+                                height=H, width=W, count=1, dtype="uint8",
+                                crs=crs, transform=transform) as dst:
+                            dst.write((a > 0).astype("uint8") * 255, 1)
+                        saved["mask_tif"] = tpath
+                    except Exception:
+                        pass
         return saved
 
     @staticmethod

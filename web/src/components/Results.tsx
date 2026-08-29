@@ -231,6 +231,12 @@ export default function Results({ result, onFollowUp }:
                 className="rounded-lg border border-line px-3 py-1.5 text-xs text-muted transition-colors hover:border-accent/50 hover:text-accent">
                 ⬇ report.json
               </a>
+              {['change_analysis', 'investigation', 'impact_analysis'].includes(result.selected_task) && (
+                <a href={`/api/reports/${result.run_id}/change_mask.tif`} download
+                  className="rounded-lg border border-line px-3 py-1.5 text-xs text-muted transition-colors hover:border-accent/50 hover:text-accent">
+                  ⬇ change mask (.tif)
+                </a>
+              )}
             </>
           )}
 

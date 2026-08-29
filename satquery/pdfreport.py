@@ -57,10 +57,20 @@ def _reportlab_pdf(data: dict, run_dir: Path, out: Path, run_id: str = ""):
     light_bg = HexColor(_LIGHT_BG)
     good = HexColor(_GOOD)
 
+    def _draw_border():
+        c.setStrokeColor(HexColor("#C9D2E0"))
+        c.setLineWidth(0.75)
+        c.rect(margin - 4 * mm, margin - 4 * mm,
+               W - 2 * (margin - 4 * mm), H - 2 * (margin - 4 * mm),
+               stroke=1, fill=0)
+
+    _draw_border()
+
     def new_page():
         _draw_footer(c, W, H, margin, page_num[0])
         c.showPage()
         page_num[0] += 1
+        _draw_border()
         return H - margin
 
     def check_page(need_mm=40):
@@ -93,8 +103,6 @@ def _reportlab_pdf(data: dict, run_dir: Path, out: Path, run_id: str = ""):
     def section_header(title):
         nonlocal y
         check_page(35)
-        y -= 3 * mm
-        draw_line(y, _PRIMARY)
         y -= 2 * mm
         text(title, 13, bold=True, dy=7 * mm, color=primary)
         y -= 1 * mm
@@ -123,8 +131,7 @@ def _reportlab_pdf(data: dict, run_dir: Path, out: Path, run_id: str = ""):
                  "Earth Observation & Investigation Report")
 
     y = H - 18 * mm
-    draw_line(y, _PRIMARY)
-    y -= 6 * mm
+    y -= 5 * mm
 
     # ── Metadata block ───────────────────────────────────────────────
     text(f"Run ID:  {data.get('run_id', '')}", 9, dy=4.5 * mm, color=muted)
@@ -241,12 +248,9 @@ def _draw_footer(c, W, H, margin, page_num):
     from reportlab.lib.units import mm
     from reportlab.lib.colors import HexColor
     y_foot = margin - 8 * mm
-    c.setStrokeColor(HexColor(_PRIMARY))
-    c.setLineWidth(0.3)
-    c.line(margin, y_foot + 5 * mm, W - margin, y_foot + 5 * mm)
     c.setFont("Helvetica", 7)
     c.setFillColor(HexColor(_MUTED))
-    c.drawString(margin, y_foot, "Anvesha — Earth Observation & Investigation System · SIH26167 · ISRO / SAC")
+    c.drawString(margin, y_foot, "Anvesha · Earth Observation & Investigation System · SIH26167 · ISRO / SAC")
     c.drawRightString(W - margin, y_foot, f"Page {page_num}")
 
 
