@@ -101,11 +101,26 @@ export default function App() {
   const [view, setView] = useState<View>(hasLanding ? 'home' : 'console')
   const [prov, setProv] = useState<Provenance | null>(null)
   const [theme, setTheme] = useState<'light' | 'dark'>(
-    () => (localStorage.getItem('anvesha-theme') === 'dark' ? 'dark' : 'light'))
+    () => {
+      // saved preference wins, then OS preference, then dark as baseline
+      const saved = localStorage.getItem('anvesha-theme')
+      if (saved === 'light' || saved === 'dark') return saved
+      try {
+        return window.matchMedia('(prefers-color-scheme: dark)').matches
+          ? 'dark'
+          : 'light'
+      } catch {
+        return 'dark'
+      }
+    })
   const [onboard, setOnboard] = useState(
     () => !localStorage.getItem('anvesha-onboarded'))
 
   useEffect(() => { fetchProvenance().then(setProv).catch(() => {}) }, [])
+
+  // keep the DOM attribute and React state in sync on mount (the head script
+  // pre-sets it, but React must own it from here on)
+  useEffect(() => { document.documentElement.dataset.theme = theme }, [theme])
 
   function toggleTheme() {
     const next = theme === 'light' ? 'dark' : 'light'
