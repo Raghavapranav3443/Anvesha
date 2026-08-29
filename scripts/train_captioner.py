@@ -128,18 +128,20 @@ class CaptionDataset(Dataset):
 
 class Captioner(nn.Module):
     N_PLAN = len(BEN19_CLASSES)
-    def __init__(self, vocab_size, d=256, nhead=4, nlayers=3, cond=True):
+    def __init__(self, vocab_size, d=256, nhead=4, nlayers=3, cond=True,
+                 in_ch=128):
         super().__init__()
         self.cond = cond
+        self.in_ch = in_ch
         self.embed = nn.Embedding(vocab_size, d)
         self.pos = nn.Embedding(512, d)
         decoder_layer = nn.TransformerDecoderLayer(d, nhead, dim_feedforward=d*4, batch_first=True)
         self.decoder = nn.TransformerDecoder(decoder_layer, nlayers)
         self.out = nn.Linear(d, vocab_size)
         self.plan_proj = nn.Linear(self.N_PLAN, d) if cond else None
-        self.mem_proj = nn.Linear(128, d)  # project encoder features to d
+        self.mem_proj = nn.Linear(in_ch, d)  # project encoder features to d
         self.plan_head = nn.Sequential(
-            nn.Linear(128, 256), nn.ReLU(), nn.Linear(256, self.N_PLAN)
+            nn.Linear(in_ch, 256), nn.ReLU(), nn.Linear(256, self.N_PLAN)
         ) if cond else None
     def forward(self, fmap, tgt, plan=None):
         B, C, H, W = fmap.shape

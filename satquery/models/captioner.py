@@ -28,6 +28,7 @@ class LearnedCaptioner:
         self.vocab = None
         self.val_bleu = None
         self.cond = False
+        self.feat_kind = "scene"   # "scene" (SceneEncoder) | "clip" (VL patch tokens)
         path = CONFIG.weights_dir / "captioner.pt"
         if path.exists():
             try:
@@ -38,8 +39,10 @@ class LearnedCaptioner:
                 self.vocab.itos = ckpt["vocab"]
                 self.vocab.stoi = {w: i for i, w in enumerate(self.vocab.itos)}
                 self.cond = bool(ckpt.get("cond", False))
-                self.model = Captioner(len(self.vocab.itos),
-                                       cond=self.cond).to(self.device)
+                self.feat_kind = str(ckpt.get("feat_kind", "scene"))
+                in_ch = int(ckpt.get("in_ch", 128))
+                self.model = Captioner(len(self.vocab.itos), cond=self.cond,
+                                       in_ch=in_ch).to(self.device)
                 self.model.load_state_dict(ckpt["model"])
                 self.model.eval()
                 self.val_bleu = ckpt.get("val_bleu")
@@ -57,7 +60,12 @@ class LearnedCaptioner:
         x = to_tensor(resize_np(normalise_for_encoder(rgb, img.modality), 120)) \
             .to(self.device)
         with torch.no_grad():
-            fmap = _encoder_feature_map(x, self.device)
+            if self.feat_kind == "clip":
+                fmap = _clip_feature_map(x, self.device)
+            else:
+                fmap = _encoder_feature_map(x, self.device)
+            if fmap is None:      # CLIP requested but unavailable -> template path
+                return None
             texts = self.model.generate(fmap, self.vocab)
         text = (texts[0] if texts else "") or ""
         if text:
@@ -82,6 +90,24 @@ def _encoder_feature_map(x, device):
         _ENC_CACHE["enc"] = enc
     with torch.no_grad():
         return enc.feature_map(x, stride=8)
+
+
+def _clip_feature_map(x, device):
+    """CLIP ViT-B/32 patch tokens for the feat_kind='clip' caption path.
+
+    Returns None when the VL component cannot load — callers fall back to the
+    template caption path (never crash, never silently degrade semantics).
+    """
+    import torch
+    try:
+        from .clip_text import get_clip_text
+        clip = get_clip_text()
+        if clip is None or not clip.available:
+            return None
+        with torch.no_grad():
+            return clip.vision_patch_tokens(x.to(device))
+    except Exception:
+        return None
 
 
 _LEARNED: Optional[LearnedCaptioner] = None

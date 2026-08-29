@@ -23,6 +23,10 @@ import numpy as np
 
 MODEL_ID = "openai/clip-vit-base-patch32"
 DIM = 512
+PATCH_DIM = 768      # ViT-B/32 width (patch tokens, pre-pool)
+PATCH_GRID = 7       # 224 / 32
+CLIP_MEAN = (0.48145466, 0.4578275, 0.40821073)
+CLIP_STD = (0.26862954, 0.26130258, 0.27577711)
 
 _lock = threading.Lock()
 _singleton: Optional["ClipTextEncoder"] = None
@@ -79,6 +83,27 @@ class ClipTextEncoder:
             for i, t in miss.items():
                 out[i] = self._cache[_qkey(t)]
         return out
+
+    def vision_patch_tokens(self, x):
+        """Frozen CLIP vision patch tokens for a (B,3,H,W) float tensor in [0,1].
+
+        Returns (B, PATCH_DIM, PATCH_GRID, PATCH_GRID) — a drop-in spatial
+        feature map for decoders that consumed SceneEncoder stride-8 maps.
+        CLIP-normalized internally (no processor dependency).
+        """
+        torch = self.torch
+        with torch.no_grad():
+            x = x.float().to(self.device)
+            x = torch.nn.functional.interpolate(
+                x.float(), size=(224, 224), mode="bilinear", align_corners=False)
+            mean = torch.tensor(CLIP_MEAN, device=x.device).view(1, 3, 1, 1)
+            std = torch.tensor(CLIP_STD, device=x.device).view(1, 3, 1, 1)
+            x = (x - mean) / std
+            vp = self.model.vision_model(pixel_values=x)
+            tokens = vp.last_hidden_state[:, 1:, :]          # drop CLS -> (B,49,768)
+            B = tokens.shape[0]
+            return tokens.permute(0, 2, 1).reshape(
+                B, PATCH_DIM, PATCH_GRID, PATCH_GRID).float()
 
     @property
     def available(self) -> bool:
