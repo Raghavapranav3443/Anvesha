@@ -658,3 +658,37 @@ achievable gates (retrieval metrics on BEN, RSVQA ≥ 0.75, BLEU ≥ 0.35) — a
 GPU budget rebalances to Phase 3 change detection (`data/SECOND` train/test
 already on disk; `scripts/train_change.py` in place), the largest remaining
 public-score lever.
+
+### D16.1 — Phase 2 gate: CLIP text-side VQA ADOPTED (first VL adoption)
+**Decision:** the RS-adapted-via-CLIP text encoder replaced the hashed-BOW
+question encoding in the VQA specialist stack. Frozen-encoder A/B on identical
+splits (48,853 train / 5,414 val): CLIP val_mean **0.7463** vs BOW **0.7222**;
+presence **0.8842 vs 0.8819** (improved, gate2 no-regression passed); comp
+**0.8133 vs 0.7016** (+11.2 pts — CLIP's compositional text space pays off
+exactly where BOW was blind). Promoted to `weights/type_heads.pt` carrying
+`qfeat_kind="clip"`; BOW checkpoints remain loadable and bit-compatible.
+**Post-promotion RSVQA bench: 0.7634** (n=93) vs 0.7021 baseline.
+**Why it matters:** this is the PS's "remote-sensing-adapted vision-language
+component" bullet finally satisfied with *adopted* evidence — after the honest
+grounding REJECT (D15.1), the VL story is now "gated per task, adopted where
+it wins." Artifact: `runs/phase2_vqa_gate.json`.
+
+### D16.2 — Phase 3 gate: joint LEVIR+SECOND change training PROMOTED
+**Decision:** the v2 FPN-lite change detector retrained on LEVIR-CD (7,000
+pairs) + SECOND official train split (2,968 pairs — found mislabeled on disk
+as `SECOND_test/`, verified disjoint from the 1,694-pair test split). Best
+train-crop IoU 0.4668 cleared the 0.45 promotion floor and replaced
+`weights/change_net.pt`. **Post-promotion LEVIR bench (thr=0.85): IoU 0.7238
+/ F1 0.8397** (n=60 subset) vs 0.602/0.752 same-protocol baseline — the
+largest single-benchmark jump of the project. Full-test (2,048 crops) gate
+(IoU ≥ 0.75 / F1 ≥ 0.88) pending terminal run; historical subset→full delta
+(~+0.07 IoU) puts it at the gate boundary.
+
+### D16.3 — Weight files are local-only by design; add a backup habit
+**Decision:** `.gitignore` deliberately tracks only demo-critical checkpoints
+(`count_head.pt`, `cdvqa_head.pt`); the newly promoted `type_heads.pt`
+(CLIP, 2026-08-29) and `change_net.pt` (joint, 2026-08-29) are reproducible
+from committed scripts + logged args, but re-training costs ~2 GPU-hours.
+**Action:** copy `weights/type_heads.pt` + `weights/change_net.pt` to an
+external backup before the next destructive experiment.
+
