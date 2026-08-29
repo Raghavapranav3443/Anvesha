@@ -222,8 +222,14 @@ def bench_caption_bleu(n: int = 150) -> dict | None:
     vocab.stoi = {t: i for i, t in enumerate(vocab.itos)}
     device = CONFIG.resolve_device()
     cond = bool(ckpt.get("cond", False))
-    model = Captioner(len(vocab.itos), cond=cond).to(device).eval()
+    in_ch = int(ckpt.get("in_ch", 128))
+    feat_kind = str(ckpt.get("feat_kind", "scene"))
+    model = Captioner(len(vocab.itos), cond=cond, in_ch=in_ch).to(device).eval()
     model.load_state_dict(ckpt["model"])
+    clip = None
+    if feat_kind == "clip":
+        from satquery.models.clip_text import get_clip_text
+        clip = get_clip_text()
     enc = SceneEncoder(3).to(device).eval()
     sc = torch.load(CONFIG.scene_encoder_weights, map_location="cpu",
                     weights_only=False)
@@ -244,13 +250,23 @@ def bench_caption_bleu(n: int = 150) -> dict | None:
         if not f.exists():
             continue
         try:
-            with rasterio.open(f) as src:
-                arr = np.moveaxis(src.read().astype(np.float32), 0, -1)
-            rgb = np.clip(arr[..., [2, 1, 0]] / 10000.0, 0, 1)
-            x = to_tensor(resize_np(rgb, 120)).to(device)
+            # dataset-identical preprocessing (scripts/train_captioner.CaptionDataset):
+            # first 3 bands as-is, /10000 clip, PIL uint8 resize -- NOT the
+            # display-space RGB reversal (out-of-distribution for the decoder).
+            with rasterio.open(str(f)) as src:
+                arr = np.moveaxis(src.read()[:3].astype(np.float32), 0, -1)
+            arr = np.clip(arr / 10000.0, 0, 1)
+            from PIL import Image as _PILImage
+            im = _PILImage.fromarray((arr * 255).astype(np.uint8)) \
+                .resize((120, 120))
+            x = torch.from_numpy((np.asarray(im, dtype=np.float32) / 255.0)
+                                 .transpose(2, 0, 1))[None].to(device)
             with torch.no_grad():
-                fmap = enc.feature_map(x, stride=8)
-                text = model.generate(fmap, vocab, beam=3)[0]
+                if feat_kind == "clip" and clip is not None:
+                    fmap = clip.vision_patch_tokens(x)
+                else:
+                    fmap = enc.feature_map(x, stride=8)
+                text = model.generate(fmap, vocab)[0]  # greedy: beam is degenerate
             refs = refs_by_patch.get(str(row["patch_id"]), [str(row["output"])])
             scores.append(max(simple_bleu(text, r) for r in refs))
         except Exception:

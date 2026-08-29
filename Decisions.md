@@ -713,3 +713,36 @@ retrain BOW-only for a same-n full-test A/B (~30 GPU-min) — not scheduled.
 (n=9491) · LEVIR-CD full-test IoU 0.6921 / F1 0.818 (TTA number pending one
 definitive run) · CDVQA 0.654 (val, n=162).
 
+### D17.1 — Phase 2b captioner gate: CLIP vision features ADOPTED
+**Decision:** the caption decoder's conditioning swapped from RS-adapted
+SceneEncoder features to frozen CLIP ViT-B/32 patch tokens. Frozen-encoder A/B
+on identical data/split/vocab/order (7,065 train / 300 val): CLIP val BLEU
+**0.3711** vs control **0.3278** (+13% relative); the control overfit (val BLEU
+declining from epoch 2) while the CLIP stack kept improving through epoch 5.
+Promoted to `weights/captioner.pt` with `feat_kind="clip"`, `in_ch=768`;
+`Captioner` is now input-width-parametric (default 128 keeps old checkpoints
+loading). Artifact: `runs/captioner_gate.json`.
+
+### D17.2 — Two latent caption-defects found and fixed while verifying
+**(a) Beam search was born broken** (`Captioner._beam`): `topk.values[0]` on a
+1-D top-k yields a scalar → every beam=3 generation raised. Latent since the
+file was written; training/val never exercised beam (greedy), so the gate was
+unaffected. Fixed; beam remains unused (no length normalization → degenerate
+outputs; greedy is the production and benchmark protocol).
+**(b) Bench preprocessing was out-of-distribution** for the decoder: the
+scorecard fed channel-reversed, float-resized RGB while training used first-3-
+bands-as-is with PIL uint8 resize. SceneEncoder features tolerated the mismatch;
+CLIP patch tokens do not (garbage captions). `bench_caption_bleu` now replicates
+`CaptionDataset` preprocessing exactly and uses greedy — the measurement now
+matches the model's training distribution.
+
+### D17.3 — Honest post-fix measurement status
+Reloaded-checkpoint val BLEU **0.347** (300 items; batch variance 0.09–0.56 —
+batch composition matters) vs 0.3711 trainer-side; both above the control.
+BEN multi-ref bench at n=30: 0.279 ± wide sampling noise; the canonical n=300
+scorecard is the number that counts. VRSBench-caption remains 0.0: BigEarthNet
+template captions share no 4-grams with VRSBench human references — a BEN-only
+captioner cannot move that row; a separately-gated VRSBench-train fine-tune is
+the only credible path and is deferred, not silently claimed.
+
+

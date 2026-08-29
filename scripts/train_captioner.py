@@ -190,10 +190,10 @@ class Captioner(nn.Module):
                     cands.append((score, seq))
                     continue
                 t = torch.tensor([seq], device=device)
-                logits = self(fmap, t, plan)[:, -1, :]
-                probs = torch.log_softmax(logits, -1)[0]
+                logits = self(fmap, t, plan)[:, -1, :]        # (1, V)
+                probs = torch.log_softmax(logits, -1)[0]      # (V,)
                 topk = probs.topk(beam_width)
-                for v, idx in zip(topk.values[0].tolist(), topk.indices[0].tolist()):
+                for v, idx in zip(topk.values.tolist(), topk.indices.tolist()):
                     cands.append((score + v, seq + [idx]))
             beams = sorted(cands, key=lambda x: -x[0])[:beam_width]
         eos_id = eos
