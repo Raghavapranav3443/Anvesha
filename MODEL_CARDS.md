@@ -26,8 +26,10 @@ without them (and are themselves under test).
   reasoner, all labeled via `source`.
 - **Data:** RSVQA-LR full train split (54k active triplets), flip/rot90 augmentation.
 - **Training:** class-balanced cross-entropy (inverse-sqrt frequency), AdamW + cosine schedule.
-- **Measured:** test-subset exact-match **0.71** (n=282) via
-  `python -m satquery.evaluate --all` (general head alone: 0.67; specialist
+- **Measured:** test-subset exact-match **0.773** (n=282 spot-check via
+  `python -m satquery.evaluate --all`); **full test 0.700** (n=9,491,
+  `runs/phase2_rsvqa_fulltest.json`). General head alone: 0.67 on the same
+  spot-check protocol; specialist
   train accuracies — presence 0.91, rural_urban 0.84, comp 0.70; counting
   val digit-acc 0.44 with the ordinal v4 head).
 - **Gated density-map counting experiment (v5, NOT shipped):** a density-regression
@@ -91,8 +93,10 @@ without them (and are themselves under test).
 - **Data:** LEVIR-CD (official crops via HF mirror).
 - **Measured:** test-subset change **IoU 0.60 / F1 0.75** (n=300) — at the level
   of published ResNet-era baselines. Prior single-scale head: IoU 0.35.
-  Full-test thresholded protocol (thr=0.85): **IoU 0.668 / F1 0.801** — this is
-  the canonical headline number (see README). Same model, different eval sets.
+  Full-split thresholded protocol (thr=0.85, n=1,500): **IoU 0.692 / F1 0.818** —
+  this is the canonical headline number (see README; latest measurement
+  2026-08-29, `runs/phase3_levir_fulltest.json`; an earlier full-split run of
+  the same protocol measured 0.668/0.801). Same model, different eval sets.
 - **Change-VQA (learned, `cdvqa_head.pt`):** a change-conditioned head over the
   detector's SE-attended multi-scale difference features (256-d pooled) ⊕
   spectral-presence deltas ⊕ question BOW, with one output head per CDVQA
@@ -100,7 +104,10 @@ without them (and are themselves under test).
   beat the calibrated rule-based predictor (0.4942 val) — passed at 0.7134**.
   Full test (39,686 Q): **0.683 overall, +17.4 pts over the majority baseline,
   every type above baseline** (change_or_not 0.828, ratio_types 0.707,
-  change_to_what 0.575). The calibrated rule-based predictor is retained as
+  change_to_what 0.575). Protocol map: 0.7134 = promotion-gate val (16.4k
+  records, vs the rule-based predictor's 0.4942); 0.646 = balanced val
+  spot-check (n=2,088 Q); 0.683 = full test — quote the full-test number.
+  The calibrated rule-based predictor is retained as
   fallback (`--model rules`).
 - **Outputs:** probability map, binary mask (GeoTIFF export), change description, change-VQA answer, region direction/bbox statistics.
 

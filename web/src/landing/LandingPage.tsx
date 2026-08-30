@@ -239,15 +239,15 @@ export default function LandingPage({ onEnterConsole }: { onEnterConsole?: () =>
           <Reveal delay={150}><div className="mt-10"><ManifestTable /></div></Reveal>
           <Reveal delay={220}>
             <div className="mt-12">
-              <div className="font-mono text-[12px] uppercase tracking-[.25em] text-faint">the scorecard: every row measured, one command</div>
+              <div className="font-mono text-[12px] uppercase tracking-[.25em] text-faint">the scorecard: every row measured</div>
               <div className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-line bg-line md:grid-cols-3">
                 {[
-                  ['RSVQA-LR', '0.773', 'exact-match · n=282'],
-                  ['LEVIR-CD', '0.724', 'change IoU · n=300'],
-                  ['CDVQA', '0.646', 'answer-match · n=2,088'],
+                  ['RSVQA-LR', '0.700', 'exact-match · full test n=9,491 · spot-check 0.773 (n=282)'],
+                  ['LEVIR-CD', '0.818', 'F1 · full test n=1,500 · IoU 0.692 · thr=0.85'],
+                  ['CDVQA', '0.683', 'full test · 39,686 Q · +17.4 pts over majority baseline'],
                   ['BigEarthNet captions', '0.306', 'multi-ref BLEU · n=300'],
                   ['VRSBench grounding', '0.126', 'IoU@0.5 · spectral · n=455'],
-                  ['VRSBench captioning', '0.000', 'reported honestly: see below'],
+                  ['VRSBench captioning', '0.000', 'reported honestly — see protocol note below'],
                 ].map(([name, v, sub]) => (
                   <div key={name} className="bg-[var(--c-bg)] p-4">
                     <div className="font-mono text-[11.5px] uppercase tracking-[.18em] text-faint">{name}</div>
@@ -259,8 +259,24 @@ export default function LandingPage({ onEnterConsole }: { onEnterConsole?: () =>
             </div>
           </Reveal>
           <Reveal delay={250}>
-            <div className="mt-6 font-mono text-[13px] uppercase tracking-[.2em] text-faint">
-              measured on public test subsets · reproduce: python -m satquery.evaluate --all
+            <div className="mt-8 max-w-3xl space-y-3 text-[14.5px] leading-relaxed text-muted">
+              <p>
+                <span className="font-mono text-[11.5px] uppercase tracking-[.2em] text-faint">protocol · </span>
+                headline numbers are full public test sets, measured 2026-08-29 on this machine
+                (RSVQA-LR n=9,491 · LEVIR-CD n=1,500 · CDVQA n=39,686). Small-n rows are spot-check
+                subsets: they move a few points between runs, so quote the full-test numbers.
+                Spot-checks reproduce with <span className="font-mono">python -m satquery.evaluate --all</span>;
+                full-test numbers with <span className="font-mono">scripts/run_benchmarks.py --n 9491</span> (RSVQA-LR),{' '}
+                <span className="font-mono">--n 1500</span> (LEVIR-CD) and{' '}
+                <span className="font-mono">scripts/eval_cdvqa.py --split test</span> (CDVQA).
+              </p>
+              <p className="text-faint">
+                VRSBench captioning reads 0.000 by construction, not by failure: the caption
+                decoder was trained on BigEarthNet-style captions, which share no 4-grams with
+                VRSBench's human-written references — a style-distribution mismatch. The same
+                decoder scores 0.306 multi-ref BLEU on its own benchmark (row 4).
+                Full decision record: <span className="font-mono">Decisions.md</span>.
+              </p>
             </div>
           </Reveal>
         </div>
@@ -360,10 +376,10 @@ export default function LandingPage({ onEnterConsole }: { onEnterConsole?: () =>
             <Reveal delay={120}>
               <ul className="mt-10 divide-y divide-line border-y border-line">
                 {[
-                  'Change detection trained jointly on LEVIR-CD + SECOND (9.9k pairs): 0.72 IoU / 0.84 F1, up from 0.67/0.80',
+                  'Change detection: 0.692 IoU / 0.818 F1 on the full LEVIR-CD test split (1,500 pairs, thr=0.85) — CPU-class Siamese FPN, 44 MB weights, tiled inference',
                   'VQA question understanding runs on a CLIP text encoder: compositional accuracy +11 pts over bag-of-words, adopted behind a pre-registered A/B gate',
                   'Captions decode from CLIP vision features: same gate discipline, +13% relative BLEU over the previous stack',
-                  'Change-VQA: 0.683 on 39.7k test questions: +17.4 pts over baseline, every question type above it',
+                  'Change-VQA: 0.683 on 39.7k test questions: +17.4 pts over the majority-class baseline, every question type above it',
                   'Confidence is calibrated (temperature fit on held-out data), not raw softmax',
                   '100/100 concurrent analyses, p95 ≈ 7 s, int8 export costs 0.16% accuracy',
                   'Offline-deployable: bundled weights, Docker, SQLite cache, no cloud calls',

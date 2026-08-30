@@ -233,9 +233,9 @@ Sample ISRO-style inputs ship in `samples/` for instant demos.
 
 | Skill | Our score | Context a judge should know |
 |---|---|---|
-| Single-image VQA | 71% overall | Below the original paper's 79% on the full test set; our per-type heads (presence 91%) are the stronger evidence. Known weakness, actively framed. |
-| **Change-VQA** | **68.3%** | **+17.4 points over the majority baseline; every one of the 8 question types above it. Beats the CDVQA paper's own baseline (~68%).** Our strongest benchmark result. |
-| Change detection | F1 80 / IoU 67 | Published SOTA reaches F1 ~92 with far larger GPU-trained models; ours is the CPU-class capability demo. |
+| Single-image VQA | **70.0% full test** (n=9,491) · 77.3% spot-check (n=282) | Below the original paper's 79% on the full test set; our per-type heads (presence 91%) are the stronger evidence. Known weakness, actively framed. |
+| **Change-VQA** | **68.3%** | **+17.4 points over the majority baseline; every one of the 8 question types above it. In line with the CDVQA paper's own reference (~68%).** Our strongest benchmark result. |
+| Change detection | F1 82 / IoU 69 (full test split, n=1,500, thr=0.85) | Published SOTA reaches F1 ~92 with far larger GPU-trained models; ours is the CPU-class capability demo. |
 | Optical–SAR | 85% label recall | Strong for a 14k-pair subset trained on a laptop. |
 | Captioning | BLEU 0.323 (multi-ref) | Protocol-dependent metric; single-ref training BLEU 0.59. |
 | Land-cover encoder | **98.86%** | Full-track (96px, 2500 images/class, 12 epochs, AMP) — exceeds published range (95–98.6%). |
@@ -256,7 +256,11 @@ python start.py          # opens http://localhost:8000
 docker build -t satquery . && docker run -p 8000:8000 satquery
 
 python -m pytest tests -q            # 96 tests, offline-capable
-python -m satquery.evaluate --all    # regenerate every published number
+python -m satquery.evaluate --all    # regenerate spot-check numbers
+                                     # full-test canonical numbers:
+python scripts/run_benchmarks.py --n 9491    # RSVQA-LR
+python scripts/run_benchmarks.py --n 1500    # LEVIR-CD
+python scripts/eval_cdvqa.py --split test    # CDVQA
 ```
 
 ---
@@ -278,8 +282,9 @@ audited later."
 
 **If they ask "how accurate?"**
 "Strongest skills first: change questions 68% — seventeen points above the standard baseline,
-beating the benchmark's own reference model. Yes/no questions 91%, radar+photo fusion 85%.
-Overall single-image VQA is 71% against published baselines near 79% — we say that openly.
+in line with the benchmark's own reference model. Yes/no questions 91%, radar+photo fusion 85%.
+Overall single-image VQA is 70% on the full test set against published baselines near 79% — we
+say that openly.
 Change detection works reliably but isn't record-setting. The differentiator is the trustworthy
 packaging, not raw leaderboard scores."
 

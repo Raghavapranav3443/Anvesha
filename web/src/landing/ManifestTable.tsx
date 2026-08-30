@@ -1,7 +1,7 @@
 const ROWS = [
   {
     task: 'Visual Q&A', approach: 'per-type specialist heads + CLIP text encoder + ordinal counting',
-    data: 'RSVQA-LR · 54k triplets', score: '0.77 exact-match · presence 0.88'
+    data: 'RSVQA-LR · 54k triplets', score: '0.700 full test (n=9,491) · presence 0.88'
   },
   {
     task: 'Scene description', approach: 'plan-conditioned decoder on CLIP vision features',
@@ -13,11 +13,11 @@ const ROWS = [
   },
   {
     task: 'Change detection', approach: 'Siamese FPN-lite · joint LEVIR+SECOND training · tiled inference',
-    data: 'LEVIR-CD + SECOND · 9.9k pairs', score: '0.72 IoU · 0.84 F1'
+    data: 'LEVIR-CD + SECOND · 9.9k pairs', score: '0.692 IoU · 0.818 F1 · full test (n=1,500)'
   },
   {
     task: 'Change VQA', approach: 'change-conditioned head over detector diff features',
-    data: 'CDVQA · 39.7k questions', score: '0.65 val (n=2,088) · 0.68 full test · +17.4 vs baseline'
+    data: 'CDVQA · 39.7k questions', score: '0.683 full test · +17.4 vs majority baseline · val 0.646 (n=2,088)'
   },
   {
     task: 'Optical + SAR fusion', approach: 'dual-branch · dB-aware SAR path',

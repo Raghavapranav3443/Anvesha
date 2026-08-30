@@ -86,23 +86,26 @@ Measured scorecard (public benchmark test subsets, this machine):
 | Rural/Urban classification | exact-match | **0.84** | — |
 | Comparison (more/less) | exact-match | **0.71** | — |
 | Counting (how many) | exact-match | **0.44** (val digit-acc; ordinal soft-CE v4) | — |
-| Aggregate RSVQA-LR | exact-match (all types) | **0.71** (test subset, n=282) | 79.08% (Lobry et al.) |
+| Aggregate RSVQA-LR | exact-match (all types) | **0.700** (full test, n=9,491) · 0.773 spot-check (n=282) | 79.08% (Lobry et al.) |
 
 *Aggregate EM is dragged down by the counting head (29.5% of test questions,
-weakest accuracy). Per-type heads are the fairer comparison against other systems.*
+weakest accuracy). Per-type heads are the fairer comparison against other systems.
+Spot-check subsets move a few points between runs — the full-test rows are canonical.*
 
 ### Change detection
 
 | Benchmark | Metric | Score | Published Baseline |
 |---|---|---|---|
-| LEVIR-CD (test, thr=0.85) | IoU / F1 | **0.668 / 0.801** | BIT-RN18: 0.81/0.89 |
+| LEVIR-CD (full test split, n=1,500, thr=0.85) | IoU / F1 | **0.692 / 0.818** | BIT-RN18: 0.81/0.89 |
 | CDVQA (test, 39,686 Q) | answer accuracy | **0.683** (+17.4 pts over majority baseline; **every** question type above baseline) | RN-18 baseline: 0.68 |
 
 *LEVIR-CD: CPU-class Siamese FPN, 44MB weights, tiled inference — capability
 demo, not SOTA claim. TTA (+2-3 F1 points) available via `--tta` flag.
-Protocol note: the 0.668/0.801 headline is the thresholded full-test protocol;
-the MODEL_CARDS 0.60/0.75 figure is the n=300 test-subset protocol — same
-model, different evaluation sets. The full-test number is canonical.*
+Protocol note: the 0.692/0.818 headline is the latest full-split measurement
+(n=1,500, thr=0.85, 2026-08-29, `runs/phase3_levir_fulltest.json`); an earlier
+full-split run of the same protocol measured 0.668/0.801; the MODEL_CARDS
+0.60/0.75 figure is the n=300 spot-check protocol — same model, different
+evaluation sets. The latest full-split number is canonical.*
 
 ### Captioning & scene classification
 
@@ -116,7 +119,9 @@ model, different evaluation sets. The full-test number is canonical.*
 number; single-reference training-validation is 0.59. See `run_benchmarks.py` for
 exact protocol.*
 
-All numbers reproducible via `python -m satquery.evaluate --all`.
+Spot-check numbers reproduce via `python -m satquery.evaluate --all`; canonical
+full-test numbers via `python scripts/run_benchmarks.py --n 9491` (RSVQA-LR),
+`--n 1500` (LEVIR-CD) and `python scripts/eval_cdvqa.py --split test` (CDVQA).
 
 The SAC batch harness consumes pre-georeferenced Cartosat-2S/RISAT-style pairs,
 writes per-item answers/confidence/run-ids to CSV without stopping on failures,
