@@ -53,7 +53,52 @@ export function Panel({ title, hint, children }: { title: string; hint?: string;
   )
 }
 
-export default function Console() {
+const GUIDE_TEXT = [
+  'Start by adding imagery — upload your own satellite images, or click one of the demo samples below.',
+  'Now ask your question in plain language — type it here, or tap one of the example questions.',
+  'All set — hit Run analysis and the agent takes over: model routing, evidence overlays and an auditable trace.',
+]
+
+/** Small anchored pop-up used by the first-visit guided tour in the Console. */
+function GuidePop({ step, className = '', onNext, onClose }: {
+  step: number
+  className?: string
+  onNext: () => void
+  onClose: () => void
+}) {
+  return (
+    <div className={`fade-up absolute z-40 w-72 rounded-xl border border-accent/60 bg-panel p-3.5 shadow-2xl ${className}`}
+      role="dialog" aria-label={`Guided tour step ${step + 1}`}>
+      <span className="absolute -top-1.5 left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 border-l border-t border-accent/60 bg-panel" />
+      <div className="mb-1.5 flex items-center justify-between">
+        <span className="font-mono text-[11px] uppercase tracking-[.16em] text-accent">
+          Quick tour · {step + 1}/3
+        </span>
+        <button onClick={onClose} title="Close tour" aria-label="Close tour"
+          className="px-1 text-faint transition-colors hover:text-body">×</button>
+      </div>
+      <p className="text-[14px] leading-snug text-muted">{GUIDE_TEXT[step]}</p>
+      <div className="mt-3 flex items-center justify-between">
+        <div className="flex gap-1.5">
+          {[0, 1, 2].map((i) => (
+            <span key={i} className={`h-1.5 w-5 rounded-full ${i === step ? 'bg-accent' : 'bg-line'}`} />
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <button onClick={onClose} className="rounded-lg px-2.5 py-1 text-[13.5px] text-muted transition-colors hover:text-body">
+            Close
+          </button>
+          <button onClick={onNext}
+            className="rounded-lg bg-accent px-4 py-1 text-[13.5px] font-semibold text-white transition-colors hover:bg-accent-dim">
+            {step < 2 ? 'Next' : 'Got it'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function Console({ active = true }: { active?: boolean }) {
   const [samples, setSamples] = useState<SampleInfo[]>([])
   const [selected, setSelected] = useState<string[]>([])
   const [files, setFiles] = useState<File[]>([])
@@ -69,6 +114,31 @@ export default function Console() {
   const abortRef = useRef<AbortController | null>(null)
   const lastInputs = useRef<(File | string)[]>([])
 
+  // ---- first-visit guided tour (3 pop-ups) -------------------------------- #
+  // 0: imagery upload / demo samples · 1: question bar · 2: run button.
+  // Starts the first time the console becomes visible; "Close" skips the rest
+  // and, like finishing the tour, marks it done so it never appears again.
+  const [guideStep, setGuideStep] = useState<number | null>(null)
+  const guideStarted = useRef(false)
+
+  useEffect(() => {
+    if (active && !guideStarted.current && !localStorage.getItem('anvesha-guide-done')) {
+      guideStarted.current = true
+      setGuideStep(0)
+    }
+  }, [active])
+
+  function closeGuide() {
+    setGuideStep(null)
+    localStorage.setItem('anvesha-guide-done', '1')
+  }
+
+  function advanceGuide() {
+    if (guideStep === null) return
+    if (guideStep >= 2) closeGuide()
+    else setGuideStep(guideStep + 1)
+  }
+
   useEffect(() => { fetchSamples().then(setSamples).catch(() => {}) }, [])
   useEffect(() => () => {
     if (pollRef.current) window.clearInterval(pollRef.current)
@@ -79,6 +149,17 @@ export default function Console() {
     setSelected((s) => s.includes(name)
       ? s.filter((x) => x !== name)
       : [...s, name].slice(0, 2))
+    if (guideStep === 0) advanceGuide()
+  }
+
+  function addFiles(f: File[]) {
+    setFiles(f)
+    if (guideStep === 0 && f.length > 0) advanceGuide()
+  }
+
+  function onQueryChange(v: string) {
+    setQuery(v)
+    if (guideStep === 1 && v.trim()) advanceGuide()
   }
 
   async function launch(queryText: string) {
@@ -143,9 +224,13 @@ export default function Console() {
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[370px_1fr]">
       {/* -------- input panel -------- */}
       <section className="fade-up space-y-4">
-        <Panel title="1 · Bring your imagery"
-          hint="GeoTIFF/TIFF keep their geographic reference. PNG/JPEG are for benchmark datasets. Pairs must cover the same area.">
-          <Dropzone files={files} onChange={setFiles} />
+        <div className="relative">
+          {guideStep === 0 && (
+            <div className="pointer-events-none absolute -inset-1 z-30 rounded-2xl ring-2 ring-accent" />
+          )}
+          <Panel title="1 · Bring your imagery"
+            hint="GeoTIFF/TIFF keep their geographic reference. PNG/JPEG are for benchmark datasets. Pairs must cover the same area.">
+            <Dropzone files={files} onChange={addFiles} />
           <div className="mt-4 mb-1.5 text-xs font-medium uppercase tracking-wider text-faint">
             Or load a demo sample
           </div>
@@ -171,7 +256,12 @@ export default function Console() {
               <Field label={<Term t="Date B" d="Label for the second (later) image." />} value={dateB} onChange={setDateB} />
             </div>
           )}
-        </Panel>
+          </Panel>
+          {guideStep === 0 && (
+            <GuidePop step={0} className="left-1/2 top-full mt-3 -translate-x-1/2"
+              onNext={advanceGuide} onClose={closeGuide} />
+          )}
+        </div>
 
         <Panel title="2 · Choose how to analyse"
           hint="Auto routing lets the agent decide. Investigation Mode runs a full multi-step workflow with quantified findings.">
@@ -206,16 +296,25 @@ export default function Console() {
       <section className="fade-up space-y-6" style={{ animationDelay: '.08s' }}>
         <Panel title="3 · Ask your question"
           hint="Plain language works best. The agent handles the remote-sensing vocabulary for you.">
-          <textarea value={query} onChange={(e) => setQuery(e.target.value)} rows={2}
-            placeholder='e.g. "What changed between these two dates?"'
-            className="w-full resize-none rounded-lg border border-line bg-panel px-4 py-3 text-[17px] text-body outline-none placeholder:text-faint focus:border-accent/60" />
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            {EXAMPLES.map((ex) => (
-              <button key={ex} onClick={() => setQuery(ex)}
-                className="max-w-full truncate rounded-full border border-line bg-panel px-3 py-1 text-xs text-muted transition-colors hover:border-accent/50 hover:text-accent">
-                {ex.length > 54 ? ex.slice(0, 54) + '…' : ex}
-              </button>
-            ))}
+          <div className="relative">
+            {guideStep === 1 && (
+              <div className="pointer-events-none absolute -inset-1 z-30 rounded-2xl ring-2 ring-accent" />
+            )}
+            <textarea value={query} onChange={(e) => onQueryChange(e.target.value)} rows={2}
+              placeholder='e.g. "What changed between these two dates?"'
+              className="w-full resize-none rounded-lg border border-line bg-panel px-4 py-3 text-[17px] text-body outline-none placeholder:text-faint focus:border-accent/60" />
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {EXAMPLES.map((ex) => (
+                <button key={ex} onClick={() => onQueryChange(ex)}
+                  className="max-w-full truncate rounded-full border border-line bg-panel px-3 py-1 text-xs text-muted transition-colors hover:border-accent/50 hover:text-accent">
+                  {ex.length > 54 ? ex.slice(0, 54) + '…' : ex}
+                </button>
+              ))}
+            </div>
+            {guideStep === 1 && (
+              <GuidePop step={1} className="left-1/2 top-full mt-3 -translate-x-1/2"
+                onNext={advanceGuide} onClose={closeGuide} />
+            )}
           </div>
           <div className="mt-4 flex items-center justify-between">
             <span className="font-mono text-[13.5px] text-faint">
@@ -223,11 +322,20 @@ export default function Console() {
               {investigate && ' · investigation mode'}
             </span>
             <div className="flex items-center gap-2">
-              <button onClick={run} disabled={busy || !nInputs || (investigate && nInputs !== 2)}
-                className="relative overflow-hidden rounded-lg bg-accent px-7 py-2 text-[16.5px] font-semibold text-white transition-all hover:bg-accent-dim disabled:cursor-not-allowed disabled:opacity-40">
-                {busy ? 'Analysing…' : investigate ? 'Run investigation' : 'Run analysis'}
-                {busy && <span className="scanning absolute inset-0" />}
-              </button>
+              <div className="relative">
+                {guideStep === 2 && (
+                  <div className="pointer-events-none absolute -inset-1 z-30 rounded-xl ring-2 ring-accent" />
+                )}
+                <button onClick={run} disabled={busy || !nInputs || (investigate && nInputs !== 2)}
+                  className="relative overflow-hidden rounded-lg bg-accent px-7 py-2 text-[16.5px] font-semibold text-white transition-all hover:bg-accent-dim disabled:cursor-not-allowed disabled:opacity-40">
+                  {busy ? 'Analysing…' : investigate ? 'Run investigation' : 'Run analysis'}
+                  {busy && <span className="scanning absolute inset-0" />}
+                </button>
+                {guideStep === 2 && (
+                  <GuidePop step={2} className="bottom-full right-0 mb-3"
+                    onNext={advanceGuide} onClose={closeGuide} />
+                )}
+              </div>
               {(job || busy) && (
                 <button onClick={reset} disabled={busy}
                   className="rounded-lg border border-line px-4 py-2 text-[14px] font-medium text-muted transition-colors hover:border-accent/50 hover:text-accent disabled:opacity-40">

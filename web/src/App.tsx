@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { ComponentType } from 'react'
 import Console from './components/Console'
 import ProvenanceView from './components/Provenance'
@@ -97,8 +97,22 @@ function OrbitMark() {
   )
 }
 
+const VIEW_IDS: View[] = ['home', 'console', 'history', 'evaluation', 'provenance', 'help']
+
 export default function App() {
-  const [view, setView] = useState<View>(hasLanding ? 'home' : 'console')
+  // ---- restore last visited page ------------------------------------------ #
+  // The active view is persisted locally so a refresh lands the user back
+  // where they left off instead of on the landing page.
+  const [view, setView] = useState<View>(() => {
+    try {
+      const saved = localStorage.getItem('anvesha-view') as View | null
+      if (saved && VIEW_IDS.includes(saved) && (saved !== 'home' || hasLanding)) return saved
+    } catch { /* storage unavailable */ }
+    return hasLanding ? 'home' : 'console'
+  })
+  useEffect(() => {
+    try { localStorage.setItem('anvesha-view', view) } catch { /* storage unavailable */ }
+  }, [view])
   const [prov, setProv] = useState<Provenance | null>(null)
   const [theme, setTheme] = useState<'light' | 'dark'>(
     () => {
@@ -113,8 +127,15 @@ export default function App() {
         return 'dark'
       }
     })
-  const [onboard, setOnboard] = useState(
-    () => !localStorage.getItem('anvesha-onboarded'))
+  // ---- first-run onboarding ------------------------------------------------ #
+  // Shown only the very first time the user enters the Console (never on the
+  // landing page), and never again once completed/skipped.
+  const [onboard, setOnboard] = useState(false)
+  const onboardDismissed = useRef(false)
+  useEffect(() => {
+    if (view === 'console' && !onboardDismissed.current
+      && !localStorage.getItem('anvesha-onboarded')) setOnboard(true)
+  }, [view])
 
   useEffect(() => { fetchProvenance().then(setProv).catch(() => {}) }, [])
 
@@ -197,11 +218,11 @@ export default function App() {
             </Suspense>
           )}
           <ErrorBoundary>
-            <div style={{ display: view === 'console' ? 'block' : 'none' }}><Console /></div>
+            <div style={{ display: view === 'console' ? 'block' : 'none' }}><Console active={view === 'console'} /></div>
             {view === 'history' && <HistoryView />}
             {view === 'evaluation' && <EvaluationView prov={prov} />}
             {view === 'provenance' && <ProvenanceView prov={prov} />}
-            {view === 'help' && <HelpView onStart={() => { setView('console'); setOnboard(false) }} />}
+            {view === 'help' && <HelpView onStart={() => { setView('console'); onboardDismissed.current = true; setOnboard(false) }} />}
           </ErrorBoundary>
         </main>
 
@@ -217,7 +238,7 @@ export default function App() {
         )}
       </div>
 
-      {onboard && <Onboarding onDone={() => { setOnboard(false); localStorage.setItem('anvesha-onboarded', '1') }} />}
+      {onboard && <Onboarding onDone={() => { setOnboard(false); onboardDismissed.current = true; localStorage.setItem('anvesha-onboarded', '1') }} />}
     </div>
   )
 }
