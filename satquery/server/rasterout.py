@@ -15,7 +15,11 @@ def png_mask_to_geotiff(png_path: Path, reference) -> Path:
     out = png_path.with_suffix(".tif")
     h, w = mask.shape
     if reference is not None and getattr(reference, "crs", None):
-        transform = from_bounds(*reference.transform_bounds, w, h) \
+        # Use original dimensions (before downscale) for the transform so the
+        # pixel size is correct even when the mask was downscaled for storage.
+        orig_h = getattr(reference, "original_height", h) or h
+        orig_w = getattr(reference, "original_width", w) or w
+        transform = from_bounds(*reference.transform_bounds, orig_w, orig_h) \
             if reference.transform_bounds else from_bounds(0, 0, w * 10, h * 10, w, h)
         crs = reference.crs
     else:

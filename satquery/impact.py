@@ -179,24 +179,30 @@ def analyse_impact(a, b, change_mask: np.ndarray,
     built_new_ha = px_to_ha(built_new_px, gsd)
 
     # --- zone ranking (4x4) --------------------------------------------
-    gh, gw = H // 4, W // 4
+    # Use a grid that covers the full image. Integer division of H/W by 4
+    # can leave a gap at the right/bottom edge when H or W is not divisible
+    # by 4, so we compute cell boundaries explicitly and let the last cell in
+    # each row/column absorb the remainder.
     zones = []
     row_names = ["N", "N", "S", "S"]
     col_names = ["W", "", "E"]
+    row_bounds = [i * H // 4 for i in range(5)]  # 0, H//4, 2H//4, 3H//4, H
+    col_bounds = [j * W // 4 for j in range(5)]  # 0, W//4, 2W//4, 3W//4, W
     for zi in range(4):
         for zj in range(4):
-            cell = changed[zi * gh:(zi + 1) * gh, zj * gw:(zj + 1) * gw]
+            r0, r1 = row_bounds[zi], row_bounds[zi + 1]
+            c0, c1 = col_bounds[zj], col_bounds[zj + 1]
+            cell = changed[r0:r1, c0:c1]
             cpx = int(cell.sum())
             if cpx == 0:
                 continue
-            dw = dist_to_water[zi * gh:(zi + 1) * gh,
-                               zj * gw:(zj + 1) * gw][cell]
+            dw = dist_to_water[r0:r1, c0:c1][cell]
             near_w = float((dw <= 500).mean()) if dw.size else 0.0
             col_tag = "W" if zj == 0 else ("E" if zj >= 2 else "C")
             row_tag = row_names[zi]
             zones.append({
                 "zone": f"{row_tag}-{col_tag}{zj % 2 + 1}",
-                "box": [zj * gw, zi * gh, (zj + 1) * gw, (zi + 1) * gh],
+                "box": [c0, r0, c1, r1],
                 "area_ha": px_to_ha(cpx, gsd),
                 "near_water_frac": round(near_w, 3),
                 "priority": round(cpx / total_px *

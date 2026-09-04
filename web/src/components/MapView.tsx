@@ -26,7 +26,7 @@ export default function MapView({ geo }: { geo: GeoJSON | null }) {
   const center: [number, number] = valid
     ? [(Math.min(...lats) + Math.max(...lats)) / 2,
        (Math.min(...lons) + Math.max(...lons)) / 2]
-    : [28.6, 77.2]
+    : [0, 0]
 
   return (
     <div>

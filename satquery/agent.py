@@ -27,6 +27,7 @@ from .io_utils import RSImage, InputValidationError, describe_configuration, \
     load_image, validate_inputs
 from .registry import ToolSpec, build_default_registry
 from .text import content_tokens
+from . import __version__ as _VERSION
 
 
 # --------------------------------------------------------------------------- #
@@ -53,6 +54,27 @@ def _cosine_sim(a: np.ndarray, b: np.ndarray) -> float:
 
 # Lazily precomputed centroids: task -> 512-d BOW vector
 _task_centroids: Optional[Dict[str, np.ndarray]] = None
+# Tracks which centroid source was used: "data-derived" or "keyword-derived"
+_centroid_source: Optional[str] = None
+
+
+def centroid_status() -> Dict[str, str]:
+    """Return centroid-load transparency status.
+
+    Indicates whether task centroids were loaded from the data-derived
+    ``weights/task_centroids.pt`` file or computed from keyword lists
+    (heuristic fallback). This lets the UI surface when intent
+    classification is using the learned embeddings vs keyword matching.
+    """
+    global _centroid_source
+    if _centroid_source is None:
+        # Trigger a load to determine the source
+        _get_task_centroids()
+    return {
+        "centroid_source": _centroid_source or "unknown",
+        "centroids_loaded": str(_task_centroids is not None),
+    }
+
 
 def _get_task_centroids() -> Dict[str, np.ndarray]:
     """Return precomputed task centroids.
@@ -62,7 +84,7 @@ def _get_task_centroids() -> Dict[str, np.ndarray]:
     training questions).  Falls back to keyword-derived centroids if the
     file is not available.
     """
-    global _task_centroids
+    global _task_centroids, _centroid_source
     if _task_centroids is not None:
         return _task_centroids
 
@@ -73,6 +95,7 @@ def _get_task_centroids() -> Dict[str, np.ndarray]:
         try:
             ck = torch.load(centroids_path, map_location="cpu", weights_only=False)
             _task_centroids = {k: v.numpy().astype(np.float32) for k, v in ck.items()}
+            _centroid_source = "data-derived"
             return _task_centroids
         except Exception:
             pass
@@ -85,6 +108,7 @@ def _get_task_centroids() -> Dict[str, np.ndarray]:
             mean = np.mean(vecs, axis=0)
             n = float(np.linalg.norm(mean))
             _task_centroids[task] = mean / n if n > 0 else mean
+    _centroid_source = "keyword-derived"
     return _task_centroids
 
 
@@ -552,12 +576,20 @@ class AgentController:
         suggestions = suggest({"selected_task": "investigation",
                                "outputs": {"investigation": {"impact": imp}}})
 
+        # Derive confidence from evidence strength instead of hardcoding.
+        # Base 0.5 + signal magnitude + finding specificity - assumed-GSD penalty.
+        _cf = min(float(imp.get("changed_fraction", 0)) * 5.0, 0.2)
+        _findings = imp.get("findings") or []
+        _specific = 0.1 if _findings and _findings[0].get("what") != "No significant thematic transition" else 0.0
+        _gsd_penalty = 0.1 if imp.get("gsd_assumed") else 0.0
+        _confidence = max(0.1, min(0.95, 0.5 + _cf + _specific - _gsd_penalty))
+
         result = AgentResult(
             run_id=run_id, query=query,
             configuration={"configuration_label": "investigation"},
             selected_task="investigation",
             answer=answer,
-            confidence=float(imp.get("confidence", 0.78)) if imp else 0.7,
+            confidence=_confidence,
             outputs={"investigation": {
                 "change": {k: v for k, v in chg.items()
                            if not isinstance(v, (list, np.ndarray)) and k != "_x"},
@@ -635,14 +667,25 @@ class AgentController:
                     try:
                         import rasterio
                         from rasterio.transform import from_bounds
-                        H, W = a.shape[:2]
+                        # Use the pre-downscale dims so the from_bounds pixel
+                        # size matches the actual mask resolution. Without this,
+                        # a downscaled mask gets the full-res bounds -> every
+                        # pixel covers too much ground.
+                        H = img0.original_height or int(a.shape[0])
+                        W = img0.original_width or int(a.shape[1])
+                        import PIL.Image as _PILImage
+                        mask_for_tif = (a > 0).astype("uint8") * 255
+                        if int(a.shape[0]) != H or int(a.shape[1]) != W:
+                            mask_for_tif = np.array(
+                                _PILImage.fromarray(mask_for_tif).resize(
+                                    (W, H), _PILImage.NEAREST))
                         transform = from_bounds(tb[0], tb[1], tb[2], tb[3], W, H)
                         tpath = vis_dir / "change_mask.tif"
                         with rasterio.open(
                                 str(tpath), "w", driver="GTiff",
                                 height=H, width=W, count=1, dtype="uint8",
                                 crs=crs, transform=transform) as dst:
-                            dst.write((a > 0).astype("uint8") * 255, 1)
+                            dst.write(mask_for_tif, 1)
                         saved["mask_tif"] = tpath
                     except Exception:
                         pass
@@ -674,7 +717,7 @@ def write_report(result: AgentResult, images: Sequence[RSImage],
     run_dir.mkdir(parents=True, exist_ok=True)
 
     payload = {
-        "system": "SatQuery AI v1.0",
+        "system": f"SatQuery AI v{_VERSION}",
         "generated_at": datetime.now().isoformat(timespec="seconds"),
         "query": result.query,
         "input_configuration": result.configuration,

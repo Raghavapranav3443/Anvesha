@@ -13,6 +13,14 @@ import numpy as np
 
 from .io_utils import rgb_composite
 
+# --- tunable thresholds -------------------------------------------------- #
+# Minimum probability from the change detector's prob_map for a pixel to be
+# considered "changed" when building the impact-analysis mask.
+CHANGE_MASK_PROB_THRESHOLD = 0.85
+# Minimum fraction of changed pixels lying within 500 m of water before the
+# "new built-up near water" mention is surfaced in the impact answer.
+NEAR_WATER_MENTION_THRESHOLD = 0.05
+
 
 def single_vqa_tool(ctx: Dict) -> Dict:
     from .models import get_vqa_model
@@ -116,10 +124,19 @@ def impact_analysis_tool(ctx: Dict) -> Dict:
     a, b = ctx["images"][0], ctx["images"][1]
     det = ChangeDetectorNet()
     cm = det.map(a, b)
-    mask = cm["prob_map"] >= 0.85
+    mask = cm["prob_map"] >= CHANGE_MASK_PROB_THRESHOLD
     impact = analyse_impact(a, b, mask, query=ctx.get("query", ""))
     vis = _overlay_mask(rgb_composite(b), mask.astype(bool),
                         color=(0.95, 0.75, 0.0))
+
+    # Derive confidence from evidence strength instead of hardcoding.
+    # Base 0.5 + signal magnitude + finding specificity - assumed-GSD penalty.
+    _cf = min(float(impact.get("changed_fraction", 0)) * 5.0, 0.2)
+    _findings = impact.get("findings") or []
+    _specific = 0.1 if _findings and _findings[0].get("what") != "No significant thematic transition" else 0.0
+    _gsd_penalty = 0.1 if impact.get("gsd_assumed") else 0.0
+    _confidence = max(0.1, min(0.95, 0.5 + _cf + _specific - _gsd_penalty))
+
     return {
         "findings": impact["findings"],
         "changed_area_ha": impact["changed_area_ha"],
@@ -130,7 +147,7 @@ def impact_analysis_tool(ctx: Dict) -> Dict:
         "gsd_m": impact["gsd_m"],
         "gsd_assumed": impact["gsd_assumed"],
         "answer": _impact_answer(impact),
-        "confidence": 0.78,
+        "confidence": _confidence,
         "source_model": "Impact Analysis engine (change detector + index "
                         "masks + chamfer distance)",
         "_visual": {"change_overlay": vis},
@@ -144,7 +161,7 @@ def _impact_answer(imp: Dict) -> str:
         nw = imp["near_water"]["within_500m"]
         parts.append(f"new built-up ~{t['built_up_new_ha']} ha"
                      + (f" ({nw * 100:.0f}% within 500 m of water)"
-                        if nw > 0.05 else ""))
+                        if nw > NEAR_WATER_MENTION_THRESHOLD else ""))
     if t["vegetation_lost_ha"] > 0:
         parts.append(f"vegetation lost ~{t['vegetation_lost_ha']} ha")
     if imp.get("priority_zone"):
