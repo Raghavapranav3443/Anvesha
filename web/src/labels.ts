@@ -28,6 +28,9 @@ const STEP_LABELS: Record<string, string> = {
 export function stepLabel(name: string): string {
   if (STEP_LABELS[name]) return STEP_LABELS[name]
   if (name.startsWith('execute:')) {
+    // Investigation plans emit step names like `grounding_water`,
+    // `grounding_built_up`, `grounding_vegetation`. Strip the concept
+    // suffix so `taskLabel` can map the base task to a readable label.
     return 'Run ' + taskLabel(name.slice(8).replace(/_water$/, '').trim())
   }
   if (name.startsWith('execute')) return 'Run specialist'

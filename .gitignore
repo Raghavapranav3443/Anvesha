@@ -35,6 +35,6 @@ gitstatus.txt
 cdvqa_full_out.txt
 cdvqa_full_results.txt
 
-# Internal planning & strategy (never tracked, never pushed)
+# Internal planning & strategy + local AI-context files (never tracked, never pushed)
 MASTERPLAN.md
-
+system docs/

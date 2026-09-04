@@ -28,7 +28,7 @@ function ConfidenceRing({ value }: { value: number }) {
           80% correct.
         </div>
         <div className="mt-2 font-mono text-[11.5px] leading-relaxed text-accent">
-          confidence = ½ × strongest evidence + ¼ × sensor agreement + ¼ base
+          confidence = ½ base + signal + specificity − assumed-GSD penalty
         </div>
       </div>
     </div>
@@ -50,7 +50,7 @@ function StructuredOutputs({ result }: { result: JobResult }) {
           <Stat label="Changed area" value={`${impact.changed_area_ha} ha`} />
           <Stat label="Changed pixels" value={`${(impact.changed_fraction * 100).toFixed(1)}%`} />
           <Stat label="Within 500 m of water" value={`${((impact.near_water?.within_500m ?? 0) * 100).toFixed(0)}%`} />
-          <Stat label="Priority zone" value={impact.priority_zone || ':'} />
+          <Stat label="Priority zone" value={impact.priority_zone || '—'} />
         </div>
         <div className="overflow-hidden rounded-lg border border-line">
           <table className="w-full text-left text-[14.5px]">
@@ -383,12 +383,21 @@ function SwipeCompare({ result }: { result: JobResult }) {
   )
 }
 
+// Shared prompt for region interrogation — single source of truth.
+const REGION_QUERY_PROMPT = 'Describe the land-cover and major objects visible in this image.'
+
 function RegionQuery({ result }: { result: JobResult }) {
   const [rect, setRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
   const [busy, setBusy] = useState(false)
   const [answer, setAnswer] = useState<string>('')
   const imgRef = useRef<HTMLImageElement>(null)
   const startRef = useRef<{ x: number; y: number } | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
+
+  // Cancel any in-flight poll on unmount to avoid setState-after-unmount leaks
+  // and to stop server-side jobs that the user can no longer see.
+  useEffect(() => () => { abortRef.current?.abort() }, [])
+
   const inp = result.inputs?.[0]
   if (!inp) return null
 
@@ -410,27 +419,55 @@ function RegionQuery({ result }: { result: JobResult }) {
     if (!img || !rect) return
     const sx = img.naturalWidth / img.clientWidth
     const sy = img.naturalHeight / img.clientHeight
+    // Clamp the source rectangle to the image dimensions so drawImage
+    // never receives out-of-bounds source coords (which would throw).
+    const srcX = Math.max(0, rect.x * sx)
+    const srcY = Math.max(0, rect.y * sy)
+    const srcW = Math.min(img.naturalWidth - srcX, rect.w * sx)
+    const srcH = Math.min(img.naturalHeight - srcY, rect.h * sy)
     const canvas = document.createElement('canvas')
-    canvas.width = Math.max(8, rect.w * sx)
-    canvas.height = Math.max(8, rect.h * sy)
-    canvas.getContext('2d')!.drawImage(
-      img, rect.x * sx, rect.y * sy, canvas.width, canvas.height,
-      0, 0, canvas.width, canvas.height)
-    const blob: Blob = await new Promise(res =>
-      canvas.toBlob(b => res(b!), 'image/png'))
-    setBusy(true); setAnswer('')
-    const jid = await createJob({
-      query: 'Describe the land-cover and major objects visible in this image.',
-      files: [new File([blob], 'region.png', { type: 'image/png' })],
-      sampleNames: [],
-    })
-    for (let i = 0; i < 240; i++) {
-      const st = await pollJob(jid)
-      if (st.status === 'done') { setAnswer(st.result?.answer ?? ''); break }
-      if (st.status === 'error') { setAnswer('failed: ' + (st.error ?? '')); break }
-      await new Promise(r => setTimeout(r, 400))
+    canvas.width = Math.max(8, Math.round(srcW))
+    canvas.height = Math.max(8, Math.round(srcH))
+    const ctx = canvas.getContext('2d')
+    if (!ctx || canvas.width === 0 || canvas.height === 0) {
+      setAnswer('Could not read the selected region — try again.')
+      return
     }
-    setBusy(false)
+    ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, canvas.width, canvas.height)
+    const blob = await new Promise<Blob | null>(res =>
+      canvas.toBlob(res, 'image/png'))
+    // canvas.toBlob can return null (Safari / low memory) — handle gracefully.
+    if (!blob) {
+      setAnswer('Could not encode the selected region — try a smaller area or another browser.')
+      return
+    }
+    // Cancel any previous in-flight poll before starting a new one.
+    abortRef.current?.abort()
+    abortRef.current = new AbortController()
+    setBusy(true); setAnswer('')
+    try {
+      const jid = await createJob({
+        query: REGION_QUERY_PROMPT,
+        files: [new File([blob], 'region.png', { type: 'image/png' })],
+        sampleNames: [],
+      })
+      const MAX_POLLS = 240
+      for (let i = 0; i < MAX_POLLS; i++) {
+        const st = await pollJob(jid, abortRef.current?.signal)
+        if (st.status === 'done') { setAnswer(st.result?.answer ?? ''); break }
+        if (st.status === 'error') { setAnswer('failed: ' + (st.error ?? '')); break }
+        if (i === MAX_POLLS - 1) {
+          setAnswer('Region analysis timed out — try a smaller region.')
+        }
+        await new Promise(r => setTimeout(r, 400))
+      }
+    } catch (e) {
+      if (!abortRef.current?.signal.aborted) {
+        setAnswer('Region analysis failed — try again.')
+      }
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (

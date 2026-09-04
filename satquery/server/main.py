@@ -35,6 +35,7 @@ from ..io_utils import InputValidationError, load_image
 from .jobs import (EVIDENCE_MAX_PX, MAX_UPLOAD_BYTES, TORCH_THREADS, WORKERS,
                    JobStore, cache_key_for, gpu_semaphore, log_event)
 from ..store import Store
+from .. import __version__ as _VERSION
 
 logger = logging.getLogger(__name__)
 
@@ -126,7 +127,7 @@ def _schedule_periodic_cleanup(interval_s: int = 6 * 3600) -> None:
 # App
 # ---------------------------------------------------------------------------
 
-app = FastAPI(title="Anvesha — Earth Observation & Investigation System", version="3.0")
+app = FastAPI(title=f"Anvesha — Earth Observation & Investigation System v{_VERSION}", version=_VERSION)
 app.add_middleware(
     CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
 )
@@ -480,7 +481,12 @@ async def geo(run_id: str):
     reprojected from pixel space to the image CRS when georeferenced."""
     import rasterio.features
 
-    report = CONFIG.runs_dir / run_id / "report.json"
+    run_id = Path(run_id).name            # traversal hardening
+    run_dir = CONFIG.runs_dir / run_id
+    # Defensive: ensure resolved path stays inside runs_dir
+    if not run_dir.resolve().is_relative_to(CONFIG.runs_dir.resolve()):
+        raise _http(404, "Run not found.", code="not_found")
+    report = run_dir / "report.json"
     if not report.exists():
         raise _http(404, "Run not found.", code="not_found")
     data   = json.loads(report.read_text(encoding="utf-8"))
@@ -507,7 +513,7 @@ async def geo(run_id: str):
                              "geometry": {"type": "Polygon",
                                           "coordinates": [ring]}})
 
-    mask_png = CONFIG.runs_dir / run_id / "visuals" / "change_mask.png"
+    mask_png = run_dir / "visuals" / "change_mask.png"
     if mask_png.exists():
         from PIL import Image
         mask  = (np.asarray(Image.open(mask_png).convert("L")) > 127).astype(np.uint8)
@@ -541,17 +547,24 @@ async def evaluate_run(n: int = 300):
 
     def runner():
         import subprocess
-        p = subprocess.run(
-            [sys.executable, "-m", "satquery.evaluate", "--all",
-             "--n", str(max(50, min(n, 800)))],
-            cwd=str(CONFIG.repo_root), capture_output=True, text=True)
-        sc = CONFIG.runs_dir / "scorecard.json"
-        _EVAL_STATE[eid] = {
-            "status":    "done" if p.returncode == 0 else "error",
-            "error":     (p.stderr or "")[-400:],
-            "scorecard": json.loads(sc.read_text(encoding="utf-8"))
-            if sc.exists() else None,
-        }
+        try:
+            p = subprocess.run(
+                [sys.executable, "-m", "satquery.evaluate", "--all",
+                 "--n", str(max(50, min(n, 800)))],
+                cwd=str(CONFIG.repo_root), capture_output=True, text=True)
+            sc = CONFIG.runs_dir / "scorecard.json"
+            _EVAL_STATE[eid] = {
+                "status":    "done" if p.returncode == 0 else "error",
+                "error":     (p.stderr or "")[-400:],
+                "scorecard": json.loads(sc.read_text(encoding="utf-8"))
+                if sc.exists() else None,
+            }
+        except Exception as exc:
+            _EVAL_STATE[eid] = {
+                "status": "error",
+                "error": f"Evaluation failed: {exc}",
+                "scorecard": None,
+            }
 
     threading.Thread(target=runner, daemon=True).start()
     if len(_EVAL_STATE) > 20:                     # bound memory
@@ -595,19 +608,25 @@ async def healthz():
         "model_status":     mstatus,
         "degraded":         any(v != "trained" for v in mstatus.values()),
         "uptime_s":         int(time.time() - _STARTED),
-        "version":          "3.0",
+        "version":          _VERSION,
     }
 
 
 @app.get("/api/model_status")
 async def model_status_endpoint():
     """Degradation transparency: which specialists run trained weights vs
-    heuristic fallbacks. The UI renders a badge when any entry is not
-    'trained' so heuristic-mode answers are never mistaken for model output."""
+    heuristic fallbacks, plus centroid-load status for intent classification.
+    The UI renders a badge when any entry is not 'trained' or when centroids
+    fall back to keyword-derived, so heuristic-mode answers are never mistaken
+    for model output."""
     from ..models.status import model_status
+    from ..agent import centroid_status
     status = model_status()
+    cstatus = centroid_status()
     return {"models": status,
-            "degraded": any(v != "trained" for v in status.values())}
+            "centroids": cstatus,
+            "degraded": any(v != "trained" for v in status.values()),
+            "centroid_fallback": cstatus.get("centroid_source") == "keyword-derived"}
 
 
 # ---------------------------------------------------------------------------

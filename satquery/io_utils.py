@@ -48,6 +48,8 @@ class RSImage:
     band_names: List[str] = field(default_factory=list)
     crs: Optional[str] = None
     transform_bounds: Optional[Tuple[float, float, float, float]] = None
+    original_height: Optional[int] = None   # HxW before any downscale (for GeoTIFF)
+    original_width: Optional[int] = None
     acquired: str = ""                # free-form date string if known
 
     @property
@@ -186,7 +188,10 @@ def load_image(path: str | Path, max_px: Optional[int] = None,
 
     limit = max_px or _config_max_px()
     if max(arr.shape[0], arr.shape[1]) > limit:
+        orig_h, orig_w = int(arr.shape[0]), int(arr.shape[1])
         arr = _downscale(arr, limit)
+    else:
+        orig_h, orig_w = int(arr.shape[0]), int(arr.shape[1])
 
     # Explicit user/judge override wins over the naming heuristic
     if modality_override:
@@ -207,7 +212,8 @@ def load_image(path: str | Path, max_px: Optional[int] = None,
         arr = np.log1p(arr)
 
     return RSImage(array=arr, format=fmt, path=path, modality=modality,
-                   band_names=band_names, crs=crs, transform_bounds=bounds)
+                   band_names=band_names, crs=crs, transform_bounds=bounds,
+                   original_height=orig_h, original_width=orig_w)
 
 
 def _config_max_px() -> int:
