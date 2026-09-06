@@ -9,6 +9,8 @@ web/node_modules/
 .freebuff/
 pics/
 inputs.txt
+.postman
+postman
 
 # Local datasets — kept on disk for reproducibility, never pushed
 data/SECOND/
