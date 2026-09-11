@@ -4,6 +4,7 @@ import {
   type JobState, type SampleInfo,
 } from '../api'
 import { stepLabel as sharedStepLabel, TASK_LABELS } from '../labels'
+import { SETUPS } from '../setups'
 import Results from './Results'
 
 const EXAMPLES = [
@@ -107,6 +108,7 @@ export default function Console({ active = true }: { active?: boolean }) {
   const [investigate, setInvestigate] = useState(false)
   const [dateA, setDateA] = useState('T1')
   const [dateB, setDateB] = useState('T2')
+  const [modality, setModality] = useState<'auto' | 'sar' | 'optical'>('auto')
   const [job, setJob] = useState<JobState | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -157,6 +159,12 @@ export default function Console({ active = true }: { active?: boolean }) {
     if (guideStep === 0 && f.length > 0) advanceGuide()
   }
 
+  function runSetup(s: typeof SETUPS[number]) {
+    setSelected(s.sampleNames.filter((n) => samples.some((x) => x.name === n)))
+    setQuery(s.query)
+    setGuideStep(null)
+  }
+
   function onQueryChange(v: string) {
     setQuery(v)
     if (guideStep === 1 && v.trim()) advanceGuide()
@@ -174,6 +182,7 @@ export default function Console({ active = true }: { active?: boolean }) {
       const id = await createJob({
         query: queryText, taskOverride: effOverride,
         files: useFiles, sampleNames: useSamples, dateA, dateB,
+        modality,
       })
       abortRef.current = new AbortController()
       pollRef.current = window.setInterval(async () => {
@@ -256,6 +265,25 @@ export default function Console({ active = true }: { active?: boolean }) {
               <Field label={<Term t="Date B" d="Label for the second (later) image." />} value={dateB} onChange={setDateB} />
             </div>
           )}
+          {nInputs >= 1 && (
+            <div className="mt-3 flex items-center gap-2">
+              <span className="shrink-0 font-mono text-[11px] uppercase tracking-wider text-faint">Sensor</span>
+              {(['auto', 'sar', 'optical'] as const).map((m) => (
+                <button key={m} onClick={() => setModality(m)}
+                  className={`rounded-full border px-2.5 py-0.5 text-[11.5px] font-medium transition-colors ${
+                    modality === m
+                      ? 'border-accent/60 bg-accent-soft text-accent'
+                      : 'border-line bg-panel text-muted hover:border-accent/50 hover:text-accent'}`}>
+                  {m}
+                </button>
+              ))}
+              {modality !== 'auto' && (
+                <span className="text-[11px] text-faint">
+                  {modality === 'sar' ? 'forced SAR' : 'forced optical'} — the stats badge overrides if it disagrees
+                </span>
+              )}
+            </div>
+          )}
           </Panel>
           {guideStep === 0 && (
             <GuidePop step={0} className="left-1/2 top-full mt-3 -translate-x-1/2"
@@ -303,6 +331,16 @@ export default function Console({ active = true }: { active?: boolean }) {
             <textarea value={query} onChange={(e) => onQueryChange(e.target.value)} rows={2}
               placeholder='e.g. "What changed between these two dates?"'
               className="w-full resize-none rounded-lg border border-line bg-panel px-4 py-3 text-[17px] text-body outline-none placeholder:text-faint focus:border-accent/60" />
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {SETUPS.map((s) => (
+                <button key={s.id}
+                  onClick={() => runSetup(s)}
+                  title={`${s.title} — exercises ${s.patches.join(', ')}`}
+                  className="max-w-full truncate rounded-full border border-accent/40 bg-accent-soft/50 px-3 py-1 text-xs font-medium text-accent transition-colors hover:border-accent hover:bg-accent-soft">
+                  ▸ {s.title}
+                </button>
+              ))}
+            </div>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               {EXAMPLES.map((ex) => (
                 <button key={ex} onClick={() => onQueryChange(ex)}

@@ -357,15 +357,32 @@ async def samples():
 
 @app.get("/api/stats")
 async def stats():
-    """Unified stats endpoint: job pool + persistent store + cache."""
+    """Unified stats endpoint: job pool + persistent store + cache + freshness legend."""
     jstats = JOBS.stats()
     sstats = STORE.stats()
-    return {
+    # C3/R5: freshness legend (thresholds + flag meanings, non-breaking)
+    try:
+        from ..freshness.clocks import _THRESHOLDS
+        freshness_legend = {
+            "thresholds_by_task_days": _THRESHOLDS,
+            "flags": {
+                "ok": "inputs within threshold and confidence above gate",
+                "degraded": "inputs stale or confidence below gate; WHY is shown",
+            },
+            "method_note": "run + input acquisition age only; no orbital-look "
+                           "scheduling claims.",
+        }
+    except Exception:
+        freshness_legend = None
+    out = {
         **jstats,
         **sstats,
         "uptime_s": int(time.time() - _STARTED),
         "version": "3.0",
     }
+    if freshness_legend is not None:
+        out["freshness_legend"] = freshness_legend
+    return out
 
 
 @app.get("/api/experiments")

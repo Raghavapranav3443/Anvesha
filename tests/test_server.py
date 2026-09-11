@@ -49,3 +49,16 @@ def test_job_lifecycle():
     res = st["result"]
     assert res["selected_task"] == "optical_sar"
     assert st["trace"][0]["name"] == "validate_inputs"
+
+
+def test_stats_freshness_legend():
+    """C3/R5: /api/stats carries the additive freshness legend."""
+    r = client.get("/api/stats")
+    assert r.status_code == 200
+    body = r.json()
+    legend = body.get("freshness_legend")
+    assert legend is not None
+    assert "thresholds_by_task_days" in legend
+    assert "single_vqa" in legend["thresholds_by_task_days"]
+    assert set(legend["flags"]) == {"ok", "degraded"}
+    assert "orbital" in legend["method_note"] or "age" in legend["method_note"]

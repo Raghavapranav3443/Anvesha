@@ -70,6 +70,13 @@ def re_rank(query: str, ranked: List[Tuple[str, float]], top_k: int = 2,
     if sc and sc in dict(ranked):
         return [(sc, dict(ranked).get(sc, 0.0))], "pair-mode short-circuit"
 
+    # blank query: deterministic default instead of zero-signal rescoring
+    # (single image with no question -> describe it; pair -> compare it)
+    if not query.strip():
+        default = ("change_analysis" if configuration == "bitemporal_pair"
+                   else "captioning")
+        return [(default, 0.35)], "blank-query default"
+
     from .text import hashed_bow
     q_bow = hashed_bow(query.lower(), dim=_DIM)
     extension = _load_extension()

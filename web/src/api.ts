@@ -222,6 +222,7 @@ export async function createJob(opts: {
   sampleNames: string[]
   dateA?: string
   dateB?: string
+  modality?: 'auto' | 'sar' | 'optical'   // B1: explicit modality override
 }): Promise<string> {
   const fd = new FormData()
   fd.append('query', opts.query)
@@ -229,6 +230,7 @@ export async function createJob(opts: {
   fd.append('sample_names', opts.sampleNames.join('|'))
   fd.append('date_a', opts.dateA ?? 'T1')
   fd.append('date_b', opts.dateB ?? 'T2')
+  fd.append('modality', opts.modality ?? 'auto')
   for (const f of opts.files) fd.append('files', f)
   // Allow up to 2 min for large uploads
   const r = await apiFetch('/api/jobs', { method: 'POST', body: fd, timeoutMs: 120_000 })

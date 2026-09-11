@@ -128,10 +128,12 @@ TASK_KEYWORDS = {
     "change_vqa": ["what changed", "has the built-up", "increased or decreased",
                    "has .* changed", "change between", "difference between",
                    "how much changed", "remained unchanged",
-                   "did anything change"],
+                   "did anything change", "between the two", "two dates",
+                   "two images", "shrink", "shrank", "shrunk", "grew",
+                   "expand", "expanded", "contract", "contracted"],
     "change_description": ["describe the change", "changes over time",
                            "compare these two", "before and after",
-                           "temporal change"],
+                           "temporal change", "between the two"],
     "optical_sar": ["optical and sar", "sar image together",
                     "use the optical and sar", "cross-modal", "radar",
                     "both modalities", "sentinel-1 and sentinel-2",
@@ -239,8 +241,9 @@ def classify_task(query: str, configuration: str) -> Dict[str, Any]:
     try:
         from .rerank import expanded_keywords
         for task, ext_tokens in expanded_keywords().items():
-            if ext_tokens and keyword_scores.get(task, 0.0) == 0.0:
-                hits = sum(1 for tok in ext_tokens if tok in q)
+            usable = [t for t in ext_tokens if t and t.strip()]
+            if usable and keyword_scores.get(task, 0.0) == 0.0:
+                hits = sum(1 for tok in usable if tok in q)
                 if hits:
                     keyword_scores[task] = max(keyword_scores[task],
                                                0.15 * min(hits, 3))

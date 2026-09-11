@@ -40,3 +40,6 @@ cdvqa_full_results.txt
 # Internal planning & strategy + local AI-context files (never tracked, never pushed)
 MASTERPLAN.md
 system docs/
+
+# Local SIH submission bridge (deployed separately)
+hub/

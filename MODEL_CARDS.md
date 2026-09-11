@@ -115,9 +115,26 @@ without them (and are themselves under test).
 - **Architecture:** dual-branch SceneEncoders (2-ch SAR / 3-ch optical) → concatenated embedding → BEN19 multi-label sigmoid head.
 - **Data:** real co-registered BigEarthNet v2 S1+S2 pairs (14K cross-modal subset).
 - **Measured:** validation per-scene label recall **0.85**.
-- **Analysis outputs:** fused class posteriors, per-modality evidence, agreement matrix, cloud/SAR complementarity notes.
+- **Analysis outputs:** fused class posteriors, per-modality evidence, agreement matrix, cloud/SAR complementarity notes, **per-pixel agreement map** (uint8 GeoTIFF; classes: agree / optical-wins / sar-wins / cloud / SAR-only-water) with honest pixel-fraction notes and per-quadrant concentration.
+
+## Router (`classify_task` + B2 re-rank)
+- **Architecture:** keyword rules ⊕ hashed-BOW embedding similarity (0.6/0.4) ⊕ mined RSVQA/CDVQA content-token expansion ⊕ optional CLIP text-tower re-rank (graceful keyword-only fallback; `SATQUERY_RERANK=0` supported). Pair-mode short-circuit: SAR-pair forces `optical_sar`.
+- **Data:** 500-query golden intent set mined from RSVQA-LR train + CDVQA Val/Train questions (`scripts/golden_intent.json`, balanced 2:1 single-VQA:change).
+- **Measured:** intent accuracy **0.960** (n=500; single_vqa 1.00, captioning 1.00, grounding 1.00, optical_sar 1.00, investigation 1.00, change_analysis 1.00, change_vqa 0.878 — the honest weak spot). Artifact: `scripts/golden_accuracy.json`.
+
+## Confidence calibration (`weights/calibration.json`)
+- Every confidence surface ships `{value, method, n_cal}` where method ∈ `temp | platt | formula`; formula surfaces publish their equation in the UI tooltip and the dossier.
+- VQA + counting share the temperature-scaled head (`scripts/calibrate.py`); CDVQA carries its checkpoint temperature; change/fusion/grounding are labelled `formula` with their closed-form equations (never an invented number).
+
+## Freshness (`satquery/freshness`)
+- Every run reports `generated_at / latest_obs / quality ok|degraded / staleness_days / threshold_days / clocks / method_note`. Thresholds by task: single-image 7d, optical-SAR 14d, change/impact 16d. Only run + input acquisition age — no revisit-timing claims.
+
+## SAC dry run (B10)
+- `python -m satquery.evaluate --sac-dir runs/_sac_test --dryrun-md runs/_sac_test/DRYRUN.md` executed end-to-end on the ISRO-format pairs (change pair + optical-SAR pair, both PASS). Committed artifacts: `runs/_sac_test/answers.csv` (group/task/answer/confidence/run_id/mask_geotiff schema) + `DRYRUN.md` (per-pair status log; reference annotations withheld by ISRO/SAC).
 
 ## Honesty guarantees
 1. Checkpoints trained on synthetic data carry a flag and are **refused at load time**.
 2. Fallback paths are explicit in every tool output (`source_model` field).
 3. All numbers on the Provenance page come from measured checkpoints, not claims.
+4. Modality inference is stats-first (dB product / band-count evidence, weight 2) over filename hints (weight 1) — every image ships a `modality_certainty` record with both votes; an explicit override always wins and is recorded.
+5. VRSBench-VQA is evaluated on the frozen sorted val order (`scripts/frozen_splits.json`); the metric reports normalized exact-match + abstain rate via `bench_vrsbench_vqa`.
