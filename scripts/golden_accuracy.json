@@ -1,7 +1,7 @@
 {
   "n": 500,
-  "accuracy_classify_task": 0.96,
-  "accuracy_with_rerank": 0.96,
+  "accuracy_classify_task": 0.964,
+  "accuracy_with_rerank": 0.964,
   "per_task": {
     "captioning": {
       "correct": 2,
@@ -14,9 +14,9 @@
       "acc": 1.0
     },
     "change_vqa": {
-      "correct": 144,
+      "correct": 146,
       "total": 164,
-      "acc": 0.878
+      "acc": 0.89
     },
     "grounding": {
       "correct": 3,
@@ -39,5 +39,5 @@
       "acc": 1.0
     }
   },
-  "note": "mined golden set (miner heuristic labels); the real judge criterion is the observable trace, not internal routing"
+  "note": "B2 keyword expansion (R4) + capped-absolute rerank keyword score. Regression fix: density-normalised rerank scoring rewarded short keyword lists and flipped 'can you see a water body' to captioning; capped absolute hits keep the tie on single_vqa."
 }

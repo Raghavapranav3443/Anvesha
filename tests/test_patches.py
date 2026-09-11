@@ -123,3 +123,60 @@ def test_frozen_splits_contract_exists():
     assert doc["vrsbench_val"]["n"] == 200
     assert doc["levir_fulltest"]["n"] == 1500
     assert doc["ben_s1s2_val"]["seed"] == 42
+
+
+def test_enrich_result_emits_honesty_key():
+    """G1: the R1 frozen ``honesty`` dict must be emitted on every enriched run."""
+    res = SimpleNamespace(outputs={"answer": "a", "confidence": 0.5,
+                                   "labels": [], "confidence_meta": {
+                                       "value": 0.5, "method": "formula",
+                                       "n_cal": None, "component": "grounding"}},
+                          run_id="r1", selected_task="grounding",
+                          trace=[], configuration={})
+    patches.enrich_result(res, [])
+    h = res.outputs.get("honesty")
+    assert isinstance(h, dict)
+    # Frozen R1 shape
+    assert set(h) >= {"fallback_active", "below_gate", "pixel_space",
+                      "limitation_refs"}
+    assert isinstance(h["below_gate"], list)
+    assert isinstance(h["limitation_refs"], list)
+    # 0.5 >= structured-equation gate -> not below gate
+    assert h["below_gate"] == []
+
+
+def test_honesty_below_gate_flags_low_formula_confidence():
+    """A formula-blended confidence below the 0.45 gate is honestly flagged."""
+    res = SimpleNamespace(outputs={"answer": "a", "confidence": 0.3,
+                                   "confidence_meta": {
+                                       "value": 0.3, "method": "formula",
+                                       "n_cal": None, "component": "optical_sar"}},
+                          run_id="r1", selected_task="optical_sar",
+                          trace=[], configuration={})
+    patches.enrich_result(res, [])
+    h = res.outputs.get("honesty") or {}
+    assert len(h["below_gate"]) == 1
+    assert h["below_gate"][0]["component"] == "optical_sar"
+    assert h["below_gate"][0]["gate"] == 0.45
+
+
+def test_honesty_pixel_space_flag_with_no_crs():
+    """No-CRS inputs must be reported as pixel-space (coordinates not guessed)."""
+    res = SimpleNamespace(outputs={"answer": "a", "confidence": 0.8},
+                          run_id="r1", selected_task="single_vqa",
+                          trace=[], configuration={})
+    img = SimpleNamespace(crs=None)          # no georeferencing
+    patches.enrich_result(res, [img])
+    h = res.outputs.get("honesty") or {}
+    assert h["pixel_space"] is True
+    # and geo attachments still absent for pixel-space results
+    assert "geo" not in res.outputs or res.outputs["geo"].get("kind") == "pixel-space"
+
+
+def test_honesty_pixel_space_false_with_crs():
+    img = SimpleNamespace(crs="EPSG:32633")
+    res = SimpleNamespace(outputs={"answer": "a", "confidence": 0.8},
+                          run_id="r1", selected_task="single_vqa",
+                          trace=[], configuration={})
+    patches.enrich_result(res, [img])
+    assert res.outputs["honesty"]["pixel_space"] is False

@@ -7,6 +7,7 @@ export const TASK_LABELS: Record<string, string> = {
   grounding: 'Region Highlighting',
   change_analysis: 'Change Detection',
   change_vqa: 'Change Q&A',
+  change_description: 'Change Description',
   impact_analysis: 'Impact Analysis',
   investigation: 'Investigation Report',
   optical_sar: 'Optical + SAR Fusion',

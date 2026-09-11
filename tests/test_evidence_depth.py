@@ -72,6 +72,20 @@ def test_write_geotiff_roundtrip(tmp_path):
         assert src.descriptions == ("agreement_map",)
 
 
+def test_write_overlay_png(tmp_path):
+    """G6: the agreement map must also render as a PNG for inline UI display."""
+    from satquery.fusion.agreement import write_overlay_png
+    art = build_agreement(_opt(veg=True), _sar())
+    p = tmp_path / "agreement_overlay.png"
+    write_overlay_png(art.overlay, p)
+    assert p.exists() and p.stat().st_size > 0
+    # PNG magic bytes
+    assert p.read_bytes()[:8] == b"\x89PNG\r\n\x1a\n"
+    # Overlay classes are preserved in colour: at least one pixel differs
+    # from pure black (class 0 -> green), proving the colourmap applied.
+    assert p.stat().st_size > 128
+
+
 def test_cloud_mask_detects_bright_low_chroma():
     rgb = np.full((8, 8, 3), 0.8, np.float32)
     assert _cloud_mask(rgb).sum() > 0

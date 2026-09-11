@@ -1,4 +1,4 @@
-// C5 — the 10 one-click SIH demo setups (implementation plan R7).
+// C5 — the 11 one-click SIH demo setups (implementation plan R7 + GAP-4).
 // Pure data; consumed by the Console setups gallery. Each names the B-patch
 // it exercises so the judge can see which reliability fix the demo proves.
 
@@ -52,4 +52,8 @@ export const SETUPS: Setup[] = [
     sampleNames: ['demo_pair_optical.tif', 'demo_pair_sar.tif'],
     query: 'Use the optical and SAR image together.',
     patches: ['B1 modality certainty', 'B4 agreement map', 'B8 geo'] },
+  { id: 'change-desc', title: 'Change description', task: 'change_analysis',
+    sampleNames: ['demo_change_2020.tif', 'demo_change_2024.tif'],
+    query: 'Describe the change between these two dates.',
+    patches: ['B5 transitions', 'B9 traceable answer'] },
 ]

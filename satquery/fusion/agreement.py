@@ -136,3 +136,36 @@ def write_geotiff(classes_map: np.ndarray, reference, path) -> None:
                        dtype="uint8", crs=crs, transform=transform, nodata=0) as dst:
         dst.write(classes_map, 1)
         dst.descriptions = ("agreement_map",)
+
+
+# Agreement-map class labels (index -> (name, RGB colour)).
+_AGREEMENT_COLORS = [
+    (0, 180, 60),    # 0 agree — green
+    (60, 130, 250),  # 1 optical-wins — blue
+    (240, 140, 40),  # 2 sar-wins — orange
+    (200, 200, 200), # 3 cloud — grey
+    (80, 200, 240),  # 4 sar-only-water — cyan
+]
+
+
+def write_overlay_png(overlay: np.ndarray, path) -> None:
+    """Render the agreement map as a colour PNG for inline UI display.
+
+    Uses a fixed 5-class colourmap (independent of any georeferencing) so
+    the PNG is a pure visual of the per-pixel winner — the GeoTIFF remains
+    the authoritative georeferenced artifact.
+    """
+    h, w = overlay.shape
+    rgb = np.zeros((h, w, 3), np.uint8)
+    for idx, (r, g, b) in enumerate(_AGREEMENT_COLORS):
+        mask = overlay == idx
+        rgb[mask] = (r, g, b)
+    try:
+        from PIL import Image
+        Image.fromarray(rgb).save(str(path))
+    except ImportError:
+        # Fallback: write a minimal PPM (portable pixmap) — no deps.
+        with open(str(path).replace(".png", ".ppm"), "wb") as f:
+            header = f"P6\n{w} {h}\n255\n".encode()
+            f.write(header)
+            f.write(rgb.tobytes())

@@ -120,6 +120,12 @@ export interface SampleInfo {
   bands: number
   georeferenced: boolean
   crs?: string | null
+  acquired?: string | null          // B8: acquisition date when known
+  modality_certainty?: {
+    label: string                    // 'sar' | 'multispectral' | 'rgb' | 'grayscale'
+    confidence: number               // vote share 0..1
+    votes: Record<string, string>    // filename / stats / override
+  } | null                          // B1: stats-first certainty when emitted
 }
 
 export interface TraceStep {
@@ -319,4 +325,37 @@ export async function fetchBoards(): Promise<{
 export async function fetchDossier(runId: string): Promise<Record<string, unknown>> {
   const r = await apiFetch(`/api/reports/${runId}/dossier`)
   return r.json()
+}
+
+// ---------------------------------------------------------------------------
+// C7 demo fixtures (additive — manifest written by scripts/warm_demo.py)
+// ---------------------------------------------------------------------------
+
+export interface FixtureEntry {
+  id: string
+  title: string
+  task: string
+  sampleNames: string[]
+  query: string
+  expected_task: string
+  status: string      // 'green' | 'degraded' | 'fail'
+  cached?: boolean
+  run_id?: string
+  error?: string
+}
+
+export interface FixturesManifest {
+  fixtures: FixtureEntry[]
+  all_green: boolean
+  generated_by: string
+}
+
+export async function fetchFixtures(): Promise<FixturesManifest | null> {
+  try {
+    const r = await apiFetch('/api/fixtures')
+    return r.json()
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) return null
+    throw err
+  }
 }

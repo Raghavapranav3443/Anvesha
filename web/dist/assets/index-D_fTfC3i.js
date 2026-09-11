@@ -1,4 +1,4 @@
-import{r as ze,g as Zy,j as H}from"./index-BwAvwPnJ.js";/**
+import{r as ze,g as Zy,j as H}from"./index-BPUOmQma.js";/**
  * @license
  * Copyright 2010-2026 Three.js Authors
  * SPDX-License-Identifier: MIT

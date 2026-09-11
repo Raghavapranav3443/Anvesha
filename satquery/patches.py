@@ -132,6 +132,10 @@ def _after_optical_sar(ctx, out):
             try:
                 write_geotiff(art.overlay, optical, tif)
                 out["agreement_map"]["geotiff"] = str(tif)
+                png = vis / "agreement_overlay.png"
+                from .fusion.agreement import write_overlay_png
+                write_overlay_png(art.overlay, png)
+                out["agreement_map"]["overlay_png"] = str(png)
             except Exception:
                 pass
 
@@ -218,7 +222,7 @@ def enrich_result(result: Any, images: List) -> None:
 
 
 def _enrich_result_keys(result: Any, images: List) -> None:
-    """Concrete R1 key attachment (C2/C3): dossier + freshness into outputs."""
+    """Concrete R1 key attachment (C2/C3/C4): dossier + freshness + honesty."""
     outputs = getattr(result, "outputs", None)
     if not isinstance(outputs, dict):
         return
@@ -232,3 +236,77 @@ def _enrich_result_keys(result: Any, images: List) -> None:
         outputs["dossier"] = _dossier_emit(result, images).to_dict()
     except Exception:
         pass
+    try:
+        outputs["honesty"] = _derive_honesty(result, images)
+    except Exception:
+        pass
+
+
+# --------------------------------------------------------------------------- #
+# C4 — honesty key (R1 frozen contract). Backend owns the truth; the
+# HonestyBanner component renders it. All values are derived from observable
+# state — never invented.
+# --------------------------------------------------------------------------- #
+
+_HONESTY_GATE = 0.45  # below this, a formula-blended confidence is "below gate"
+
+
+def _derive_honesty(result: Any, images: List) -> Dict[str, Any]:
+    """Build the frozen ``honesty`` dict (R1 contract).
+
+    Shape::
+        {
+          "fallback_active": bool,        # any specialist on heuristic
+          "below_gate": [{component, confidence, method, gate}],
+          "pixel_space": bool,            # True if any input lacks CRS
+          "limitation_refs": [str],       # benchmark/equation pointers
+        }
+    """
+    from .models.status import model_status
+    outputs = getattr(result, "outputs", {}) or {}
+
+    # fallback_active: any specialist running heuristic weights
+    status = model_status()
+    fallback_active = any(v != "trained" for v in status.values())
+
+    # below_gate: formula-blended confidences below the honesty gate
+    below_gate: List[Dict[str, Any]] = []
+    meta = outputs.get("confidence_meta")
+    if isinstance(meta, dict) and meta.get("method") == "formula":
+        val = meta.get("value")
+        if isinstance(val, (int, float)) and val < _HONESTY_GATE:
+            below_gate.append({
+                "component": meta.get("component", ""),
+                "confidence": round(float(val), 3),
+                "method": meta.get("method"),
+                "gate": _HONESTY_GATE,
+            })
+
+    # pixel_space: any input image lacks a CRS (coordinates not guessed)
+    pixel_space = False
+    for img in images or []:
+        if getattr(img, "crs", None) is None:
+            pixel_space = True
+            break
+
+    # limitation_refs: benchmark/equation pointers from calibration + MODEL_CARDS
+    limitation_refs: List[str, ...] = []  # type: ignore[assignment]
+    try:
+        from .confmeta import load_calibration
+        cal = load_calibration()
+        for comp, entry in cal.items():
+            note = entry.get("benchmark") or entry.get("equation")
+            if note:
+                limitation_refs.append(f"{comp}: {note}")
+    except Exception:
+        pass
+    # Static pointers (always present — honest about known gaps)
+    limitation_refs.append("grounding: spectral-index primary, IoU 0.126@0.5")
+    limitation_refs.append("caption: BLEU 0.283 bench-matched")
+
+    return {
+        "fallback_active": fallback_active,
+        "below_gate": below_gate,
+        "pixel_space": pixel_space,
+        "limitation_refs": limitation_refs,
+    }

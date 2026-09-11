@@ -32,7 +32,7 @@ export default function HistoryView() {
     <div className="space-y-6">
       <Panel title="Run history">
         <div className="mb-3 flex flex-wrap gap-1.5">
-          {['', 'single_vqa', 'captioning', 'grounding', 'change_vqa', 'change_analysis', 'optical_sar'].map(t => (
+          {['', 'single_vqa', 'captioning', 'grounding', 'change_vqa', 'change_analysis', 'change_description', 'optical_sar'].map(t => (
             <button key={t || 'all'} onClick={() => setFilter(t)}
               className={`rounded-full border px-2.5 py-0.5 text-[14px] transition-colors ${
                 filter === t ? 'border-accent/60 bg-accent/10 text-accent'
@@ -52,6 +52,7 @@ export default function HistoryView() {
                 <th className="py-2 pr-3 font-medium">Query</th>
                 <th className="py-2 pr-3 font-medium">Answer</th>
                 <th className="py-2 pr-3 font-medium text-right">Conf</th>
+                <th className="py-2 pr-3 font-medium text-right">Report</th>
                 <th className="py-2 text-right font-medium">Actions</th>
               </tr>
             </thead>
@@ -63,16 +64,20 @@ export default function HistoryView() {
                   <td className="max-w-[220px] truncate py-2 pr-3 text-muted">{r.query}</td>
                   <td className="max-w-[280px] truncate py-2 pr-3 text-body">{r.answer}</td>
                   <td className="py-2 pr-3 text-right font-mono text-[13px] text-muted">{r.confidence?.toFixed?.(2)}</td>
+                  <td className="py-2 pr-3 text-right">
+                    <a href={`/api/reports/${r.run_id}/dossier`} target="_blank" rel="noreferrer"
+                      className="text-accent hover:underline">dossier</a>
+                  </td>
                   <td className="py-2 text-right">
                     <button onClick={() => open(r.job_id)} className="text-accent hover:underline">view</button>
                   </td>
                 </tr>
               ))}
               {!visible.length && !rows.length && (
-                <tr><td colSpan={6} className="py-4"><SkeletonTable rows={5} /></td></tr>
+                <tr><td colSpan={7} className="py-4"><SkeletonTable rows={5} /></td></tr>
               )}
               {!visible.length && rows.length > 0 && (
-                <tr><td colSpan={6} className="py-6 text-center text-faint">No matching runs.</td></tr>
+                <tr><td colSpan={7} className="py-6 text-center text-faint">No matching runs.</td></tr>
               )}
             </tbody>
           </table>

@@ -87,7 +87,12 @@ def re_rank(query: str, ranked: List[Tuple[str, float]], top_k: int = 2,
         kws = list(TASK_SENTENCES.get(task, task).split()) + extension.get(task, [])
         if not kws:
             return 0.0
-        return sum(1.0 for kw in kws if kw in toks) / len(kws)
+        # Absolute capped hit count — NOT density (hits/len(kws)). Density
+        # rewarded *short* keyword lists, so a single shared token ("water")
+        # out-scored a task with a richer vocabulary and flipped near-ties
+        # ("can you see a water body" misrouted single_vqa -> captioning).
+        # Capping at 3 keeps multiple distinct hits dominant over one.
+        return min(sum(1.0 for kw in kws if kw in toks), 3.0) / 3.0
 
     clip = None
     try:

@@ -393,7 +393,8 @@ export default function Console({ active = true }: { active?: boolean }) {
 
         {result && (
           <>
-            <Results result={result} onFollowUp={followUp} />
+            <Results result={result} onFollowUp={followUp}
+              onRequestSwitch={(m) => { setModality(m); }} />
             {suggestions.length > 0 && (
               <Panel title="Ask the data back" hint="One click launches a follow-up analysis on the same imagery.">
                 <div className="flex flex-wrap gap-2">
