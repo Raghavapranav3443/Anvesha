@@ -29,6 +29,72 @@ PATCH_ENV = "SATQUERY_PATCHES"
 _ENRICHERS: Dict[str, Callable[[Dict, Dict], None]] = {}
 
 
+# --------------------------------------------------------------------------- #
+# Enricher implementations (B6 / B7 / B9) — additive only.
+# --------------------------------------------------------------------------- #
+
+def _stamp_output(out: Dict, component: str) -> None:
+    """Add a ``confidence_meta`` entry (B7) if a confidence is present."""
+    from .confmeta import stamp as _stamp
+    if out.get("confidence") is None:
+        return
+    stamped = _stamp(out, component)
+    if "confidence_meta" in stamped:
+        out["confidence_meta"] = stamped["confidence_meta"]
+
+
+def _after_caption(ctx: Dict, out: Dict) -> None:
+    from .captions.compose import compose_caption
+    img = (ctx.get("images") or [None])[0]
+    query = ctx.get("query") or ""
+    if "caption" not in out:
+        return
+    enriched = compose_caption(img, query,
+                               {k: out[k] for k in ("caption", "labels", "layout")
+                                if k in out})
+    out["caption"] = enriched.get("caption", out.get("caption"))
+    out["query_concept"] = enriched.get("query_concept")
+    out["caption_learned"] = enriched.get("caption_learned")
+    _stamp_output(out, "captioning")
+
+
+def _after_vqa(ctx: Dict, out: Dict) -> None:
+    from .answers.compose import compose_answer
+    imgs = ctx.get("images") or []
+    query = ctx.get("query") or ""
+    composed = compose_answer(query, dict(out), imgs)
+    out["answer"] = composed.get("answer", out.get("answer"))
+    out["answer_raw"] = composed.get("answer_raw")
+    out["answer_clauses"] = composed.get("answer_clauses")
+    out["provenance_pitch"] = composed.get("provenance_pitch")
+    _stamp_output(out, "vqa")
+
+
+def _after_grounding(ctx, out):
+    _stamp_output(out, "grounding")
+
+
+def _after_change(ctx, out):
+    _stamp_output(out, "change")
+
+
+def _after_change_vqa(ctx, out):
+    _stamp_output(out, "cdvqa")
+
+
+def _after_optical_sar(ctx, out):
+    _stamp_output(out, "fusion")
+
+
+# Register enrichers at import time (active only when patches_enabled()).
+for _n, _f in (("captioning", _after_caption), ("single_vqa", _after_vqa),
+                ("grounding", _after_grounding),
+                ("change_analysis", _after_change),
+                ("change_vqa", _after_change_vqa),
+                ("optical_sar", _after_optical_sar)):
+    _ENRICHERS[_n] = _f
+
+
 def patches_enabled() -> bool:
     """False only when SATQUERY_PATCHES is explicitly "0"."""
     return os.environ.get(PATCH_ENV, "1").strip() != "0"
@@ -98,5 +164,17 @@ def enrich_result(result: Any, images: List) -> None:
 
 
 def _enrich_result_keys(result: Any, images: List) -> None:
-    """Concrete R1 key attachment — populated in later steps (D2/D3)."""
-    return None
+    """Concrete R1 key attachment (C2/C3): dossier + freshness into outputs."""
+    outputs = getattr(result, "outputs", None)
+    if not isinstance(outputs, dict):
+        return
+    try:
+        from .freshness import clocks_for
+        outputs["freshness"] = clocks_for(result, images).to_dict()
+    except Exception:
+        pass
+    try:
+        from .dossier import emit as _dossier_emit
+        outputs["dossier"] = _dossier_emit(result, images).to_dict()
+    except Exception:
+        pass

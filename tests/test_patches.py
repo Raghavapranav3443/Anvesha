@@ -83,11 +83,23 @@ def test_enricher_failure_never_fails_tool():
         patches._ENRICHERS.pop("dummy_a", None)
 
 
-def test_enrich_result_d0_noop_keeps_baseline():
+def test_enrich_result_additive_keys_present():
+    res = SimpleNamespace(outputs={"answer": "a", "confidence": 0.5,
+                                  "labels": []},
+                          run_id="r1", selected_task="single_vqa",
+                          trace=[], configuration={})
+    patches.enrich_result(res, [])
+    assert res.outputs["answer"] == "a"                 # existing preserved
+    assert "dossier" in res.outputs                    # R1 additive keys
+    assert "freshness" in res.outputs
+
+
+def test_enrich_result_kill_switch(monkeypatch):
+    monkeypatch.setenv("SATQUERY_PATCHES", "0")
     res = SimpleNamespace(outputs={"answer": "a", "confidence": 0.5},
                           run_id="r1")
     patches.enrich_result(res, [])
-    assert res.outputs == {"answer": "a", "confidence": 0.5}
+    assert "dossier" not in res.outputs                 # disabled
 
 
 def test_real_registry_signatures_unchanged():

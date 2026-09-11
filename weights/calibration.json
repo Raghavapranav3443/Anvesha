@@ -1,0 +1,33 @@
+{
+  "vqa": {
+    "method": "temp",
+    "param": 1.0,
+    "n_cal": null
+  },
+  "counting": {
+    "method": "temp",
+    "param": 1.0,
+    "n_cal": null,
+    "note": "shares VQA encoder family temperature"
+  },
+  "change": {
+    "method": "formula",
+    "equation": "thresholded change-probability map; F1 on LEVIR-CD val (thr=0.85)",
+    "gate_reference": "runs/phase3_levir_fulltest.json"
+  },
+  "cdvqa": {
+    "method": "temp",
+    "param": 1.0,
+    "n_cal": 0,
+    "gate": "beat calibrated rule-based 0.4942 (promoted val 0.7134, full-test 0.683)"
+  },
+  "fusion": {
+    "method": "formula",
+    "equation": "0.6*optical + 0.4*SAR evidence blend"
+  },
+  "grounding": {
+    "method": "formula",
+    "equation": "0.35*lex + 0.45*purity + 0.2*area",
+    "benchmark": "IoU@0.5 ~0.126; learned variants gated off (D15.1)"
+  }
+}
