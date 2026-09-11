@@ -5,6 +5,8 @@ import ProvenanceView from './components/Provenance'
 import HistoryView from './components/HistoryView'
 import EvaluationView from './components/EvaluationView'
 import HelpView from './components/HelpView'
+import BoardsView from './components/BoardsView'
+import JudgeRun from './components/JudgeRun'
 import Onboarding from './components/Onboarding'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { fetchProvenance, type Provenance } from './api'
@@ -21,10 +23,12 @@ const LandingPage = hasLanding
     }>)
   : null
 
-type View = 'home' | 'console' | 'history' | 'evaluation' | 'provenance' | 'help'
+type View = 'home' | 'console' | 'history' | 'evaluation' | 'provenance' | 'help' | 'boards' | 'judge-run'
 
 const NAV: { id: View; label: string; icon: string; hint: string }[] = [
   { id: 'console', label: 'Console', icon: 'console', hint: 'Upload imagery & ask questions' },
+  { id: 'boards', label: 'Boards', icon: 'evaluation', hint: 'Mission pins over real runs' },
+  { id: 'judge-run', label: 'Judge Run', icon: 'history', hint: '5-mandatory-workflow checklist' },
   { id: 'history', label: 'History', icon: 'history', hint: 'Past analyses & comparison' },
   { id: 'evaluation', label: 'Evaluation', icon: 'evaluation', hint: 'Measured benchmark scorecard' },
   { id: 'provenance', label: 'Provenance', icon: 'provenance', hint: 'Models, training data, metrics' },
@@ -219,6 +223,8 @@ export default function App() {
           )}
           <ErrorBoundary>
             <div style={{ display: view === 'console' ? 'block' : 'none' }}><Console active={view === 'console'} /></div>
+            {view === 'boards' && <BoardsView />}
+            {view === 'judge-run' && <JudgeRun />}
             {view === 'history' && <HistoryView />}
             {view === 'evaluation' && <EvaluationView prov={prov} />}
             {view === 'provenance' && <ProvenanceView prov={prov} />}

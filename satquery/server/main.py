@@ -716,6 +716,11 @@ WEB_DIST = CONFIG.repo_root / "web" / "dist"
 if WEB_DIST.exists():
     app.mount("/assets", StaticFiles(directory=WEB_DIST / "assets"), name="assets")
 
+    from .boards import router as _boards_router
+    from .dossier import router as _dossier_router
+    app.include_router(_boards_router)
+    app.include_router(_dossier_router)
+
     @app.get("/{full_path:path}", include_in_schema=False)
     async def spa(full_path: str):
         # Unknown API paths must 404 as JSON, never fall through to the SPA

@@ -301,3 +301,22 @@ export async function fetchStats(): Promise<Record<string, unknown>> {
   const r = await apiFetch('/api/stats')
   return r.json()
 }
+
+// ---------------------------------------------------------------------------
+// C1 boards + C2 dossier (R1, R4 — additive, judge-facing)
+// ---------------------------------------------------------------------------
+
+export async function fetchBoards(): Promise<{
+  boards_v: number; generated_at: string; pins: {
+    run_id: string; kind: string; title: string; artifact: string;
+    why: string; task: string; confidence: number
+  }[]
+}> {
+  const r = await apiFetch('/api/boards')
+  return r.json()
+}
+
+export async function fetchDossier(runId: string): Promise<Record<string, unknown>> {
+  const r = await apiFetch(`/api/reports/${runId}/dossier`)
+  return r.json()
+}

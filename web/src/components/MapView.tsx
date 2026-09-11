@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { MapContainer, TileLayer, Polygon, Marker } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import type { GeoJSON } from '../api'
+import SvgLocator from './SvgLocator'
 
 /** GeoJSON overlay on OSM tiles. Falls back to raw geometry on a neutral
  *  canvas when tiles are unavailable (air-gapped mode). */
@@ -36,23 +37,25 @@ export default function MapView({ geo }: { geo: GeoJSON | null }) {
         <span>{geo.features.length} feature(s)</span>
       </div>
       <div className="overflow-hidden rounded-lg border border-line" style={{ height: 380 }}>
-        <MapContainer center={center} zoom={valid ? 13 : 5}
-          style={{ height: '100%', width: '100%', background: '#0f172a' }}>
-          {tilesOk && (
+        {tilesOk ? (
+          <MapContainer center={center} zoom={valid ? 13 : 5}
+            style={{ height: '100%', width: '100%', background: '#0f172a' }}>
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               attribution="© OpenStreetMap"
               eventHandlers={{ tileerror: () => setTilesOk(false) }} />
-          )}
-          {geo.features.map((f, i) => (
-            <Polygon key={i}
-              positions={f.geometry.coordinates[0].map(([x, y]) => [y, x] as [number, number])}
-              pathOptions={{
-                color: f.properties.kind === 'change' ? '#F59E0B' : '#4C8DF6',
-                fillColor: f.properties.kind === 'change' ? '#F59E0B' : '#4C8DF6',
-                fillOpacity: 0.25, weight: 2,
-              }} />
-          ))}
-        </MapContainer>
+            {geo.features.map((f, i) => (
+              <Polygon key={i}
+                positions={f.geometry.coordinates[0].map(([x, y]) => [y, x] as [number, number])}
+                pathOptions={{
+                  color: f.properties.kind === 'change' ? '#F59E0B' : '#4C8DF6',
+                  fillColor: f.properties.kind === 'change' ? '#F59E0B' : '#4C8DF6',
+                  fillOpacity: 0.25, weight: 2,
+                }} />
+            ))}
+          </MapContainer>
+        ) : (
+          <SvgLocator geo={geo} />
+        )}
       </div>
     </div>
   )
