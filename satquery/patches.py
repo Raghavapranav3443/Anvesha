@@ -72,18 +72,72 @@ def _after_vqa(ctx: Dict, out: Dict) -> None:
 
 def _after_grounding(ctx, out):
     _stamp_output(out, "grounding")
+    # B3: ranked output {primary, alternates, why} with shape priors
+    concept = out.get("concept", "water")
+    boxes = out.get("boxes") or []
+    if boxes:
+        from types import SimpleNamespace
+        from .grounding.ensemble import rank_regions
+        result_like = SimpleNamespace(boxes=boxes)
+        img = (ctx.get("images") or [None])[0]
+        if img is not None:
+            out["ranked"] = rank_regions(result_like, img, concept).to_dict()
 
 
 def _after_change(ctx, out):
     _stamp_output(out, "change")
-
-
-def _after_change_vqa(ctx, out):
-    _stamp_output(out, "cdvqa")
+    # B5: transition table on changed pixels (bi-temporal only)
+    imgs = ctx.get("images") or []
+    if len(imgs) >= 2 and "change_map" in out:
+        from .change.transitions import build_transitions
+        mask = out["change_map"]
+        if hasattr(mask, "astype"):
+            mask = mask.astype(bool)
+            gsd = 10.0
+            params = ctx.get("params") or {}
+            if params.get("gsd_m"):
+                gsd = float(params["gsd_m"])
+            date_a = params.get("date_a", "T1")
+            date_b = params.get("date_b", "T2")
+            out["transitions"] = build_transitions(
+                imgs[0], imgs[1], mask, gsd, date_a, date_b).to_dict()
 
 
 def _after_optical_sar(ctx, out):
     _stamp_output(out, "fusion")
+    # B4: per-pixel agreement map (spatial product)
+    imgs = ctx.get("images") or []
+    if len(imgs) >= 2:
+        from .fusion.agreement import build_agreement, write_geotiff
+        optical = next((i for i in imgs if getattr(i, "modality", "") != "sar"),
+                       imgs[0])
+        sar = next((i for i in imgs if getattr(i, "modality", "") == "sar"),
+                   imgs[-1])
+        art = build_agreement(optical, sar)
+        out["agreement_map"] = {
+            "overlay_shape": list(art.overlay.shape),
+            "fractions": art.fractions, "quadrants": art.quadrants,
+            "notes": art.notes,
+            "sar_water_pixel_count": art.sar_water_pixel_count,
+            "overlay_dtype": "uint8 (0 agree,1 opt-win,2 sar-win,"
+                             "3 cloud,4 sar-only-water)"}
+        # persist GeoTIFF next to the report visuals if a run dir is known
+        params = ctx.get("params") or {}
+        run_dir = params.get("_run_dir")
+        if run_dir:
+            from pathlib import Path
+            vis = Path(run_dir) / "visuals"
+            vis.mkdir(parents=True, exist_ok=True)
+            tif = vis / "agreement.tif"
+            try:
+                write_geotiff(art.overlay, optical, tif)
+                out["agreement_map"]["geotiff"] = str(tif)
+            except Exception:
+                pass
+
+
+def _after_change_vqa(ctx, out):
+    _stamp_output(out, "cdvqa")
 
 
 # Register enrichers at import time (active only when patches_enabled()).
