@@ -51,6 +51,7 @@ class RSImage:
     original_height: Optional[int] = None   # HxW before any downscale (for GeoTIFF)
     original_width: Optional[int] = None
     acquired: str = ""                # free-form date string if known
+    modality_certainty: dict = field(default_factory=dict)  # B1 votes+stats
 
     @property
     def height(self) -> int:
@@ -75,6 +76,8 @@ class RSImage:
             "georeferenced": self.crs is not None,
             "crs": self.crs,
             "bounds": list(self.transform_bounds) if self.transform_bounds else None,
+            "acquired": self.acquired or None,
+            "modality_certainty": self.modality_certainty or None,
         }
 
 
@@ -164,6 +167,7 @@ def load_image(path: str | Path, max_px: Optional[int] = None,
                 bounds = (b.left, b.bottom, b.right, b.top) if b else None
                 descriptions = list(src.descriptions or [])
                 nodata = src.nodata
+                src_tags = dict(src.tags() or {})            # B8 acquisition tags
         except InputValidationError:
             raise
         except Exception as e:
@@ -178,12 +182,24 @@ def load_image(path: str | Path, max_px: Optional[int] = None,
                 fill = 0.0 if not np.isfinite(fill) else float(fill)
                 arr[mask] = fill
         modality, band_names = _infer_modality(path.name, arr.shape[2], descriptions)
+        # B1: stats vote (weight 2) vs filename vote (weight 1), auditable.
+        from .modality_certainty import refine_modality
+        modality, band_names, certainty = refine_modality(
+            path.name, arr, modality, band_names, descriptions)
+        # B8: acquisition date — dataset tags first, filename fallback.
+        from .geodate import extract_acquired
+        acquired = extract_acquired(name=path.name, tags=src_tags).date
         fmt = "geotiff"
     else:
         pil = Image.open(path).convert("RGB")
         arr = np.asarray(pil, dtype=np.float32) / 255.0
         crs, bounds, descriptions = None, None, []
         modality, band_names = _infer_modality(path.name, 3, [])
+        from .modality_certainty import refine_modality
+        modality, band_names, certainty = refine_modality(
+            path.name, arr, modality, band_names, [])
+        from .geodate import extract_acquired
+        acquired = extract_acquired(name=path.name).date
         fmt = "jpeg" if ext in {".jpg", ".jpeg"} else "png"
 
     limit = max_px or _config_max_px()
@@ -206,6 +222,12 @@ def load_image(path: str | Path, max_px: Optional[int] = None,
                 base = ["red", "green", "blue"]
                 band_names = (base + [f"ch{i}" for i in range(arr.shape[2])])[:arr.shape[2]] \
                     if arr.ndim == 3 else ["gray"]
+            # B1: record the override in the auditable certainty record
+            certainty = dict(certainty)
+            certainty["override"] = ov
+            certainty["label"] = modality
+            certainty["confidence"] = 0.99
+            certainty["reason"] = "explicit user/judge override"
 
     # SAR amplitude normalisation (log-scale); dB-scale products are kept as-is
     if modality == "sar" and arr.size and float(np.median(arr)) >= 0:
@@ -213,7 +235,8 @@ def load_image(path: str | Path, max_px: Optional[int] = None,
 
     return RSImage(array=arr, format=fmt, path=path, modality=modality,
                    band_names=band_names, crs=crs, transform_bounds=bounds,
-                   original_height=orig_h, original_width=orig_w)
+                   original_height=orig_h, original_width=orig_w,
+                   acquired=acquired, modality_certainty=certainty)
 
 
 def _config_max_px() -> int:

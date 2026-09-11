@@ -13,6 +13,7 @@ tqdm
 requests
 pytest
 huggingface_hub
+transformers
 datasets
 gdown
 pyarrow

@@ -1,0 +1,3 @@
+group,task,answer,confidence,run_id,mask_geotiff
+sitea_t1_sitea_t2,change_vqa,No significant change.,0.548,20260911-190435-05b4fa,C:\Users\Rupesh\Desktop\Projects\SatQuery\runs\20260911-190435-05b4fa\visuals\change_mask.tif
+siteb_opt_siteb_sar,optical_sar,Dominant fused class: Arable land SAR indicates smooth low-backscatter water surfaces that are not obvious in the optical composite. Strong coherent backscatter (double-bounce) confirms built-up structures in the SAR channel.,0.292,20260911-190437-98c2bc,

@@ -336,6 +336,11 @@ class AgentController:
 
     def __init__(self, registry: Optional[Dict[str, ToolSpec]] = None) -> None:
         self.registry = registry or build_default_registry()
+        # Patch layer (R1): wraps tool fns with additive output enrichers.
+        # No-op when no enrichers are registered or SATQUERY_PATCHES=0; the
+        # audited tool signature in the trace is never altered.
+        from .patches import apply_patches
+        apply_patches(self.registry)
 
     # -- main entry ------------------------------------------------------ #
     def run(self, images: Sequence[RSImage | str | Path], query: str,
@@ -441,6 +446,11 @@ class AgentController:
             trace=trace,
             report_paths={},
         )
+
+        # Patch layer: run-level additive keys (dossier/freshness/honesty/
+        # geo/...) into outputs before the report is persisted (R1 contract).
+        from .patches import enrich_result
+        enrich_result(result, imgs)
 
         # 6. report -------------------------------------------------------------
         if save_report:
@@ -601,6 +611,9 @@ class AgentController:
             report_paths={},
         )
         emit()
+        # Patch layer: same run-level additive keys for investigation runs.
+        from .patches import enrich_result
+        enrich_result(result, imgs)
         if save_report:
             result.report_paths = write_report(result, imgs)
         return result
