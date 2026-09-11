@@ -1,0 +1,62 @@
+# Demo bundle: same app, whitelisted weights only (~430MB-class image).
+# Excludes RemoteCLIP-ViT-B-32.pt (605MB, only used by the optional B2
+# CLIP re-rank) and dinov2_vits14.pt (88MB, negative-result repro).
+# Rerank is disabled via SATQUERY_RERANK=0 so the slim image never tries to
+# load a weight that isn't there; all specialists degrade gracefully.
+FROM python:3.12-slim AS builder
+
+WORKDIR /app
+ENV PIP_NO_CACHE_DIR=1 PYTHONUNBUFFERED=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgl1 libglib2.0-0 && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu \
+    && pip install --no-cache-dir -r requirements.txt
+
+# Stage 2: Runtime
+FROM python:3.12-slim AS runtime
+
+WORKDIR /app
+ENV PIP_NO_CACHE_DIR=1 PYTHONUNBUFFERED=1
+ENV SATQUERY_RERANK=0
+ENV SATQUERY_PATCHES=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgl1 libglib2.0-0 && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Application code
+COPY satquery/ satquery/
+COPY scripts/ scripts/
+COPY samples/ samples/
+COPY web/dist/ web/dist/
+
+# Whitelisted demo-critical weights (NOT the 605MB CLIP / 88MB DINOv2)
+COPY weights/captioner.pt weights/captioner.pt
+COPY weights/cdvqa_head.pt weights/cdvqa_head.pt
+COPY weights/count_head.pt weights/count_head.pt
+COPY weights/change_net.pt weights/change_net.pt
+COPY weights/optical_sar_fusion.pt weights/optical_sar_fusion.pt
+COPY weights/scene_encoder.pt weights/scene_encoder.pt
+COPY weights/task_centroids.pt weights/task_centroids.pt
+COPY weights/type_heads.pt weights/type_heads.pt
+COPY weights/vqa_head.pt weights/vqa_head.pt
+COPY weights/ts/ weights/ts/
+COPY weights/calibration.json weights/calibration.json
+COPY weights/task_keywords.json weights/task_keywords.json
+
+# Non-root user
+RUN groupadd -r appuser && useradd -r -g appuser -d /app appuser \
+    && mkdir -p /app/data /app/runs && chown -R appuser:appuser /app
+USER appuser
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')" || exit 1
+
+CMD ["python", "-m", "uvicorn", "satquery.server.main:app", "--host", "0.0.0.0", "--port", "8000"]

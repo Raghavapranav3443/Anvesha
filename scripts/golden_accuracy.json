@@ -1,0 +1,43 @@
+{
+  "n": 500,
+  "accuracy_classify_task": 0.96,
+  "accuracy_with_rerank": 0.96,
+  "per_task": {
+    "captioning": {
+      "correct": 2,
+      "total": 2,
+      "acc": 1.0
+    },
+    "change_analysis": {
+      "correct": 1,
+      "total": 1,
+      "acc": 1.0
+    },
+    "change_vqa": {
+      "correct": 144,
+      "total": 164,
+      "acc": 0.878
+    },
+    "grounding": {
+      "correct": 3,
+      "total": 3,
+      "acc": 1.0
+    },
+    "investigation": {
+      "correct": 1,
+      "total": 1,
+      "acc": 1.0
+    },
+    "optical_sar": {
+      "correct": 2,
+      "total": 2,
+      "acc": 1.0
+    },
+    "single_vqa": {
+      "correct": 327,
+      "total": 327,
+      "acc": 1.0
+    }
+  },
+  "note": "mined golden set (miner heuristic labels); the real judge criterion is the observable trace, not internal routing"
+}

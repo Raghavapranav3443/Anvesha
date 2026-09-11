@@ -235,6 +235,18 @@ def classify_task(query: str, configuration: str) -> Dict[str, Any]:
                 s += 1.0
         keyword_scores[task] = s
 
+    # B2: keyword expansion from mined RSVQA/CDVQA train tokens
+    try:
+        from .rerank import expanded_keywords
+        for task, ext_tokens in expanded_keywords().items():
+            if ext_tokens and keyword_scores.get(task, 0.0) == 0.0:
+                hits = sum(1 for tok in ext_tokens if tok in q)
+                if hits:
+                    keyword_scores[task] = max(keyword_scores[task],
+                                               0.15 * min(hits, 3))
+    except Exception:
+        pass
+
     for alias, target in TASK_ALIASES.items():
         if alias in keyword_scores:
             keyword_scores[target] = keyword_scores.get(target, 0.0) + keyword_scores.pop(alias)
@@ -292,9 +304,24 @@ def classify_task(query: str, configuration: str) -> Dict[str, Any]:
         else:
             method = "embedding similarity"
 
+    # B2: optional re-rank of top-2 feasible intents (keyword + CLIP text tower)
+    rerank_method = "none"
+    try:
+        from .rerank import re_rank
+        reranked, rerank_method = re_rank(query, feasible_ranked[:4],
+                                          top_k=2, configuration=configuration)
+        if reranked and reranked[0][0] != best:
+            if feasible(reranked[0][0]):
+                best = reranked[0][0]
+    except Exception:
+        pass
+
     return {"task": best, "confidence": round(conf, 3), "method": method,
             "ranked_candidates": feasible_ranked[:4],
-            "infeasible_ignored": [t for t, _ in ranked if not feasible(t)]}
+            "infeasible_ignored": [t for t, _ in ranked if not feasible(t)],
+            "rerank_method": "none"}
+
+
 
 
 # --------------------------------------------------------------------------- #
