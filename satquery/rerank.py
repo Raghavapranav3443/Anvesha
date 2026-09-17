@@ -5,6 +5,13 @@ Re-ranks the top-k intents from ``classify_task`` using the CLIP text tower
 cosine similarity vs auditable task-description sentences. Fully offline and
 deterministic when the tower is cached; degrades gracefully to keyword-only
 when ``SATQUERY_RERANK=0`` or the tower is unavailable — never raises.
+
+CLIP contribution is **off by default** (``SATQUERY_RERANK_CLIP=1`` to enable).
+Measured on ``scripts/golden_intent.json`` (n=500): keyword-only = 0.9800,
+keyword+CLIP = 0.9760. Enabling it costs 0.4pp, so it stays opt-in. Default-off
+also keeps intent routing independent of whether the CLIP tower happens to be
+installed (see the ``core``/``extras`` profile split), which the regression
+contract requires.
 """
 from __future__ import annotations
 
@@ -15,6 +22,8 @@ from typing import Dict, List, Tuple
 from .text import content_tokens
 
 RERANK_ENV = "SATQUERY_RERANK"
+# Opt-in: see the measured trade-off in the module docstring above.
+CLIP_RERANK_ENV = "SATQUERY_RERANK_CLIP"
 _DIM = 512
 
 _LOCK = threading.Lock()
@@ -94,12 +103,21 @@ def re_rank(query: str, ranked: List[Tuple[str, float]], top_k: int = 2,
         # Capping at 3 keeps multiple distinct hits dominant over one.
         return min(sum(1.0 for kw in kws if kw in toks), 3.0) / 3.0
 
+    clip_requested = os.environ.get(CLIP_RERANK_ENV, "0").strip() == "1"
     clip = None
-    try:
-        from .clip_text import get_clip_text
-        clip = get_clip_text()
-    except Exception:
-        clip = None
+    if clip_requested:
+        try:
+            # NOTE: this previously read `from .clip_text import get_clip_text`,
+            # which resolves to ``satquery.clip_text`` — a module that does not
+            # exist (the real one is ``satquery.models.clip_text``). The broad
+            # ``except`` below swallowed the ModuleNotFoundError, so the CLIP
+            # term never contributed a single point while the trace reported an
+            # honest-sounding "CLIP unavailable" for what was really a broken
+            # import. Do not narrow this relative path back.
+            from .models.clip_text import get_clip_text
+            clip = get_clip_text()
+        except Exception:
+            clip = None
 
     rescored = []
     for task in candidates:
@@ -118,9 +136,17 @@ def re_rank(query: str, ranked: List[Tuple[str, float]], top_k: int = 2,
                 clip_sim = 0.0
         rescored.append((task, 0.5 * base + 0.3 * kw + 0.2 * clip_sim))
 
-    rescored.sort(key=lambda kv: -kv[1])
-    method = ("keyword+CLIP rerank" if clip is not None
-              else "keyword-only rerank (CLIP unavailable)")
+    # Tie-break by the upstream precedence order, which is already
+    # deterministic, so a re-scoring tie cannot reintroduce hash-order drift.
+    _order = {t: i for i, (t, _) in enumerate(ranked)}
+    rescored.sort(key=lambda kv: (-kv[1], _order.get(kv[0], len(_order))))
+
+    if clip is not None:
+        method = "keyword+CLIP rerank"
+    elif clip_requested:
+        method = "keyword-only rerank (CLIP requested but unavailable)"
+    else:
+        method = "keyword-only rerank (CLIP disabled)"
     return rescored[:top_k], method
 
 

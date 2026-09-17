@@ -6,6 +6,7 @@ import HistoryView from './components/HistoryView'
 import EvaluationView from './components/EvaluationView'
 import HelpView from './components/HelpView'
 import JudgeRun from './components/JudgeRun'
+import { ModeToggle } from './components/ModeToggle'
 import Onboarding from './components/Onboarding'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { fetchProvenance, type Provenance } from './api'
@@ -200,6 +201,7 @@ export default function App() {
                 Earth Observation &amp; Investigation System · SIH26167
               </div>
             </div>
+            <ModeToggle />
             <span className="hidden items-center gap-1.5 rounded-full border border-line px-3 py-1 text-sm text-muted md:flex">
               <span className="h-2 w-2 rounded-full bg-good" /> system ready
             </span>

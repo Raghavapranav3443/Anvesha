@@ -171,6 +171,39 @@ _FEASIBLE_ORDER = {
     "optical_sar_pair": ["optical_sar", "single_vqa"],
 }
 
+# Deterministic tie-break precedence. Blended intent scores routinely tie
+# (e.g. "can you see a water body" scores single_vqa == captioning), and the
+# previous implementation resolved those ties through the iteration order of a
+# `set` -- which CPython randomises per process. The same query could therefore
+# select different specialists in different processes, and `ranked_candidates`
+# (persisted into report.json) reordered between runs.
+#
+# The order below is the precedence the project already declares in
+# _FEASIBLE_ORDER, concatenated in a frozen configuration order, with
+# `investigation` appended because `feasible()` permits it for bitemporal runs
+# while _FEASIBLE_ORDER does not list it. Do NOT reorder casually: this is a
+# behavioural contract, not a cosmetic detail.
+_TIE_ORDER: tuple = tuple(dict.fromkeys(
+    [t for _cfg in ("single", "bitemporal_pair", "optical_sar_pair")
+     for t in _FEASIBLE_ORDER.get(_cfg, [])]
+    + ["investigation", "impact_analysis"]))
+
+
+def _tie_index(task: str, configuration: str) -> int:
+    """Stable sort key for a tied intent score (lower wins).
+
+    Tasks listed for the current configuration take precedence in their declared
+    order; anything else (e.g. `investigation` on a bitemporal pair) falls back
+    to the frozen global order. Unknown ids sort last, deterministically.
+    """
+    order = _FEASIBLE_ORDER.get(configuration, [])
+    if task in order:
+        return order.index(task)
+    try:
+        return len(order) + _TIE_ORDER.index(task)
+    except ValueError:
+        return len(order) + len(_TIE_ORDER)
+
 
 def build_clarification(query: str, intent: Dict[str, Any],
                         configuration: str) -> Optional[Dict[str, Any]]:
@@ -263,7 +296,10 @@ def classify_task(query: str, configuration: str) -> Dict[str, Any]:
             embed_scores[task] = max(0.0, sim)
 
     # --- blend ---
-    all_tasks = set(keyword_scores) | set(embed_scores)
+    # sorted(): deterministic iteration order. A bare set() here made the
+    # insertion order of `scores` hash-dependent, which leaked into the
+    # tie-break below and into `ranked_candidates` in report.json.
+    all_tasks = sorted(set(keyword_scores) | set(embed_scores))
     scores: Dict[str, float] = {}
     for task in all_tasks:
         kw = keyword_scores.get(task, 0.0)
@@ -282,7 +318,11 @@ def classify_task(query: str, configuration: str) -> Dict[str, Any]:
                 task == "single_vqa")
         return False
 
-    ranked = sorted(scores.items(), key=lambda kv: -kv[1])
+    # Explicit tie-break: never rely on incidental dict/set order, and never on
+    # alphabetical order (which would make `captioning` beat `single_vqa` on a
+    # tie and turn a presence question into a description request).
+    ranked = sorted(scores.items(),
+                    key=lambda kv: (-kv[1], _tie_index(kv[0], configuration)))
     feasible_ranked = [(t, s) for t, s in ranked if feasible(t)]
 
     default_map = {
@@ -322,7 +362,9 @@ def classify_task(query: str, configuration: str) -> Dict[str, Any]:
     return {"task": best, "confidence": round(conf, 3), "method": method,
             "ranked_candidates": feasible_ranked[:4],
             "infeasible_ignored": [t for t, _ in ranked if not feasible(t)],
-            "rerank_method": "none"}
+            # Was hardcoded "none", which discarded the computed value and hid
+            # from the trace whenever a re-rank changed the selected task.
+            "rerank_method": rerank_method}
 
 
 

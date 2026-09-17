@@ -349,3 +349,51 @@ export async function fetchFixtures(): Promise<FixturesManifest | null> {
     throw err
   }
 }
+
+// ---------------------------------------------------------------------------
+// Operating mode + air-gap guard
+// ---------------------------------------------------------------------------
+
+/** Mirrors `GET /api/mode`. `airgap_guard` state is decided server-side -- the
+ *  UI must never infer connectivity on its own. */
+export interface ModeState {
+  mode: 'airgap' | 'online'
+  guard_installed: boolean
+  guard_disabled_by_env: boolean
+  enforced_since?: string | null
+  blocked_count: number
+  network_allowed: boolean
+  detail?: string
+}
+
+/** A single outbound attempt the air-gap guard refused. */
+export interface BlockedAttempt {
+  event: string
+  target: string
+  at: string
+  where?: string
+}
+
+export async function fetchMode(): Promise<ModeState> {
+  const r = await apiFetch('/api/mode')
+  return r.json()
+}
+
+/** Switch mode. Persisted server-side; the guard is not removable, so
+ *  switching back to airgap is enforced again immediately. */
+export async function setMode(mode: 'airgap' | 'online'): Promise<ModeState> {
+  const r = await apiFetch('/api/mode', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mode }),
+  })
+  return r.json()
+}
+
+/** What the guard blocked. Drains the server-side log by default. */
+export async function fetchBlocked(
+  drain = true,
+): Promise<{ mode: string; guard_installed: boolean; blocked: BlockedAttempt[] }> {
+  const r = await apiFetch(`/api/mode/blocked?drain=${drain ? 'true' : 'false'}`)
+  return r.json()
+}

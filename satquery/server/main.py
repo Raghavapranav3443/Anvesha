@@ -148,6 +148,54 @@ _AUTH_TOKEN = os.environ.get("SATQUERY_TOKEN", "").strip()
 
 ALLOWED_EXT = {".tif", ".tiff", ".png", ".jpg", ".jpeg"}
 
+
+# ---------------------------------------------------------------------------
+# Air-gap enforcement
+# ---------------------------------------------------------------------------
+#
+# Install the outbound-network guard before serving anything. The guard is a
+# permanent audit hook whose *policy* is read from the current mode at call
+# time, so it is harmless in `online` mode and becomes an immediate hard block
+# the moment the mode is airgap. Installing it here -- rather than lazily on
+# first use -- is what makes "this server is air-gapped" a property of the
+# process rather than a promise in a README.
+
+def _mode_snapshot() -> Dict[str, Any]:
+    """Mode + guard state for /healthz. Never raises."""
+    try:
+        from ..acquire import mode as _mode
+        st = _mode.guard_status()
+        if st.get("guard_disabled_by_env"):
+            state = "disabled_by_env"
+        elif not st.get("guard_installed"):
+            state = "not_installed"
+        elif st.get("mode") == "airgap":
+            state = "enforced"
+        else:
+            state = "installed-idle"
+        return {"mode": st.get("mode"),
+                "guard_installed": st.get("guard_installed"),
+                "airgap_guard": state,
+                "blocked_count": st.get("blocked_count")}
+    except Exception:
+        return {"mode": "unknown", "guard_installed": False,
+                "airgap_guard": "unavailable", "blocked_count": 0}
+
+
+try:
+    from ..acquire import mode as _airgap_mode
+    _airgap_mode.enforce()
+    if _airgap_mode.guard_disabled_by_env():
+        logger.warning(
+            "SATQUERY_AIRGAP_GUARD=0 - air-gap enforcement is DISABLED for this "
+            "process. /healthz reports airgap_guard=disabled_by_env.")
+    else:
+        logger.info("Air-gap guard installed (mode=%s).",
+                    _airgap_mode.current_mode())
+except Exception:                                  # never block startup
+    logger.exception("Could not install the air-gap network guard.")
+
+
 # Run startup cleanup and schedule the periodic repeater
 _startup_cleanup()
 _schedule_periodic_cleanup()
@@ -649,6 +697,7 @@ async def healthz():
         "cache_hits":       JOBS.cache_hits,
         "model_status":     mstatus,
         "degraded":         any(v != "trained" for v in mstatus.values()),
+        "airgap":           _mode_snapshot(),
         "uptime_s":         int(time.time() - _STARTED),
         "version":          _VERSION,
     }
@@ -669,6 +718,74 @@ async def model_status_endpoint():
             "centroids": cstatus,
             "degraded": any(v != "trained" for v in status.values()),
             "centroid_fallback": cstatus.get("centroid_source") == "keyword-derived"}
+
+
+# ---------------------------------------------------------------------------
+# Operating mode + air-gap guard (additive surface)
+# ---------------------------------------------------------------------------
+
+@app.get("/api/mode")
+async def get_mode():
+    """Current operating mode and the live state of the air-gap guard.
+
+    The UI renders its mode chip from this and never infers connectivity on the
+    client. ``/api/mode/blocked`` exposes what the guard actually stopped, which
+    is what makes the air-gap claim inspectable rather than merely asserted.
+    """
+    try:
+        from ..acquire import mode as _mode
+        return {**_mode.guard_status(),
+                "version": _VERSION,
+                "acquire": _mode.load_settings().get("acquire", {})}
+    except Exception as exc:                       # pragma: no cover
+        return {"mode": "unknown", "guard_installed": False,
+                "guard_disabled_by_env": False,
+                "detail": repr(exc) if _DEBUG else "mode subsystem unavailable"}
+
+
+@app.post("/api/mode")
+async def post_mode(payload: Dict[str, Any],
+                    _auth: None = Depends(_check_auth)):
+    """Switch operating mode; persisted to data/settings.json.
+
+    Switching to ``online`` does not weaken the air-gap guarantee: the guard
+    stays installed and its policy simply returns to allowing egress, so
+    switching back is enforced instantly.
+    """
+    try:
+        from ..acquire import mode as _mode
+    except Exception as exc:                       # pragma: no cover
+        _http(500, "Mode subsystem unavailable.", code="internal_error",
+              hint=repr(exc) if _DEBUG else "")
+        return
+
+    requested = str((payload or {}).get("mode", "")).strip().lower()
+    if requested not in ("airgap", "online"):
+        _http(400, f"Invalid mode '{requested}'.", code="invalid_mode",
+              hint="Use 'airgap' (no network) or 'online' (fetch imagery).")
+    try:
+        applied = _mode.set_mode(requested)
+    except ValueError as exc:
+        _http(400, str(exc), code="invalid_mode")
+        return
+    log_event("api", "mode_changed", mode=applied)
+    return {"mode": applied, **_mode.guard_status()}
+
+
+@app.get("/api/mode/blocked")
+async def get_blocked(drain: bool = True):
+    """Outbound network attempts the air-gap guard blocked, newest last.
+
+    ``drain`` (default true) clears the in-memory log on read so the UI can show
+    "what was blocked since you last looked" without unbounded growth.
+    """
+    try:
+        from ..acquire import mode as _mode
+        return {"mode": _mode.current_mode(),
+                "guard_installed": _mode.guard_installed(),
+                "blocked": _mode.blocked_attempts(drain=drain)}
+    except Exception:                              # pragma: no cover
+        return {"mode": "unknown", "guard_installed": False, "blocked": []}
 
 
 # ---------------------------------------------------------------------------
@@ -738,13 +855,20 @@ def _persist_job(job: "_Job",                        # noqa: F821
 # Static frontend
 # ---------------------------------------------------------------------------
 WEB_DIST = CONFIG.repo_root / "web" / "dist"
+
+# API routers are registered whether or not the built SPA is present. These
+# used to sit inside the `if WEB_DIST.exists()` block below, which silently
+# removed /api/reports/{id}/dossier and /api/fixtures in a source checkout that
+# had not been built with `npm run build` -- the API surface should not depend
+# on whether a static bundle was compiled.
+from .dossier import router as _dossier_router
+from .fixtures import router as _fixtures_router
+
+app.include_router(_dossier_router)
+app.include_router(_fixtures_router)
+
 if WEB_DIST.exists():
     app.mount("/assets", StaticFiles(directory=WEB_DIST / "assets"), name="assets")
-
-    from .dossier import router as _dossier_router
-    from .fixtures import router as _fixtures_router
-    app.include_router(_dossier_router)
-    app.include_router(_fixtures_router)
 
     @app.get("/{full_path:path}", include_in_schema=False)
     async def spa(full_path: str):

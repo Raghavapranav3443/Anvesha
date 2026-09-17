@@ -84,23 +84,44 @@ def _after_grounding(ctx, out):
             out["ranked"] = rank_regions(result_like, img, concept).to_dict()
 
 
+def _change_mask_from(out: Dict):
+    """Locate the change mask in a finished change-task output.
+
+    ``change_analysis_tool`` does ``out.pop("change_map")`` and hands the mask
+    to ``_visual`` instead, so the original guard here (``"change_map" in out``)
+    was **unsatisfiable** and the B5 transition table was never built for
+    change_analysis -- a silently dead feature that the demo setups advertise.
+    ``_visual`` is still present at enricher time (the agent pops it only after
+    the wrapped tool returns), so read it as the fallback.
+    """
+    mask = out.get("change_map")
+    if mask is None:
+        mask = (out.get("_visual") or {}).get("mask")
+    if mask is None:
+        return None
+    return mask.astype(bool) if hasattr(mask, "astype") else None
+
+
 def _after_change(ctx, out):
     _stamp_output(out, "change")
     # B5: transition table on changed pixels (bi-temporal only)
     imgs = ctx.get("images") or []
-    if len(imgs) >= 2 and "change_map" in out:
-        from .change.transitions import build_transitions
-        mask = out["change_map"]
-        if hasattr(mask, "astype"):
-            mask = mask.astype(bool)
-            gsd = 10.0
-            params = ctx.get("params") or {}
-            if params.get("gsd_m"):
-                gsd = float(params["gsd_m"])
-            date_a = params.get("date_a", "T1")
-            date_b = params.get("date_b", "T2")
-            out["transitions"] = build_transitions(
-                imgs[0], imgs[1], mask, gsd, date_a, date_b).to_dict()
+    if len(imgs) < 2:
+        return
+    # Never clobber a table a tool already produced. impact_analysis emits its
+    # own hectare-based `transitions`; overwriting it with the pixel-fraction
+    # TransitionTable shape would silently change that contract.
+    if "transitions" in out:
+        return
+    mask = _change_mask_from(out)
+    if mask is None:
+        return
+    from .change.transitions import build_transitions
+    params = ctx.get("params") or {}
+    gsd = float(params.get("gsd_m") or 10.0)
+    out["transitions"] = build_transitions(
+        imgs[0], imgs[1], mask, gsd,
+        params.get("date_a", "T1"), params.get("date_b", "T2")).to_dict()
 
 
 def _after_optical_sar(ctx, out):
@@ -144,11 +165,24 @@ def _after_change_vqa(ctx, out):
     _stamp_output(out, "cdvqa")
 
 
+def _after_impact(ctx, out):
+    """Stamp confidence for the decision-grade task.
+
+    ``impact_analysis`` previously had **no enricher at all**, so it emitted no
+    ``confidence_meta`` -- which meant no trust assessment, and complete
+    invisibility to the honesty below-gate check, on the single task whose
+    output most needs both. It deliberately does not build a transition table
+    (impact supplies its own).
+    """
+    _stamp_output(out, "impact_analysis")
+
+
 # Register enrichers at import time (active only when patches_enabled()).
 for _n, _f in (("captioning", _after_caption), ("single_vqa", _after_vqa),
                 ("grounding", _after_grounding),
                 ("change_analysis", _after_change),
                 ("change_vqa", _after_change_vqa),
+                ("impact_analysis", _after_impact),
                 ("optical_sar", _after_optical_sar)):
     _ENRICHERS[_n] = _f
 
@@ -248,7 +282,7 @@ def _enrich_result_keys(result: Any, images: List) -> None:
 # state — never invented.
 # --------------------------------------------------------------------------- #
 
-_HONESTY_GATE = 0.45  # below this, a formula-blended confidence is "below gate"
+_HONESTY_GATE = 0.45  # below this, a reported confidence is "below gate"
 
 
 def _derive_honesty(result: Any, images: List) -> Dict[str, Any]:
@@ -269,12 +303,19 @@ def _derive_honesty(result: Any, images: List) -> Dict[str, Any]:
     status = model_status()
     fallback_active = any(v != "trained" for v in status.values())
 
-    # below_gate: formula-blended confidences below the honesty gate
+    # below_gate: any reported confidence below the honesty gate.
+    #
+    # This used to fire only when ``method == "formula"``, which meant every
+    # component labelled "temp" (vqa, counting, cdvqa) could report an
+    # arbitrarily low confidence *without ever being flagged* -- including the
+    # single most-used specialist, single_vqa. The method describes how a number
+    # was produced, not whether it is trustworthy, so the gate is now
+    # method-agnostic and simply records which method produced the value.
     below_gate: List[Dict[str, Any]] = []
     meta = outputs.get("confidence_meta")
-    if isinstance(meta, dict) and meta.get("method") == "formula":
+    if isinstance(meta, dict):
         val = meta.get("value")
-        if isinstance(val, (int, float)) and val < _HONESTY_GATE:
+        if isinstance(val, (int, float)) and float(val) < _HONESTY_GATE:
             below_gate.append({
                 "component": meta.get("component", ""),
                 "confidence": round(float(val), 3),

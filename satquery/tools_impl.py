@@ -150,7 +150,11 @@ def impact_analysis_tool(ctx: Dict) -> Dict:
         "confidence": _confidence,
         "source_model": "Impact Analysis engine (change detector + index "
                         "masks + chamfer distance)",
-        "_visual": {"change_overlay": vis},
+        # prob_map is exposed so the decision layer's sensitivity analysis can
+        # re-threshold the raw probability field. Without it, impact_analysis --
+        # the task whose decision matters most -- was the one task that could
+        # not report how much its conclusion depends on the threshold.
+        "_visual": {"change_overlay": vis, "prob_map": cm["prob_map"]},
     }
 
 
