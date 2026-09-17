@@ -30,6 +30,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+from .authority import water_conflict
 from .facts import Facts, human_area, num
 from .sensitivity import detection_floor_ha
 
@@ -250,6 +251,20 @@ def _render_encroachment(f: Facts) -> Dict[str, Any]:
     nw = f.get("near_water_500m")
     extra = (f" A share of it is near water ({_pct(nw)}), which can also affect "
              f"drainage." if nw and num(nw) > 0.2 else "")
+    # What the Government of India's own map records for this ground. This is
+    # the sentence that turns an observation into something a land-records office
+    # can open a file on -- and it is deliberately factual: presence of a map
+    # layer is evidence of what the map says, never proof that the map is right.
+    open_land = f.get("isro_open_land_themes") or []
+    if open_land:
+        extra += (f" ISRO's own land-use map records this ground as "
+                  f"{', '.join(open_land)}, not as built-up ground, so the new "
+                  f"construction is not something the official map shows.")
+    elif f.get("isro_built_themes"):
+        extra += (" ISRO's own land-use map already records this ground as "
+                  "built-up, so this is development inside an area the official "
+                  "map already recognises as built up rather than construction "
+                  "appearing on open land.")
     return {
         "headline": "New construction has appeared where there was none before.",
         "why": (f"About {new_ha:.2f} hectares of built-up ground is new between "
@@ -284,6 +299,32 @@ def _render_vegetation_loss(f: Facts) -> Dict[str, Any]:
                    "season."),
         "who": "Landowner or farmer; agriculture extension officer",
         "confidence_note": "Loss of green cover is measured; its cause is not.",
+    }
+
+
+def _render_isro_water_conflict(f: Facts) -> Dict[str, Any]:
+    themes = ", ".join(f.get("isro_water_themes") or [])
+    new_ha = num(f.get("built_up_new_ha"), 0.0)
+    return {
+        "headline": ("New construction is showing on ground the official map "
+                     "records as water."),
+        "why": (f"About {new_ha:.2f} hectares of new built-up ground appeared "
+                f"between the two dates, and ISRO's own map for this same area "
+                f"shows {themes} there. The imagery and the official map "
+                f"disagree about this ground, and an image cannot settle which "
+                f"one is out of date."),
+        "action": ("Check the parcel against the local revenue and irrigation "
+                   "records before anything else. If the water is still there on "
+                   "the ground, report it in writing to the district irrigation "
+                   "office and the disaster management cell with these two dates "
+                   "and the marked area. You can see ISRO's own map at "
+                   "bhuvan.nrsc.gov.in."),
+        "who": ("District irrigation office; revenue or land-records office; "
+                "local disaster management cell"),
+        "confidence_note": ("Both the new construction and the water record were "
+                           "measured or verified; the disagreement between them is "
+                           "exactly why this needs a person rather than another "
+                           "image."),
     }
 
 
@@ -355,6 +396,17 @@ RULES: List[Rule] = [
     # others that also hold are reported as supporting conclusions. Construction
     # on land that was not built before leads because it is the most concrete,
     # actionable finding; being near water is context that sharpens it.
+    #
+    # The one case that outranks it is a genuine conflict with the authority
+    # lane: new building on ground ISRO's own map records as water. Two credible
+    # sources disagree there, so the headline drops to "check before acting" --
+    # a downgrade, never an upgrade, because corroboration is not proof.
+    Rule("V0_isro_water_conflict", "verdict", "verify_first",
+         requires=("built_up_new_ha", "isro_water_themes"),
+         when=lambda f: water_conflict(f.values),
+         render=_render_isro_water_conflict, domain="encroachment",
+         description=("New construction on ground the official ISRO map records "
+                      "as water: the two sources disagree.")),
     Rule("V2_encroachment", "verdict", "act",
          requires=("built_up_new_ha",),
          when=lambda f: num(f.get("built_up_new_ha"), 0.0)

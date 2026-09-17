@@ -51,6 +51,53 @@ docker build -t satquery .
 docker run -p 8000:8000 satquery
 ```
 
+### Optional: "find imagery for me" (online lane)
+
+The app ships in **air-gap mode**. Typing a place name and fetching imagery is an
+opt-in, per-process switch (`SATQUERY_MODE=online`, or the ONLINE toggle in the
+console's *Find imagery for me* panel). Nothing else about the pipeline changes:
+fetching produces GeoTIFFs plus a provenance sidecar on disk, and the ordinary
+(offline) pipeline analyses them exactly as it would an upload.
+
+**What needs the internet, and what never does** — stated plainly, because this
+is the claim most likely to be misread:
+
+| | Network needed |
+|---|---|
+| Fetching imagery for a place name (open Sentinel-2 COGs) | **yes** |
+| Fetching ISRO thematic context (Bhuvan WMS) | **yes** |
+| Resolving a place name already looked up once | no — cached on disk |
+| Selecting a Bhuvan layer for a state/theme | no — bundled 135 KB layer index |
+| Analysing, reporting, deciding, every benchmark | no — CPU, no network, ever |
+
+So the honest sentence is: *the ISRO context lane is queried live over the
+network; its layer selection and every fetched result are cached, so the second
+look at an area needs no network.* Nothing here fetches Bhuvan data without a
+network, and in air-gap mode a fetch request is refused with HTTP 409
+`airgap_mode` rather than quietly returning "no imagery here".
+
+Two lanes, because they answer different questions:
+
+- **Analytic lane** — Sentinel-2 L2A Cloud-Optimized GeoTIFFs on open AWS /
+  Copernicus endpoints, read by *window*, so a 12 km analysis transfers megabytes
+  rather than gigabytes. Credential-free.
+- **ISRO authority lane** — ISRO's own Bhuvan WMS (`bhuvan-vec1.nrsc.gov.in`,
+  6,671 layers, no account, no approval). This is what turns "our analysis found
+  new construction" into "…and ISRO's own district land-use layer records this
+  parcel as agriculture". `Bhoonidhi` remains registered behind the same
+  provider interface, so enabling it later is a config change, not a rewrite.
+
+Bhuvan returns **HTTP 200 with a valid PNG for a layer with no data in your
+area**, so presence is proven against a control render rather than assumed; on
+live runs a blank tile sits at the service's own ~3% framing baseline while a
+populated one measures 8–29%. Only verified layers reach the report.
+
+Live check (needs network, prints the verification evidence):
+
+```bash
+python scripts/acquire_smoke.py --place "Dibrugarh, Assam"
+```
+
 ### Training from scratch
 
 ```bash
@@ -161,8 +208,12 @@ ISRO-style demonstration inputs ship in `samples/`
 python -m pytest tests -q     # I/O · routing · all specialists · API lifecycle · demo suite
 ```
 
-Synthetic GeoTIFF fixtures make the suite offline-capable; it passes both with
-and without trained weights (fallback paths are themselves under test).
+**386 passed, 1 skipped** in both profiles — plain, and with the air-gap guard
+active (`SATQUERY_MODE=airgap`), where every outbound socket and DNS call is
+refused at the interpreter level. Synthetic GeoTIFF fixtures make the suite
+offline-capable; it passes with and without trained weights (fallback paths are
+themselves under test), and the acquisition layer is tested through a fake
+transport, so no test touches the real network.
 
 ## Tech stack
 
@@ -170,7 +221,7 @@ and without trained weights (fallback paths are themselves under test).
 |---|---|
 | **Backend** | Python 3.10+ · PyTorch / torchvision (SceneEncoder ResNet-18, transformer captioner, CORAL ordinal head, TorchScript int8 export) · FastAPI + Uvicorn · rasterio · NumPy · pandas · scikit-learn · Pillow · matplotlib |
 | **Frontend** | React 18 · TypeScript 5 · Vite 5 · Tailwind CSS · Leaflet / react-leaflet (GeoJSON map overlays) |
-| **Persistence & ops** | SQLite (history + result cache, single file, air-gap friendly) · Docker · pytest (91 tests) · GitHub Actions CI |
+| **Persistence & ops** | SQLite (history + result cache, single file, air-gap friendly) · Docker · pytest (387 tests) · GitHub Actions CI |
 
 ## Architecture
 
@@ -259,3 +310,6 @@ See also [ARCHITECTURE.md](ARCHITECTURE.md) for design contracts.
 | CDVQA | github.com/YZHJessica/CDVQA |
 | LEVIR-CD | justchenhao.github.io/LEVIR |
 | EuroSAT | zenodo.org/records/7711810 |
+| Sentinel-2 L2A analysis-ready imagery (online lane) | earth-search STAC on AWS Open Data + Copernicus Data Space STAC — Cloud-Optimized GeoTIFFs, no credentials |
+| ISRO thematic context (online lane) | ISRO Bhuvan OGC WMS — `bhuvan-vec1.nrsc.gov.in/bhuvan/wms`, 6,671 layers, no credentials; layer index built by `scripts/build_bhuvan_catalog.py` and bundled |
+| Offline place gazetteer | built from OpenStreetMap once by `scripts/build_place_index.py`, then bundled |

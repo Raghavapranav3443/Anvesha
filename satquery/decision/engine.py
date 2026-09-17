@@ -29,7 +29,8 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 
 from . import advise as _advise
-from .facts import Facts, assemble
+from .authority import block as _authority_block
+from .facts import Facts, assemble, resolve_run_outputs
 from .rules import (MINOR_FRACTION, SIGNIFICANT_AREA_HA, SIGNIFICANT_FRACTION,
                     Rule, fallback_rules, refusal_rules, verdict_rules)
 from .sensitivity import (detection_floor_ha, detection_floor_text,
@@ -129,7 +130,16 @@ def decide(outputs: Dict[str, Any], task: str = "",
         prob_map = cand
 
     # ---- trust gate ------------------------------------------------------- #
-    meta = (outputs or {}).get("confidence_meta") or {}
+    # The confidence is stamped next to the tool output that produced it, which
+    # is not always the top level: an investigation run nests it under
+    # ``investigation.impact``. Reading only the top level left the record with no
+    # trust at all while the rules -- which read the resolved facts -- gated on
+    # one, so the advice said "no measured accuracy" about a measured number.
+    meta = (outputs or {}).get("confidence_meta")
+    if not isinstance(meta, dict):
+        _primary, _impact, _change = resolve_run_outputs(outputs)
+        candidate = (_primary or {}).get("confidence_meta")
+        meta = candidate if isinstance(candidate, dict) else {}
     trust: Dict[str, Any] = {}
     if meta:
         trust = {
@@ -242,6 +252,11 @@ def decide(outputs: Dict[str, Any], task: str = "",
     }
     record["sensitivity"] = _sensitivity(chosen, facts, prob_map) if chosen else {
         "available": False, "reason": "no rule applied"}
+    # The authority lane, resolved once for the record, the advice and the UI.
+    # Absent context yields ``{"available": False}`` rather than an empty promise,
+    # and ``advise`` then composes exactly what it composed before this existed.
+    record["authority"] = _authority_block((outputs or {}).get("isro_context"),
+                                           facts.values)
     record["advice"] = _advise.compose(record)
     return record
 
@@ -250,8 +265,6 @@ def decide_for_result(result: Any, images: Optional[List[Any]] = None) -> Dict[s
     """Convenience wrapper over an ``AgentResult`` (works offline, no models)."""
     outputs = getattr(result, "outputs", {}) or {}
     visuals = getattr(result, "visuals", {}) or {}
-    probe = outputs if "confidence_meta" in outputs else (
-        outputs.get("impact_analysis") if isinstance(outputs.get("impact_analysis"), dict) else outputs)
     return decide(outputs,
                   task=getattr(result, "selected_task", "") or "",
                   visuals=visuals, images=images,

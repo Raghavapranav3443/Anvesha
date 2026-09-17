@@ -466,7 +466,7 @@ class AgentController:
 
         if task == "investigation":
             return self._run_investigation(imgs, query, intent, trace, emit,
-                                           save_report)
+                                           save_report, params=params)
 
         # 3. select tool ------------------------------------------------------
         step = self._step(trace, "select_tool", {"candidate_task": task})
@@ -518,6 +518,9 @@ class AgentController:
             trace=trace,
             report_paths={},
         )
+
+        # Verified ISRO context, when the imagery came through the online lane.
+        self._attach_acquisition_context(result, params)
 
         # Patch layer: run-level additive keys (dossier/freshness/honesty/
         # geo/...) into outputs before the report is persisted (R1 contract).
@@ -579,9 +582,32 @@ class AgentController:
             return "comprehensive"
         return "default"
 
+    @staticmethod
+    def _attach_acquisition_context(result: "AgentResult", params: Dict) -> None:
+        """Carry verified ISRO context from the request into the run's outputs.
+
+        The online acquisition lane proves which thematic layers really have data
+        for an area (``satquery.acquire.providers.bhuvan``: a blank tile from the
+        service is HTTP 200 with a valid PNG, so "the layer renders" is not
+        evidence). That evidence belongs to the *run* rather than to any single
+        tool output, so it is attached here -- before the patch layer builds the
+        decision record -- and the decision layer can then corroborate against the
+        Government of India's own map.
+
+        Absent context leaves the outputs untouched, so an uploaded pair behaves
+        exactly as it did before this existed.
+        """
+        context = (params or {}).get("isro_context")
+        if not context:
+            return
+        outputs = getattr(result, "outputs", None)
+        if isinstance(outputs, dict):
+            outputs["isro_context"] = context
+
     def _run_investigation(self, imgs: List[RSImage], query: str,
                            intent: Dict, trace: List[Dict[str, Any]],
-                           emit, save_report: bool) -> AgentResult:
+                           emit, save_report: bool,
+                           params: Optional[Dict] = None) -> AgentResult:
         """Query-conditioned multi-step investigation workflow.
 
         Selects a plan variant based on the query's dominant concept,
@@ -602,6 +628,10 @@ class AgentController:
                           {"plan": plan_key, "steps": [name for name, _, _ in plan]})
         emit()
 
+        # Tool context stays as it was: the investigation path has always run its
+        # tools with default parameters, and changing that here would alter the
+        # trace of every existing run. Only the acquisition context is carried
+        # through to the decision layer (below), which is additive.
         ctx = {"images": imgs, "query": query, "params": {}}
         for name, label, extra in plan:
             tool_name = ("grounding" if name.startswith("grounding_")
@@ -690,6 +720,8 @@ class AgentController:
             report_paths={},
         )
         emit()
+        # Verified ISRO context travels with investigation runs too.
+        self._attach_acquisition_context(result, params or {})
         # Patch layer: same run-level additive keys for investigation runs.
         from .patches import enrich_result
         enrich_result(result, imgs)

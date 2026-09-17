@@ -49,6 +49,16 @@ COPY weights/ts/ weights/ts/
 COPY weights/calibration.json weights/calibration.json
 COPY weights/task_keywords.json weights/task_keywords.json
 
+# Fail the build, not the air-gapped demo, if the bundled offline assets are
+# missing (place gazetteer + ISRO layer index + built frontend).
+RUN python -c "\
+from pathlib import Path as P;\
+d=P('satquery/acquire/data');\
+missing=[n for n in ('india_states.json','bhuvan_layers.json') if not (d/n).exists()];\
+assert not missing, 'bundled acquisition indices missing from image: %s' % missing;\
+assert P('web/dist/index.html').exists(), 'web/dist/index.html missing: run the frontend build';\
+print('bundled offline assets OK:', sorted(x.name for x in d.glob('*.json')), 'and web/dist')"
+
 # Non-root user
 RUN groupadd -r appuser && useradd -r -g appuser -d /app appuser \
     && mkdir -p /app/data /app/runs && chown -R appuser:appuser /app

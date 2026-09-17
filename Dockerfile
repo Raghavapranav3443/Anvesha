@@ -31,6 +31,19 @@ COPY samples/ samples/
 COPY weights/ weights/
 COPY web/dist/ web/dist/
 
+# Fail the build, not the air-gapped demo, if the bundled offline assets are
+# missing. The acquisition layer resolves place names from a bundled gazetteer
+# and selects ISRO layers from a bundled index; if .dockerignore ever swallows
+# satquery/acquire/data again, those two features degrade silently at runtime.
+# The same check covers the built frontend, which the server serves directly.
+RUN python -c "\
+from pathlib import Path as P;\
+d=P('satquery/acquire/data');\
+missing=[n for n in ('india_states.json','bhuvan_layers.json') if not (d/n).exists()];\
+assert not missing, 'bundled acquisition indices missing from image: %s' % missing;\
+assert P('web/dist/index.html').exists(), 'web/dist/index.html missing: run the frontend build';\
+print('bundled offline assets OK:', sorted(x.name for x in d.glob('*.json')), 'and web/dist')"
+
 # Create non-root user
 RUN groupadd -r appuser && useradd -r -g appuser -d /app appuser \
     && mkdir -p /app/data /app/runs && chown -R appuser:appuser /app

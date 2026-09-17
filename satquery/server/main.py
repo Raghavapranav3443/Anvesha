@@ -300,13 +300,15 @@ async def create_job(
             p = CONFIG.samples_dir / Path(name).name
             if p.exists():
                 paths.append(p)
+        acquired_context: List[Dict[str, Any]] = []
         if acquire_id:
             # Imagery fetched by the online layer. Paths are rebuilt from the
             # run directory and restricted to GeoTIFFs, so an acquire_id cannot
             # be used to read an arbitrary file. Dates come from the files'
             # own tags, so the report carries real acquisition dates rather
             # than the T1/T2 placeholders.
-            from ..acquire.service import acquired_images, dates_for_images
+            from ..acquire.service import (acquired_images, dates_for_images,
+                                           provenance_for)
 
             acquired = acquired_images(acquire_id)
             if not acquired:
@@ -319,6 +321,16 @@ async def create_job(
                 date_a = fetched_a
             if date_b == "T2" and fetched_b:
                 date_b = fetched_b
+            # The ISRO layers that were verified present for this AOI travel with
+            # the run, so the decision layer can put the analysis beside the
+            # Government of India's own record for the same ground. Read from the
+            # stored provenance (which the acquisition wrote), never from the
+            # request, so a client cannot inject an official-looking claim.
+            record = provenance_for(acquire_id) or {}
+            stored = record.get("isro_context")
+            if isinstance(stored, list):
+                acquired_context = [item for item in stored
+                                    if isinstance(item, dict)]
         if not paths:
             _http(400, "No images supplied.",
                   code="no_images",
@@ -335,6 +347,8 @@ async def create_job(
         params = {"date_a": date_a, "date_b": date_b}
         if modality != "auto":
             params["modality"] = modality
+        if acquired_context:
+            params["isro_context"] = acquired_context
 
         try:
             ckey = cache_key_for(paths, query, task_override, params)

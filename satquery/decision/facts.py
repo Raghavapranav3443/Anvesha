@@ -18,7 +18,7 @@ holding and says so, instead of reading the same key name and hoping.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 # Facts the rules reason over, in the vocabulary the engine uses.
 FACT_KEYS = (
@@ -28,6 +28,11 @@ FACT_KEYS = (
     "priority_zone", "gsd_m", "gsd_assumed", "confidence", "trust", "trust_band",
     "trust_source", "calibrated", "dominant_direction", "modality_agreement",
     "transitions_shape", "has_prob_map",
+    # Official reference map (ISRO/Bhuvan), present only for runs whose imagery
+    # came through the online acquisition lane. Absent is the normal case for an
+    # uploaded pair, and the decision then reads exactly as it did before.
+    "isro_context_present", "isro_context_layers", "isro_layers", "isro_themes",
+    "isro_open_land_themes", "isro_built_themes", "isro_water_themes",
 )
 
 # How much area is one pixel? Used only to phrase advice in everyday terms.
@@ -108,6 +113,41 @@ def transitions_is_hectare_shape(transitions: Any) -> Optional[bool]:
     return None
 
 
+def resolve_run_outputs(outputs: Optional[Dict[str, Any]]
+                        ) -> Tuple[Dict[str, Any], Optional[Dict[str, Any]],
+                                   Optional[Dict[str, Any]]]:
+    """``(primary, impact, change)`` for a finished run, whatever envelope it used.
+
+    Three shapes reach this layer: a flat tool output, a run keyed
+    ``impact_analysis``/``change_analysis``, and the ``investigation`` envelope
+    that ``AgentController._run_investigation`` builds -- where the impact result
+    sits at ``investigation.impact`` and the change result at
+    ``investigation.change``.
+
+    Miss that third shape and the facts are all absent, which is not a neutral
+    failure: ``R0_no_measurement`` fires and the flagship "full analysis" path
+    tells a user "we could not find anything to base a decision on" while the run
+    is holding hectares, water proximity and ranked zones. Resolving envelopes in
+    one place is what keeps every reader -- facts and the trust gate -- honest.
+    """
+    out = outputs or {}
+    impact: Optional[Dict[str, Any]] = None
+    change: Optional[Dict[str, Any]] = None
+    if isinstance(out.get("impact"), dict):
+        impact = out["impact"]
+    if impact is None and isinstance(out.get("impact_analysis"), dict):
+        impact = out["impact_analysis"]
+    if isinstance(out.get("change_analysis"), dict):
+        change = out["change_analysis"]
+    inv = out.get("investigation")
+    if isinstance(inv, dict):
+        if impact is None and isinstance(inv.get("impact"), dict):
+            impact = inv["impact"]
+        if change is None and isinstance(inv.get("change"), dict):
+            change = inv["change"]
+    return (impact or change or out), impact, change
+
+
 def assemble(outputs: Dict[str, Any], task: str = "",
              visuals: Optional[Dict[str, Any]] = None,
              images: Optional[List[Any]] = None) -> Facts:
@@ -121,12 +161,7 @@ def assemble(outputs: Dict[str, Any], task: str = "",
     vis = visuals or {}
     facts = Facts()
 
-    impact = _first(out, "impact") if isinstance(out.get("impact"), dict) else None
-    # Investigate runs nest the impact output; single-task runs put it at top.
-    if impact is None and isinstance(out.get("impact_analysis"), dict):
-        impact = out["impact_analysis"]
-    change = out.get("change_analysis") if isinstance(out.get("change_analysis"), dict) else None
-    src = impact or change or out
+    src, impact, change = resolve_run_outputs(out)
 
     # ---- area ------------------------------------------------------------ #
     ha = _first(src, "changed_area_ha")
@@ -205,6 +240,16 @@ def assemble(outputs: Dict[str, Any], task: str = "",
                                     or ((src or {}).get("_visual", {}) or {}).get("prob_map")
                                     is not None),
                "inspected: whether a raw probability field is available")
+
+    # ---- official reference map (ISRO/Bhuvan) ---------------------------- #
+    # Read from the run envelope, not from a tool output: the acquisition lane
+    # keeps this in the run's provenance, and the server attaches it to the run
+    # for imagery that came through the online lane. Verification (that the layer
+    # really has data in this window) already happened there; this layer only
+    # decides what the record means for the decision.
+    from .authority import facts_for as _isro_facts
+    for key, value in _isro_facts(out.get("isro_context")).items():
+        facts._set(key, value, "ISRO context verified by the acquisition lane")
 
     # Anything declared but never found is recorded, so the engine can say what
     # it could not establish rather than quietly deciding on partial input.

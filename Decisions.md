@@ -777,4 +777,150 @@ template captions share no 4-grams with VRSBench human references — a BEN-only
 captioner cannot move that row; a separately-gated VRSBench-train fine-tune is
 the only credible path and is deferred, not silently claimed.
 
+---
+
+## Phase 15 — Online acquisition lane, the authority lane in the decision layer, freeze
+
+### D18.1 — ISRO context is reachable today, credential-free: Bhuvan WMS over waiting on Bhoonidhi
+**Decision:** the ISRO lane is ISRO's own **Bhuvan OGC WMS**
+(`bhuvan-vec1.nrsc.gov.in/bhuvan/wms`, 6,671 layers, no account, no key, no
+approval — verified live, 7.5 MB capabilities document), not Bhoonidhi, whose
+credentials need an emailed request with multi-week lead time. The two answer
+different questions: Bhoonidhi/`Bhoonidhi` is *give me the imagery*, which open
+Sentinel-2 Cloud-Optimized GeoTIFFs already answer credential-free with identical
+lineage; Bhuvan is *what does the Government of India's own map say this land is*,
+which is what turns an observation into advice. Bhoonidhi stays registered behind
+the same provider interface, so enabling it later is a config change.
+
+### D18.2 — The offline promise, stated precisely (the claim most likely to be misread)
+**Decision:** the acquisition lane is **online-only by nature and says so**. Bhuvan
+is a live service on ISRO's servers; claiming the app "fetches Bhuvan data without
+internet" would be disprovable in one unplugged demo. What is genuinely offline:
+the bundled layer index (1,432 layers / 41 states / 135 KB, generated from live
+capabilities and committed), the offline place gazetteer (OSM, built once), every
+previously fetched result and resolved place (content-addressed cache with
+provenance sidecars), and the entire analysis/report/decision path. In air-gap
+mode a fetch is refused with HTTP 409 `airgap_mode` and an actionable hint rather
+than reporting "no imagery here". `README.md` and `anvesha.md` carry the same
+table, so no surface overstates this.
+
+### D18.3 — A blank Bhuvan tile must never become official corroboration
+**Decision:** layer presence is proven, never assumed. Measured behaviour: a
+no-data render returns **HTTP 200 with a valid PNG** carrying a constant ~3%
+opaque fraction from the service's own framing, while a layer with data in the
+window measures 8–29%. So each layer is rendered for the AOI *and* for a control
+window far outside it, and presence requires a margin (`PRESENCE_MARGIN = 0.02`)
+over that control. Live result for Dibrugarh: `nuis:AS_DI_agriculture` 28.8% vs
+1.6% control; and the *matching district* layer is the one that lights up
+(`AS_DI_*` over Dibrugarh, neither over Kerala) — which also corroborates which
+district an AOI falls in using ISRO's own data.
+
+### D18.4 — Radiometry validates itself against physics rather than trusting metadata
+**Decision:** the catalogue declares `scale 0.0001, offset -0.1` with
+`boa_offset_applied: True`; subtracting the offset again clamps 76–82% of pixels
+to zero and produced a plausible-looking `p50 = 0.000`. `fetch_scene` now reads raw
+digital numbers once, then tries conversions **in memory** and rejects any that
+fail physics (NDVI cannot exceed 1), falling back with a warning instead of
+publishing either the metadata's claim or its own assumption. Live re-run:
+reflectance p50 0.097, min 0.030, both dates 100% valid — the declared-offset path
+was rejected automatically and the warning is in the provenance.
+
+### D18.5 — Two silent failures in the online lane, pinned by tests
+**(a) The air-gap refusal was swallowed by the provider fallback**, so blocked
+network was indistinguishable from "no imagery here" — the exact silent-failure
+class this project keeps eliminating. `NetworkBlockedAirgap` now propagates.
+**(b) An environment variable persisted itself.** Running a smoke script with
+`SATQUERY_MODE=online` wrote `"mode": "online"` into `data/settings.json`,
+replacing the shipping air-gap default on every later launch. `enforce_from_env`
+is now a per-process override that never persists; a test asserts the file is
+untouched.
+
+### D19.1 — The authority lane reaches the decision layer (additive, offline)
+**Decision:** verified ISRO context travels with the run as a run-level key, and
+`satquery/decision/authority.py` turns it into facts plus plain English. Four
+rules, each pinned by `tests/test_authority_decision.py`:
+
+1. **Only verified layers count** (presence margin imported from the acquisition
+   lane, not re-guessed, so the two cannot drift). Blank tiles produce no block at
+   all. A test strips the `evidence` field and asserts coverage-minus-control still
+   decides, so presence cannot be laundered.
+2. **Presence is not agreement.** A map recording open land under new construction
+   sharpens *who to tell*; it never upgrades a detection, because corroboration is
+   not proof.
+3. **Only one conflict moves a verdict, and downward.** New built-up ground ≥ 0.5 ha
+   on ground the authority maps as water/wetland drops the headline to
+   `verify_first` (`V0_isro_water_conflict`) — two credible sources disagree, which
+   is precisely a stop-and-check. The construction finding is still reported as a
+   contributing conclusion, never discarded. The 0.5 ha floor is asserted equal to
+   `SIGNIFICANT_AREA_HA` so the two constants cannot drift apart.
+4. **Context is never invented or mixed.** No acquisition context means advice
+   byte-identical to before this existed; malformed context is ignored rather than
+   guessed at; and the authority text lives in its own report/UI section, never
+   inside our own measurement.
+
+A live browser run over Dibrugarh (2026-01-22 vs 2026-04-17, fetched and analysed
+end to end) rendering the panel is what exposed the remaining defect: emitting one
+sentence per layer read as self-contradiction ("shows agriculture, not built-up
+ground" directly above "already shows built-up") because both were true of
+*different parts* of a mixed 12 km window. The summariser now states the mix as a
+mix — shares for each theme, plus what that does and does not license — and says so
+only once.
+
+### D19.2 — Every investigation run was refusing to conclude (live-verified bug, fixed)
+**Finding:** `_run_investigation` nests its tool outputs under `investigation`
+(`investigation.impact`, `investigation.change`), and the fact layer read only the
+top level and `impact_analysis`. So on the flagship "full analysis" path
+`changed_area_ha` was absent, `R0_no_measurement` fired, and the user was told
+**"We could not find anything to base a decision on"** while the run held
+hectares, water proximity and ranked zones. The trust gate read the top-level
+`confidence_meta` only, so the same record reported no trust at all while the rules
+gated on one from the nested stamp. Fixed by resolving the run envelope in one
+place (`facts.resolve_run_outputs`), used by both the facts and the trust gate; the
+live investigation run now reports `monitor / V4_modest_change` with
+trust `moderate 0.505`. Regression test:
+`test_investigation_outputs_are_read_by_the_fact_layer`.
+
+### D20.1 — `docker build` was broken, and the image now checks its own offline assets
+**Finding:** `.dockerignore` matched root-relative paths and excluded `scripts/`,
+while both Dockerfiles did `COPY scripts/ scripts/`. Docker removes ignored paths
+from the context, so the build failed at that line (`failed to compute cache key:
+... not found`, the error the Docker docs show for a missing COPY source) — and the
+README advertises `docker build -t satquery .`. Fixed: `scripts/` is no longer
+ignored (the image ships the reproduction scripts, which was the Dockerfiles'
+intent), the rules are grouped and explained, and the trees that were never
+intended for the image but were still being uploaded to the builder are now
+excluded (`.cache/` 7.5 MB, `hub/`, and the ~10 MB of `.pptx` decks) — `data/`,
+`runs/` and `tests/` were already excluded and stay excluded. Both images now
+**assert their offline assets at build time** —
+the bundled place gazetteer, the ISRO layer index, and `web/dist/index.html` — so a
+future ignore-rule change fails the build instead of silently degrading the
+air-gapped demo at runtime.
+
+### D21 — Freeze record
+**Frozen at:** `audit/output-hardening`, working tree from the commits ending the
+Phase 15 work, 2026-09-18.
+
+**Verification run for the freeze (all reproducible, all offline):**
+
+| Check | Command | Result |
+|---|---|---|
+| Full suite | `python -m pytest tests -q` | **386 passed, 1 skipped** |
+| Air-gap profile (guard live: sockets + DNS refused) | `SATQUERY_MODE=airgap python -m pytest tests -q` | **386 passed, 1 skipped** |
+| Frontend typecheck + bundle | `cd web && npm run build` (`tsc --noEmit && vite build`) | clean |
+| Live online lane | `scripts/acquire_smoke.py` + one browser run (Dibrugarh) | plan → fetch → ISRO context → decision, end to end |
+| Deployment | `docker build` logic + build-time asset assertions | fixed (daemon not running locally, so verified structurally, not by a build) |
+
+**Explicitly NOT frozen-closed** (honest scope, unchanged from D17.4): the
+VRSBench-captioning 0.0 row (style mismatch, documented), the counting head at 0.44,
+and single-image VQA at 0.700 versus the paper's 79%. No new training is planned;
+the era of new experiments stays closed. Two known, non-blocking items are recorded
+rather than hidden: the acquisition-cache replay path is refused in air-gap mode
+before the cache is consulted (so a *first* look at a new area genuinely needs the
+network, while re-*analysis* of fetched files works offline), and `/api/fixtures`
+404s on this machine because the demo-fixtures manifest has not been primed here
+(by design — `scripts/warm_demo.py` writes it, and the endpoint's hint names that
+command; the console renders a degraded-state chip instead of inventing fixtures).
+Both are pre-existing, documented behaviours rather than regressions introduced in
+this phase.
+
 

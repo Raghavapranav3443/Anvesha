@@ -26,6 +26,16 @@ type Decision = {
   }
   sensitivity?: { available?: boolean; plain?: string }
   detection_floor?: { gsd_m?: number | null; hectares?: number | null; plain?: string }
+  // The authority lane: thematic layers ISRO's own map service shows for this
+  // same area, verified present against a control render. Kept separate from our
+  // own measurement so "what we found" and "what the official record says" are
+  // never read as one claim.
+  authority?: {
+    available?: boolean
+    themes?: string[]
+    sentences?: string[]
+    note?: string
+  }
   advice?: {
     headline?: string
     outcome_label?: string
@@ -37,6 +47,8 @@ type Decision = {
     what_we_cannot_tell?: string[]
     also_true?: string[]
     result_note?: string
+    what_the_authority_says?: string
+    authority_available?: boolean
   }
 }
 
@@ -111,6 +123,20 @@ export default function DecisionPanel({ decision }: { decision?: Decision }) {
             {' · '}we were right {(ev.observed_accuracy * 100).toFixed(0)}%
             {typeof ev.n === 'number' ? ` · ${ev.n} cases` : ''}
           </div>
+        </div>
+      )}
+
+      {!!decision.authority?.available && (
+        <div className="mt-3 rounded-lg border border-line bg-panel/60 p-3">
+          <div className="text-sm font-semibold uppercase tracking-wide text-faint">
+            What the official record says
+          </div>
+          <ul className="mt-1 list-disc space-y-1 pl-5 text-sm leading-relaxed text-muted">
+            {(decision.authority.sentences ?? []).map((t, i) => <li key={i}>{t}</li>)}
+          </ul>
+          {decision.authority.note && (
+            <p className="mt-2 text-xs leading-relaxed text-faint">{decision.authority.note}</p>
+          )}
         </div>
       )}
 

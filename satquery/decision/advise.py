@@ -140,6 +140,7 @@ def compose(record: Dict[str, Any]) -> Dict[str, Any]:
     facts = (record.get("facts") or {}).get("values", {}) or {}
     trust = record.get("trust") or {}
     rule_text = record.get("rule") or {}
+    authority = record.get("authority") or {}
 
     summary_bit = _area_sentence(facts)
     headline = rule_text.get("headline") or OUTCOME_LABELS.get(
@@ -165,6 +166,11 @@ def compose(record: Dict[str, Any]) -> Dict[str, Any]:
             what_we_found_parts.append(
                 f"The most affected part is the {facts['priority_zone']} of the "
                 f"area.")
+        # What the government's own map records for this ground. Only added when
+        # there is a finding to put it beside: next to "nothing large enough to
+        # be sure about" it would read as a contradiction instead of context.
+        # The dedicated field below always carries it, so it is never hidden.
+        what_we_found_parts.extend(authority.get("sentences") or [])
 
     advice = {
         "headline": headline,
@@ -177,6 +183,11 @@ def compose(record: Dict[str, Any]) -> Dict[str, Any]:
         "how_far_to_trust": _trust_sentence(trust),
         "what_we_cannot_tell": _cannot_tell(record),
         "result_note": rule_text.get("confidence_note", ""),
+        # The authority lane, kept separate from our own measurement so the two
+        # are never confused: this is what ISRO's map says, not what we found.
+        "what_the_authority_says": " ".join(authority.get("sentences") or []).strip(),
+        "authority_available": bool(authority.get("available")),
+        "authority_note": authority.get("note", ""),
         # Other conclusions that also hold. Shown separately so the headline
         # stays readable while nothing true is discarded.
         "also_true": [c.get("text", {}).get("headline", "")
