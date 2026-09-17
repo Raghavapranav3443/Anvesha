@@ -139,6 +139,54 @@ def test_transport_refuses_when_not_online(monkeypatch):
     assert "air-gap" in str(excinfo.value).lower()
 
 
+def test_airgap_serves_a_warm_cache_hit(_isolated_cache, monkeypatch):
+    """Air-gap mode replays a fetch it already made instead of refusing.
+
+    The refusal used to run *before* the cache was consulted, so a populated
+    cache was unreachable exactly when it was needed: offline, at the demo. No
+    socket is involved in a hit, so serving it cannot violate the air gap.
+    """
+    monkeypatch.setattr(http_mod, "current_mode", lambda: "airgap")
+    url = "https://example.invalid/scene.tif"
+    _isolated_cache.put(key_for("GET", url, {}, ""), b"tile-bytes")
+
+    transport = http_mod.RequestsTransport(cache=_isolated_cache)
+    assert transport.get_bytes(url) == b"tile-bytes"
+
+
+def test_airgap_still_refuses_when_nothing_is_cached(_isolated_cache,
+                                                    monkeypatch):
+    """The air gap still holds: a miss is refused before any I/O, and says so.
+
+    "No cached copy" and "not attempted" are different situations and the error
+    has to distinguish them, or the refusal reads as a bug in the network stack.
+    """
+    monkeypatch.setattr(http_mod, "current_mode", lambda: "airgap")
+    transport = http_mod.RequestsTransport(cache=_isolated_cache)
+    with pytest.raises(NetworkBlockedAirgap) as excinfo:
+        transport.get_bytes("https://example.invalid/never-fetched.tif")
+    assert "no cached copy" in str(excinfo.value)
+
+
+def test_cached_scene_search_is_replayed_offline(_isolated_cache, monkeypatch):
+    """A STAC search is a POST; its cached answer must be readable offline.
+
+    It was written and never read -- ``post_json`` passed ``use_cache=False``
+    down -- so re-running scene discovery for an area already searched had no
+    offline path at all, however warm the cache was.
+    """
+    url = "https://example.invalid/search"
+    payload = {"collections": ["sentinel-2-l2a"], "bbox": [0, 0, 1, 1]}
+    answer = {"features": [{"id": "S2B_TILE_20260417_0_L2A"}]}
+    _isolated_cache.put(key_for("POST", url, {}, payload),
+                        json.dumps(answer).encode("utf-8"), kind="stac",
+                        url=url)
+    monkeypatch.setattr(http_mod, "current_mode", lambda: "airgap")
+
+    transport = http_mod.RequestsTransport(cache=_isolated_cache)
+    assert transport.post_json(url, payload, kind="stac") == answer
+
+
 def test_env_mode_override_does_not_become_a_stored_preference(
         monkeypatch, tmp_path: Path):
     """An env var must not rewrite the saved mode.
@@ -375,6 +423,42 @@ def test_search_fallback_reports_empty_separately_from_failure():
     messages = " ".join(e["error"] for e in errors)
     assert "no scenes matched" in messages
     assert "AssertionError" in messages or len(errors) == 2
+
+
+def test_cloud_limit_is_named_when_it_rejected_every_scene():
+    """Scenes the cloud limit rejected must not read as "no scenes matched".
+
+    Live case: a monsoon window over Assam returned 21 scenes, the clearest at
+    24% cloud against a 20% limit, and the plan told the user that no scenes
+    matched in the date range -- naming the one lever that could not help.
+    """
+    provider = StacProvider(name="monsoon", endpoint="https://example.invalid/v1")
+    transport = FakeTransport(json_map={
+        provider._search_url(): {"features": [_feature(24), _feature(88)]}
+    })
+    scenes, errors = search_with_fallback([provider], (94.8, 27.4, 94.9, 27.5),
+                                          start="2026-06-20", end="2026-09-18",
+                                          transport=transport, max_cloud_pct=20)
+    assert scenes == []
+    message = errors[0]["error"]
+    assert "no scenes matched" not in message, message
+    assert "2 scene(s) matched" in message
+    assert "20% cloud limit" in message
+    assert "24%" in message, "the clearest scene's cloud cover is the useful number"
+    assert "widening the dates will not help" in message
+
+
+def test_the_advice_in_that_message_actually_works():
+    """Raising the cloud limit returns the scenes the message named."""
+    provider = StacProvider(name="monsoon", endpoint="https://example.invalid/v1")
+    transport = FakeTransport(json_map={
+        provider._search_url(): {"features": [_feature(24), _feature(88)]}
+    })
+    scenes, errors = search_with_fallback([provider], (94.8, 27.4, 94.9, 27.5),
+                                          start="2026-06-20", end="2026-09-18",
+                                          transport=transport, max_cloud_pct=30)
+    assert [s.cloud_pct for s in scenes] == [24]
+    assert errors == []
 
 
 # --------------------------------------------------------------------------- #

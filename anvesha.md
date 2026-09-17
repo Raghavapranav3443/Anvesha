@@ -246,13 +246,17 @@ it plainly, because this is the claim most likely to be misread:
 | Finding and downloading imagery for a place name | **yes** — open Sentinel-2 files on open cloud catalogues |
 | Asking ISRO's Bhuvan map service what it records for that area | **yes** — ISRO's own live service |
 | Re-looking at a place you already looked up | no — cached on disk from the first look |
+| Re-planning an area you already searched (which passes exist) | no — the catalogue's answer replays from cache |
+| Re-rendering ISRO context already verified | no — the rendered tiles replay from cache |
+| Re-downloading the pixels for an area you already fetched | **yes** — windowed reads go straight to the source; analyse the files on disk |
 | Choosing which ISRO layer applies to a state | no — a small index of layer names ships with the app |
 | Analysing, reporting, deciding, all benchmarks | no — CPU only, no network, ever |
 
 So: **the app cannot fetch Bhuvan data without internet** — Bhuvan is a live service on ISRO's
 servers, and pretending otherwise would be the kind of claim a judge can disprove in one
-unplugged demo. What *is* offline is the layer catalogue, previously fetched results, and the
-entire analysis path. That is why the demo that matters is the one where you cut the network
+unplugged demo. What *is* offline is the layer catalogue, every result already fetched (scene
+searches and ISRO tiles replay from the local cache without opening a socket), and the entire
+analysis path. That is why the demo that matters is the one where you cut the network
 and re-run the analysis: same answer, no internet, `/api/mode/blocked` showing what the guard
 refused.
 

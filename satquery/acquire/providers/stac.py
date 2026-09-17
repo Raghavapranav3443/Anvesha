@@ -189,8 +189,16 @@ class StacProvider:
 
     def search(self, bbox: BBox, *, start: str, end: str,
                transport: Transport, limit: int = 40,
-               max_cloud_pct: Optional[float] = None) -> List[SceneRef]:
-        """Search this catalogue. Server-side filtering is deliberately absent."""
+               max_cloud_pct: Optional[float] = None,
+               stats: Optional[Dict[str, Any]] = None) -> List[SceneRef]:
+        """Search this catalogue. Server-side filtering is deliberately absent.
+
+        ``stats``, when passed, is filled with what the catalogue actually
+        returned. A caller that ends up with nothing needs it to explain itself:
+        "21 scenes matched and the cloud limit rejected all of them" and "no
+        scenes matched" lead the user to different levers, and only one of them
+        (widening the dates) is useless for the first.
+        """
         if self.requires_signing:
             raise NoCatalogAvailable(
                 f"{self.name} requires credentials; falling back is the caller's job")
@@ -208,7 +216,21 @@ class StacProvider:
         features = (data or {}).get("features") or []
         refs = [self._to_ref(f) for f in features if isinstance(f, dict)]
         refs = [r for r in refs if r.scene_id]
-        return self.filter_cloud(refs, max_cloud_pct)
+        kept = self.filter_cloud(refs, max_cloud_pct)
+        if stats is not None:
+            known = [r.cloud_pct for r in refs if r.cloud_pct is not None]
+            stats.clear()
+            stats.update({
+                "provider": self.name,
+                "returned": len(features),
+                "with_assets": len(refs),
+                "kept": len(kept),
+                "lowest_cloud_pct": min(known) if known else None,
+                "unknown_cloud": sum(1 for r in refs if r.cloud_pct is None),
+                "max_cloud_pct": (None if max_cloud_pct is None
+                                  else float(max_cloud_pct)),
+            })
+        return kept
 
     @staticmethod
     def filter_cloud(refs: Iterable[SceneRef],
@@ -290,6 +312,41 @@ def default_providers(primary: Optional[str] = None,
     return ordered
 
 
+def empty_search_reason(stats: Dict[str, Any], *, start: str, end: str) -> str:
+    """Why a search produced nothing, in the terms the user can act on.
+
+    "No scenes matched in this date range" is true only when the catalogue
+    returned nothing. When scenes *did* match and the cloud limit rejected every
+    one of them, saying "no scenes matched" is false and actively unhelpful: it
+    points at the date range, so the user widens the dates, gets the same
+    answer, and never learns that the lever was the cloud threshold.
+    """
+    returned = int(stats.get("returned") or 0)
+    usable = int(stats.get("with_assets") or 0)
+    if returned == 0:
+        return "no scenes matched in this date range"
+    if usable == 0:
+        return (f"{returned} scene(s) matched {start}..{end}, but none carried "
+                f"the bands this analysis needs")
+    limit = stats.get("max_cloud_pct")
+    if limit is None:
+        return (f"{returned} scene(s) matched {start}..{end}, but none survived "
+                f"filtering")
+    lowest = stats.get("lowest_cloud_pct")
+    unknown = int(stats.get("unknown_cloud") or 0)
+    if lowest is None:                                   # pragma: no cover
+        detail = (f"cloud cover is unknown for all {usable} of them, which is "
+                  f"surfaced rather than dropped")
+    else:
+        detail = f"the clearest was {lowest:.0f}%"
+        if unknown:
+            detail += f" and {unknown} had unknown cloud cover"
+    return (f"{returned} scene(s) matched {start}..{end}, but all were rejected "
+            f"by the {limit:.0f}% cloud limit ({detail}). Raise the cloud limit, "
+            f"or expect a clearer season than this one -- widening the dates "
+            f"will not help.")
+
+
 def search_with_fallback(providers: Sequence[StacProvider], bbox: BBox, *,
                          start: str, end: str, transport: Transport,
                          limit: int = 40,
@@ -304,10 +361,11 @@ def search_with_fallback(providers: Sequence[StacProvider], bbox: BBox, *,
     """
     errors: List[Dict[str, str]] = []
     for provider in providers:
+        stats: Dict[str, Any] = {}
         try:
             found = provider.search(bbox, start=start, end=end,
                                     transport=transport, limit=limit,
-                                    max_cloud_pct=max_cloud_pct)
+                                    max_cloud_pct=max_cloud_pct, stats=stats)
         except NetworkBlockedAirgap:
             # Air-gap is a policy decision, not a catalogue problem. Treating it
             # as a provider failure made "blocked by policy" indistinguishable
@@ -321,5 +379,6 @@ def search_with_fallback(providers: Sequence[StacProvider], bbox: BBox, *,
         if found:
             return found, errors
         errors.append({"provider": provider.name,
-                       "error": "no scenes matched in this date range"})
+                       "error": empty_search_reason(stats, start=start,
+                                                   end=end)})
     return [], errors

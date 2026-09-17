@@ -849,8 +849,10 @@ def _acquire_error(exc: Exception, *, action: str):
     if isinstance(exc, NetworkBlockedAirgap) or "air-gap" in message.lower():
         return _http(409, message, code="airgap_mode",
                      hint=("Anvesha is in air-gap mode, so it will not reach the "
-                           "network. Switch to online mode to fetch imagery, or "
-                           "analyse files you already have offline."))
+                           "network. Results already fetched are replayed from "
+                           "the local cache; this request had none. Switch to "
+                           "online mode to fetch it, or analyse the files you "
+                           "already have offline."))
     if isinstance(exc, PlaceNotFound):
         return _http(422, message, code="place_not_found",
                      hint="Try '<town>, <state>', or give coordinates like "

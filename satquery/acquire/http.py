@@ -1,4 +1,4 @@
-"""HTTP transport with retries, caching and an air-gap refusal that runs first.
+"""HTTP transport with retries, caching and an air-gap refusal that serves the cache first.
 
 The transport is a seam on purpose
 ---------------------------------
@@ -15,11 +15,18 @@ directly. That gives three things that matter for this project:
 
 Air-gap ordering
 ----------------
-:meth:`RequestsTransport.get_bytes` checks the mode *before* attempting I/O and
-raises :class:`NetworkBlockedAirgap` with a message naming the target. The
-installed audit hook in :mod:`satquery.acquire.mode` remains the backstop for
-any code path that does reach a socket -- this is belt and braces, and the
-early check exists to produce a clear error rather than a deep GDAL traceback.
+:meth:`RequestsTransport._request` resolves the cache key and serves a **cache
+hit first**; only a miss reaches the mode check that raises
+:class:`NetworkBlockedAirgap`. The order is the point. A hit performs no I/O, so
+air-gap mode can still replay a fetch the app already made -- a scene search or
+an ISRO map render included -- instead of reading "offline" as "nothing works".
+This was the reverse, and the refusal ran first: a fully populated cache was
+unreachable the moment the app went offline, which is exactly the mode the
+demo ships in. A miss still refuses *before* any socket call, and the appended
+hint distinguishes "not cached" from "not attempted". The installed audit hook
+in :mod:`satquery.acquire.mode` remains the backstop for any code path that does
+reach a socket -- this is belt and braces, and the early check exists to produce
+a clear error rather than a deep GDAL traceback.
 """
 from __future__ import annotations
 
@@ -67,10 +74,18 @@ class Transport(Protocol):
 
 
 def _require_online(target: str) -> None:
+    """Refuse outbound I/O in air-gap mode.
+
+    Called only after the cache has missed, so the message can say the honest
+    thing: there is no local copy of this request, which is why it would need the
+    network. Saying "refused" without that distinction reads as a bug in the
+    network stack rather than a policy the user can act on.
+    """
     if current_mode() != "online":
         raise NetworkBlockedAirgap(
-            f"air-gap mode: refusing to contact {target}. "
-            f"Switch to online mode to fetch imagery.",
+            f"air-gap mode: refusing to contact {target} -- no cached copy of "
+            f"this request exists. Switch to online mode to fetch imagery, or "
+            f"re-run work whose data was already fetched.",
             event="acquire.http", target=target)
 
 
@@ -118,14 +133,17 @@ class RequestsTransport:
                  body: Any = None,
                  use_cache: bool = True,
                  kind: str = "") -> Tuple[bytes, Dict[str, str], str]:
-        _require_online(url)
-        import requests  # imported lazily so air-gap paths never import the stack
-
         key = self._key(method, url, params, body)
-        if use_cache and method == "GET":
+        # Cache first, mode second. A hit does no I/O, so air-gap mode can still
+        # serve it; only a miss is refused below. Both methods read the cache for
+        # the same reason: a STAC search is a deterministic read expressed as a
+        # POST, and its result was already being written and never read back.
+        if use_cache:
             cached = self.cache.get(key)
             if cached is not None:
                 return cached, {"X-Anvesha-Cache": "hit"}, key
+        _require_online(url)
+        import requests  # imported lazily so air-gap paths never import the stack
 
         last_error: Optional[Exception] = None
         for attempt in range(self.retries):
@@ -191,14 +209,14 @@ class RequestsTransport:
                   use_cache: bool = True, kind: str = "json") -> Any:
         head = dict(headers or {})
         head.setdefault("Accept", "application/json")
-        raw, _hdr, key = self._request(
+        raw, hdr, key = self._request(
             "POST", url, headers=head, timeout=timeout, body=payload,
-            use_cache=False)
-        # Cache POST results too: a STAC search is deterministic for our
-        # purposes and re-running it offline should reuse the answer.
-        if use_cache:
-            self.cache.put(self._key("POST", url, None, payload), raw,
-                           kind=kind, url=url)
+            use_cache=use_cache)
+        # Cache POST results too, and *read* them on the way in (see _request): a
+        # STAC search is deterministic for our purposes, so re-running it offline
+        # reuses the answer rather than failing on the missing network.
+        if use_cache and hdr.get("X-Anvesha-Cache") != "hit":
+            self.cache.put(key, raw, kind=kind, url=url)
         try:
             return json.loads(raw.decode("utf-8"))
         except Exception as exc:

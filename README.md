@@ -67,14 +67,18 @@ is the claim most likely to be misread:
 | Fetching imagery for a place name (open Sentinel-2 COGs) | **yes** |
 | Fetching ISRO thematic context (Bhuvan WMS) | **yes** |
 | Resolving a place name already looked up once | no — cached on disk |
+| Re-running a plan for an area you already searched (which passes exist) | no — the catalogue's own answer replays from cache |
+| Re-rendering ISRO context already verified for an area | no — the rendered tiles replay from cache |
+| Re-downloading the pixels for an area you already fetched | **yes** — windowed COG reads bypass the cache; analyse the files already on disk |
 | Selecting a Bhuvan layer for a state/theme | no — bundled 135 KB layer index |
 | Analysing, reporting, deciding, every benchmark | no — CPU, no network, ever |
 
 So the honest sentence is: *the ISRO context lane is queried live over the
-network; its layer selection and every fetched result are cached, so the second
-look at an area needs no network.* Nothing here fetches Bhuvan data without a
-network, and in air-gap mode a fetch request is refused with HTTP 409
-`airgap_mode` rather than quietly returning "no imagery here".
+network; its layer selection and every fetched result are cached and replayed
+automatically, so the second look at an area needs no network.* Nothing here
+fetches Bhuvan data without a network, and in air-gap mode a request that has no
+cached answer is refused with HTTP 409 `airgap_mode` — naming that it had no
+cached copy — rather than quietly returning "no imagery here".
 
 Two lanes, because they answer different questions:
 

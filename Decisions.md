@@ -914,13 +914,60 @@ Phase 15 work, 2026-09-18.
 VRSBench-captioning 0.0 row (style mismatch, documented), the counting head at 0.44,
 and single-image VQA at 0.700 versus the paper's 79%. No new training is planned;
 the era of new experiments stays closed. Two known, non-blocking items are recorded
-rather than hidden: the acquisition-cache replay path is refused in air-gap mode
-before the cache is consulted (so a *first* look at a new area genuinely needs the
-network, while re-*analysis* of fetched files works offline), and `/api/fixtures`
-404s on this machine because the demo-fixtures manifest has not been primed here
-(by design — `scripts/warm_demo.py` writes it, and the endpoint's hint names that
-command; the console renders a degraded-state chip instead of inventing fixtures).
-Both are pre-existing, documented behaviours rather than regressions introduced in
-this phase.
+rather than hidden: a *first* look at a new area genuinely needs the network while
+re-analysis of fetched files does not (the ordering defect that made even an
+already-*cached* look need the network is fixed in D22), and `/api/fixtures` 404s on
+this machine because the demo-fixtures manifest has not been primed here (by design
+— `scripts/warm_demo.py` writes it, and the endpoint's hint names that command; the
+console renders a degraded-state chip instead of inventing fixtures). The second is a
+pre-existing, documented behaviour rather than a regression introduced in this phase.
+
+
+### D22 — The offline path now actually replays, and an empty search says why
+**Found by:** running the shipping air-gap mode (the default in `data/settings.json`)
+rather than trusting a comment that asserted the behaviour. Two defects, unrelated
+except that the first is what made the second visible.
+
+**1. The cache was unreachable exactly when it was needed.**
+`RequestsTransport._request` called `_require_online()` *before* consulting the disk
+cache, so in air-gap mode a fully populated cache raised `NetworkBlockedAirgap`. The
+app read "offline" as "nothing works", and what it could not do was replay its own
+previous fetches — the one thing air-gap mode is *for*. The order is inverted:
+resolve the key, serve a hit (a hit opens no socket, so the air gap is untouched),
+and let only a miss reach the refusal. `post_json` held the matching half-bug: its
+comment claimed "re-running it offline should reuse the answer", it wrote POST
+results (the STAC scene search is a POST), and it never read them back, because it
+passed `use_cache=False` on the way in.
+
+The refusal message now distinguishes the two situations it used to conflate: a
+miss says *no cached copy of this request exists*, and the API's 409 hint says that
+cached results are replayed automatically, so a 409 means this request has no local
+answer. **Boundary this does not move:** imagery pixels are read by
+`rasterio.open(url)` directly, bypassing this cache, so re-downloading a window
+still needs the network. Re-*analysis* of files already on disk never did.
+
+**2. "No scenes matched in this date range" was sometimes false.** A monsoon plan
+over Assam returned 21 scenes, the clearest at 24% cloud against a 20% limit, and
+the plan reported that no scenes matched the date range — naming the one lever
+(widening the dates) that could not possibly help, while staying silent about the
+one that would. Scene counts are now carried out of the provider (`stats=`) and the
+empty case explains itself: *21 scene(s) matched 2026-06-19..2026-09-18, but all were
+rejected by the 20% cloud limit (the clearest was 24%)*. A catalogue that genuinely
+returns nothing still says "no scenes matched".
+
+**Live evidence** (air-gap mode, no network, real populated cache):
+
+| Check | Result |
+|---|---|
+| Plan for an area already fetched | both STAC searches served from cache (`X-Anvesha-Cache: hit`, 21 and 22 features) — previously a refusal |
+| Same command, a place never looked up | still refused: "refusing to contact https://nominatim.openstreetmap.org/search -- no cached copy of this request exists" |
+| Why that plan is empty | "21 scene(s) matched ... all were rejected by the 20% cloud limit (the clearest was 24%)" |
+| Full suite, plain / air-gap profile | **391 passed, 1 skipped** / **391 passed, 1 skipped** |
+
+**Tests added:** `test_airgap_serves_a_warm_cache_hit`,
+`test_airgap_still_refuses_when_nothing_is_cached`,
+`test_cached_scene_search_is_replayed_offline`,
+`test_cloud_limit_is_named_when_it_rejected_every_scene`,
+`test_the_advice_in_that_message_actually_works`.
 
 
