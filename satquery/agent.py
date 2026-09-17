@@ -855,6 +855,14 @@ def write_report(result: AgentResult, images: Sequence[RSImage],
         status = s.get('status', 'ok')
         dur = f"{s.get('duration_ms')} ms" if s.get('duration_ms') else '—'
         md.append(f"| `{name}` | {status} | {dur} |")
+    # The decision layer answers "what do I do with this?", which is the whole
+    # reason a non-expert downloads a report. It gets a readable section *before*
+    # the raw dump rather than appearing as a key inside it.
+    try:
+        from .decision.render import as_markdown as _decision_md
+        md += _decision_md(payload["outputs"].get("decision"))
+    except Exception:
+        pass
     md += ["", "---", "", "## Outputs", "", "```json",
            json.dumps(payload["outputs"], indent=2, default=str)[:4000],
            "```", "", "---",

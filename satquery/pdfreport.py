@@ -206,6 +206,43 @@ def _reportlab_pdf(data: dict, run_dir: Path, out: Path, run_id: str = ""):
             y -= 4.5 * mm
         y -= 2 * mm
 
+    # ── What to do (decision layer) ──────────────────────────────────
+    # A user who downloads the PDF is the user who needs the decision, so it is
+    # rendered as its own section ahead of the raw outputs rather than appearing
+    # as one more key in the summary loop below.
+    decision = (data.get("outputs", {}) or {}).get("decision") or {}
+    advice = decision.get("advice") or {}
+    if advice:
+        check_page(40)
+        section_header(advice.get("outcome_label") or "What to do")
+        if advice.get("headline"):
+            text(str(advice["headline"]), 11, bold=True, max_width=W - 2 * margin)
+        for label, body in (("What we found", advice.get("what_we_found")),
+                            ("What it means", advice.get("what_it_means")),
+                            ("What to do", advice.get("what_to_do")),
+                            ("Who to tell", advice.get("who_to_tell")),
+                            ("How far to trust this", advice.get("how_far_to_trust"))):
+            if not body:
+                continue
+            check_page(20)
+            c.setFont("Helvetica-Bold", 9)
+            c.setFillColor(dark)
+            c.drawString(margin + 2 * mm, y, f"{label}:")
+            y -= 4.5 * mm
+            text(str(body), 9, max_width=W - 2 * margin - 4 * mm)
+        limits = [t for t in (advice.get("what_we_cannot_tell") or []) if t]
+        if limits:
+            check_page(20)
+            c.setFont("Helvetica-Bold", 9)
+            c.setFillColor(dark)
+            c.drawString(margin + 2 * mm, y, "What this cannot tell you:")
+            y -= 4.5 * mm
+            for item in limits:
+                check_page(15)
+                text(f"- {item}", 8.5, max_width=W - 2 * margin - 4 * mm,
+                     color=muted)
+        y -= 3 * mm
+
     # ── Structured Outputs (summary) ─────────────────────────────────
     outputs = data.get("outputs", {})
     if outputs:
