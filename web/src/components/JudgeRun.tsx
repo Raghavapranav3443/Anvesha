@@ -39,10 +39,10 @@ export default function JudgeRun() {
     <div className="rounded-xl border border-line bg-panel p-5">
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <div className="text-[15px] font-semibold text-body">Judge-run checklist</div>
-          <div className="text-[12px] text-muted">5 mandatory workflows — each tied to a real run_id</div>
+          <div className="text-sm font-semibold text-body">Judge-run checklist</div>
+          <div className="text-xs text-muted">5 mandatory workflows — each tied to a real run_id</div>
         </div>
-        <div className={`rounded-full px-3 py-1 text-[12px] font-semibold ${
+        <div className={`rounded-full px-3 py-1 text-xs font-semibold ${
           greens === total ? 'bg-good/20 text-good' : 'bg-warn/20 text-warn'
         }`}>
           {greens}/{total} green{greens === total ? ' — all workflows live' : ' — keep going'}
@@ -55,24 +55,24 @@ export default function JudgeRun() {
             <li key={it.id} className={`flex items-center gap-3 rounded-lg border px-3 py-2 ${
               hit ? 'border-good/30 bg-good/5' : 'border-line bg-elev'
             }`}>
-              <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
+              <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                 hit ? 'bg-good text-white' : 'bg-line text-muted'
               }`}>{hit ? '✓' : '○'}</span>
               <div className="min-w-0 flex-1">
-                <div className="text-[13.5px] font-medium text-body">{it.label}</div>
-                <div className="truncate text-[11.5px] text-muted">{it.hint}</div>
+                <div className="text-sm font-medium text-body">{it.label}</div>
+                <div className="truncate text-xs text-muted">{it.hint}</div>
               </div>
               {hit && (
                 <div className="shrink-0 text-right">
-                  <div className="font-mono text-[12px] text-good">run {hit.run_id?.slice(-8) || hit.job_id?.slice(-8)}</div>
-                  <div className="text-[11px] text-muted">conf {((hit.confidence ?? 0) * 100).toFixed(0)}%</div>
+                  <div className="font-mono text-xs text-good">run {hit.run_id?.slice(-8) || hit.job_id?.slice(-8)}</div>
+                  <div className="text-xs text-muted">conf {((hit.confidence ?? 0) * 100).toFixed(0)}%</div>
                 </div>
               )}
             </li>
           )
         })}
       </ul>
-      {loading && <div className="mt-2 text-[11px] text-muted">Loading history…</div>}
+      {loading && <div className="mt-2 text-xs text-muted">Loading history…</div>}
     </div>
   )
 }

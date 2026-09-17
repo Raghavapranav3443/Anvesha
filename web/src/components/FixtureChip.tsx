@@ -36,7 +36,7 @@ export default function FixtureChip({ result }: { result: JobResult }) {
   const green = match.status === 'green'
 
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded border px-2 py-0.5 font-mono text-[12.5px] ${
+    <span className={`inline-flex items-center gap-1.5 rounded border px-2 py-0.5 font-mono text-xs ${
       green ? 'border-warn/50 bg-warn-soft text-warn'
             : 'border-bad/50 bg-bad-soft text-bad'}`}>
       <span className="h-1.5 w-1.5 rounded-full bg-warn" />

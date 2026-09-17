@@ -22,15 +22,15 @@ function ConfidenceRing({ value }: { value: number }) {
           strokeLinecap="round" strokeDasharray={C} strokeDashoffset={off}
           style={{ transition: 'stroke-dashoffset 1s ease' }} />
       </svg>
-      <span className="absolute inset-0 flex items-center justify-center font-mono text-[16.5px] font-medium text-body">
+      <span className="absolute inset-0 flex items-center justify-center font-mono text-base font-medium text-body">
         {Math.round(value * 100)}%
       </span>
       <div className="pointer-events-none absolute left-0 top-full z-30 mt-2 w-72 rounded-lg border border-line bg-panel p-3 opacity-0 shadow-xl transition-opacity duration-200 group-hover:opacity-100">
-        <div className="text-[13.5px] font-medium leading-snug text-body">
+        <div className="text-sm font-medium leading-snug text-body">
           How sure the specialist is, tuned so 80% has historically meant about
           80% correct.
         </div>
-        <div className="mt-2 font-mono text-[11.5px] leading-relaxed text-accent">
+        <div className="mt-2 font-mono text-xs leading-relaxed text-accent">
           confidence = ½ base + signal + specificity − assumed-GSD penalty
         </div>
       </div>
@@ -72,9 +72,9 @@ function ImpactSection({ impact }: { impact: any }) {
         <Stat label="Priority zone" value={impact.priority_zone || '—'} />
       </div>
       <div className="overflow-hidden rounded-lg border border-line">
-        <table className="w-full text-left text-[14.5px]">
+        <table className="w-full text-left text-sm">
           <thead>
-            <tr className="border-b border-line bg-elev text-[13px] uppercase tracking-wider text-muted">
+            <tr className="border-b border-line bg-elev text-sm uppercase tracking-wider text-muted">
               <th className="px-3 py-2 font-medium">Finding</th>
               <th className="px-3 py-2 font-medium">Where</th>
               <th className="px-3 py-2 font-medium">Recommended action</th>
@@ -94,14 +94,14 @@ function ImpactSection({ impact }: { impact: any }) {
       {impact.zones_top?.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {impact.zones_top.map((z: any) => (
-            <span key={z.zone} className="rounded-lg border border-line bg-elev px-2.5 py-1 font-mono text-[13.5px] text-body">
+            <span key={z.zone} className="rounded-lg border border-line bg-elev px-2.5 py-1 font-mono text-sm text-body">
               {z.zone} · {z.area_ha} ha · water {Math.round(z.near_water_frac * 100)}%
             </span>
           ))}
         </div>
       )}
       {impact.gsd_assumed && (
-        <p className="text-[14px] italic text-warn">
+        <p className="text-sm italic text-warn">
           Ground resolution assumed 10 m/pixel (input is not georeferenced): areas are estimates.
         </p>
       )}
@@ -118,7 +118,7 @@ function FusionSection({ o, runId }: { o: Record<string, any>; runId: string }) 
       <div className="space-y-1.5">
         {entries.map(([k, v]) => (
           <div key={k} className="flex items-center gap-3">
-            <span className="w-56 shrink-0 truncate text-[15px] text-body">{k}</span>
+            <span className="w-56 shrink-0 truncate text-sm text-body">{k}</span>
             <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-elev">
               <div className="h-full rounded-full bg-accent transition-all duration-700"
                 style={{ width: `${(v as number) * 100}%` }} />
@@ -130,7 +130,7 @@ function FusionSection({ o, runId }: { o: Record<string, any>; runId: string }) 
       {o.agreement && (
         <div className="flex flex-wrap gap-1.5">
           {Object.entries(o.agreement as Record<string, string>).map(([k, v]) => (
-            <span key={k} className="rounded-full border border-line bg-elev px-2.5 py-0.5 font-mono text-[13px] uppercase tracking-wide text-muted">
+            <span key={k} className="rounded-full border border-line bg-elev px-2.5 py-0.5 font-mono text-sm uppercase tracking-wide text-muted">
               {k}: {v}
             </span>
           ))}
@@ -145,13 +145,13 @@ function FusionSection({ o, runId }: { o: Record<string, any>; runId: string }) 
           <figcaption className="border-t border-line bg-elev px-3 py-2">
             <div className="flex flex-wrap gap-1.5">
               {Object.entries(fractions).map(([k, v]) => (
-                <span key={k} className="rounded-full border border-line bg-panel px-2.5 py-0.5 font-mono text-[12.5px] text-body">
+                <span key={k} className="rounded-full border border-line bg-panel px-2.5 py-0.5 font-mono text-xs text-body">
                   {k}: {(Number(v) * 100).toFixed(1)}%
                 </span>
               ))}
             </div>
             {Array.isArray(am.notes) && am.notes.length > 0 && (
-              <p className="mt-1.5 text-[13.5px] italic text-muted">
+              <p className="mt-1.5 text-sm italic text-muted">
                 {(am.notes as string[]).join(' ')}
               </p>
             )}
@@ -178,10 +178,10 @@ function ChangeSection({ o }: { o: Record<string, any> }) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         {(o.increased as string[] | undefined)?.map((c) => (
-          <span key={c} className="rounded-md border border-good/40 bg-good/10 px-2.5 py-1 text-[14.5px] text-good">▲ {c}</span>
+          <span key={c} className="rounded-md border border-good/40 bg-good/10 px-2.5 py-1 text-sm text-good">▲ {c}</span>
         ))}
         {(o.decreased as string[] | undefined)?.map((c) => (
-          <span key={c} className="rounded-md border border-bad/40 bg-bad/10 px-2.5 py-1 text-[14.5px] text-bad">▼ {c}</span>
+          <span key={c} className="rounded-md border border-bad/40 bg-bad/10 px-2.5 py-1 text-sm text-bad">▼ {c}</span>
         ))}
         <span className="rounded-md border border-line bg-elev px-2.5 py-1 font-mono text-xs text-body">
           changed {(Number(o.changed_area_fraction) * 100).toFixed(1)}%
@@ -194,9 +194,9 @@ function ChangeSection({ o }: { o: Record<string, any> }) {
       </div>
       {transitions.length > 0 && (
         <div className="overflow-hidden rounded-lg border border-line">
-          <table className="w-full text-left text-[14.5px]">
+          <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-line bg-elev text-[13px] uppercase tracking-wider text-muted">
+              <tr className="border-b border-line bg-elev text-sm uppercase tracking-wider text-muted">
                 <th className="px-3 py-2 font-medium">From</th>
                 <th className="px-3 py-2 font-medium">To</th>
                 <th className="px-3 py-2 font-medium">Area / share</th>
@@ -207,7 +207,7 @@ function ChangeSection({ o }: { o: Record<string, any> }) {
                 <tr key={i} className="border-b border-line/60 last:border-0">
                   <td className="px-3 py-2.5 text-body">{t.from_class ?? t.from ?? '—'}</td>
                   <td className="px-3 py-2.5 text-body">{t.to_class ?? t.to ?? '—'}</td>
-                  <td className="px-3 py-2.5 font-mono text-[13px] text-muted">
+                  <td className="px-3 py-2.5 font-mono text-sm text-muted">
                     {typeof t.area_ha === 'number' ? `${t.area_ha} ha` : ''}
                     {typeof t.pct === 'number' ? ` ${t.pct.toFixed(1)}%` : ''}
                     {typeof t.count === 'number' ? ` · ${t.count} px` : ''}
@@ -219,7 +219,7 @@ function ChangeSection({ o }: { o: Record<string, any> }) {
         </div>
       )}
       {o.transition_summary && (
-        <p className="text-[13.5px] italic text-muted">{String(o.transition_summary)}</p>
+        <p className="text-sm italic text-muted">{String(o.transition_summary)}</p>
       )}
     </div>
   )
@@ -241,32 +241,32 @@ function GroundingSection({ o, result }: { o: Record<string, any>; result: JobRe
       </div>
       {ranked?.primary && (
         <div className="rounded-lg border border-good/40 bg-good/10 px-3 py-2">
-          <div className="text-[13px] font-medium uppercase tracking-wider text-good">Primary region</div>
-          <div className="mt-0.5 font-mono text-[13px] text-body">
+          <div className="text-sm font-medium uppercase tracking-wider text-good">Primary region</div>
+          <div className="mt-0.5 font-mono text-sm text-body">
             {JSON.stringify(ranked.primary.box ?? ranked.primary)}
           </div>
           {ranked.primary.why && (
-            <p className="mt-0.5 text-[13.5px] italic text-muted">{String(ranked.primary.why)}</p>
+            <p className="mt-0.5 text-sm italic text-muted">{String(ranked.primary.why)}</p>
           )}
         </div>
       )}
       {Array.isArray(ranked?.alternates) && ranked.alternates.length > 0 && (
         <div className="space-y-1.5">
-          <div className="text-[13px] uppercase tracking-wider text-faint">Alternates</div>
+          <div className="text-sm uppercase tracking-wider text-faint">Alternates</div>
           {ranked.alternates.slice(0, 2).map((a: any, i: number) => (
             <div key={i} className="rounded-lg border border-line bg-elev px-3 py-2">
-              <div className="font-mono text-[13px] text-body">
+              <div className="font-mono text-sm text-body">
                 {JSON.stringify(a.box ?? a)}
               </div>
               {a.why && (
-                <p className="mt-0.5 text-[13.5px] italic text-muted">{String(a.why)}</p>
+                <p className="mt-0.5 text-sm italic text-muted">{String(a.why)}</p>
               )}
             </div>
           ))}
         </div>
       )}
       {boxes.length > 0 && (
-        <p className="text-[13.5px] text-muted">
+        <p className="text-sm text-muted">
           {boxes.length} bounding {boxes.length === 1 ? 'box' : 'boxes'} — overlaid on the map
           when the input is georeferenced; drag a rectangle below to ask about any
           single region.
@@ -274,7 +274,7 @@ function GroundingSection({ o, result }: { o: Record<string, any>; result: JobRe
       )}
       {(result.inputs?.length ?? 0) === 1 && topBox && (
         <div className="mt-2 rounded-lg border border-line p-4">
-          <div className="mb-2 text-[13px] uppercase tracking-wider text-faint">
+          <div className="mb-2 text-sm uppercase tracking-wider text-faint">
             Ask about the top region
           </div>
           <RegionQuery preset={topBox} result={result} />
@@ -289,8 +289,8 @@ function LabelChips({ o }: { o: Record<string, any> }) {
   return (
     <div className="flex flex-wrap gap-1.5">
       {(o.labels as [string, number][]).map(([n, s]) => (
-        <span key={n} className="rounded-full border border-line bg-elev px-2.5 py-1 text-[14.5px] text-body">
-          {n} <span className="font-mono text-[13px] text-muted">{s}</span>
+        <span key={n} className="rounded-full border border-line bg-elev px-2.5 py-1 text-sm text-body">
+          {n} <span className="font-mono text-sm text-muted">{s}</span>
         </span>
       ))}
     </div>
@@ -300,15 +300,33 @@ function LabelChips({ o }: { o: Record<string, any> }) {
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-line bg-elev px-3 py-2.5">
-      <div className="text-[13px] uppercase tracking-wider text-faint">{label}</div>
-      <div className="mt-0.5 font-mono text-[16.5px] font-medium text-body">{value}</div>
+      <div className="text-sm uppercase tracking-wider text-faint">{label}</div>
+      <div className="mt-0.5 font-mono text-base font-medium text-body">{value}</div>
     </div>
   )
 }
 
-export default function Results({ result, onFollowUp, onRequestSwitch }:
+/** Export cluster — reused inline in Results and in the Console output-modal
+ *  header (top-right corner). */
+export function ExportLinks({ runId, task }: { runId?: string; task?: string }) {
+  if (!runId) return null
+  const linkCls = ('rounded-lg border border-line px-3 py-1.5 text-xs text-muted ' +
+    'transition-colors hover:border-accent/50 hover:text-accent')
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <a href={`/api/reports/${runId}/report.pdf`} download className={linkCls}>⬇ report.pdf</a>
+      <a href={`/api/reports/${runId}/report.md`} download className={linkCls}>⬇ report.md</a>
+      <a href={`/api/reports/${runId}/report.json`} download className={linkCls}>⬇ report.json</a>
+      {task && ['change_analysis', 'investigation', 'impact_analysis'].includes(task) && (
+        <a href={`/api/reports/${runId}/change_mask.tif`} download className={linkCls}>⬇ change mask (.tif)</a>
+      )}
+    </div>
+  )
+}
+
+export default function Results({ result, onFollowUp, onRequestSwitch, hideExports }:
   { result: JobResult; onFollowUp?: (q: string) => void;
-    onRequestSwitch?: (m: 'sar' | 'optical') => void }) {
+    onRequestSwitch?: (m: 'sar' | 'optical') => void; hideExports?: boolean }) {
   const [tab, setTab] = useState<'evidence' | 'compare' | 'map' | 'json'>('evidence')
   const [prov, setProv] = useState<any>(null)
   const hasCompare = (result.inputs?.length ?? 0) === 2
@@ -339,7 +357,7 @@ export default function Results({ result, onFollowUp, onRequestSwitch }:
     const card = prov.models?.find((m: any) => m.component === want)
     if (!card) return null
     return (
-      <span className="rounded border border-line bg-elev px-2 py-0.5 font-mono text-[13px] text-muted">
+      <span className="rounded border border-line bg-elev px-2 py-0.5 font-mono text-sm text-muted">
         {card.component}{typeof card.val_accuracy === 'number'
           ? ` · val ${(card.val_accuracy * 100).toFixed(0)}%` : ''}
       </span>
@@ -357,49 +375,27 @@ export default function Results({ result, onFollowUp, onRequestSwitch }:
           <ConfidenceRing value={result.confidence} />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded border border-accent/40 bg-accent-soft px-2 py-0.5 text-[14px] font-semibold uppercase tracking-wide text-accent">
+              <span className="rounded border border-accent/40 bg-accent-soft px-2 py-0.5 text-sm font-semibold uppercase tracking-wide text-accent">
                 {taskLabel(result.selected_task)}
               </span>
               {modelChip}
               {result.cached && (
-                <span className="rounded border border-line bg-elev px-2 py-0.5 font-mono text-[13px] text-muted">cached</span>
+                <span className="rounded border border-line bg-elev px-2 py-0.5 font-mono text-sm text-muted">cached</span>
               )}
               <FreshnessBadges freshness={freshness} />
               <FixtureChip result={result} />
             </div>
-            <p className="mt-3 text-[18px] leading-relaxed text-body">{result.answer}</p>
+            <p className="mt-3 text-lg leading-relaxed text-body">{result.answer}</p>
             <div className="mt-3">
               <HonestyBanner honesty={honesty} />
             </div>
           </div>
         </div>
-        <div className="mt-5 flex flex-wrap items-center gap-2">
-          {result.run_id && (
-            <a href={`/api/reports/${result.run_id}/report.pdf`} download
-              className="rounded-lg border border-line px-3 py-1.5 text-xs text-muted transition-colors hover:border-accent/50 hover:text-accent">
-              ⬇ report.pdf
-            </a>
-          )}
-          {result.run_id && (
-            <>
-              <a href={`/api/reports/${result.run_id}/report.md`} download
-                className="rounded-lg border border-line px-3 py-1.5 text-xs text-muted transition-colors hover:border-accent/50 hover:text-accent">
-                ⬇ report.md
-              </a>
-              <a href={`/api/reports/${result.run_id}/report.json`} download
-                className="rounded-lg border border-line px-3 py-1.5 text-xs text-muted transition-colors hover:border-accent/50 hover:text-accent">
-                ⬇ report.json
-              </a>
-              {['change_analysis', 'investigation', 'impact_analysis'].includes(result.selected_task) && (
-                <a href={`/api/reports/${result.run_id}/change_mask.tif`} download
-                  className="rounded-lg border border-line px-3 py-1.5 text-xs text-muted transition-colors hover:border-accent/50 hover:text-accent">
-                  ⬇ change mask (.tif)
-                </a>
-              )}
-            </>
-          )}
-
-        </div>
+        {!hideExports && (
+          <div className="mt-5 flex flex-wrap items-center gap-2">
+            <ExportLinks runId={result.run_id} task={result.selected_task} />
+          </div>
+        )}
       </div>
 
       {suggestions.length > 0 && onFollowUp && (
@@ -408,7 +404,7 @@ export default function Results({ result, onFollowUp, onRequestSwitch }:
           <div className="mt-2 flex flex-wrap gap-2">
             {suggestions.map(q => (
               <button key={q} onClick={() => onFollowUp(q)}
-                className="rounded-full border border-accent/40 bg-accent-soft px-3.5 py-1.5 text-[14.5px] text-accent transition-colors hover:bg-accent/20">
+                className="rounded-full border border-accent/40 bg-accent-soft px-3.5 py-1.5 text-sm text-accent transition-colors hover:bg-accent/20">
                 {q} →
               </button>
             ))}
@@ -425,7 +421,7 @@ export default function Results({ result, onFollowUp, onRequestSwitch }:
              ['map', 'Map'], ['json', 'Outputs']] as const).map(([k, l]) => (
             <button key={k} onClick={() => setTab(k)}
               disabled={(k === 'compare' && !hasCompare) || (k === 'map' && !hasGeo)}
-              className={`flex-1 rounded-md px-3 py-1.5 text-[14.5px] transition-colors disabled:opacity-35 ${
+              className={`flex-1 rounded-md px-3 py-1.5 text-sm transition-colors disabled:opacity-35 ${
                 tab === k ? 'bg-panel text-body shadow-sm' : 'text-muted hover:text-body'}`}>
               {l}
             </button>
@@ -439,7 +435,7 @@ export default function Results({ result, onFollowUp, onRequestSwitch }:
                 {evidenceImgs.map(([k, url]) => (
                   <figure key={k} className="overflow-hidden rounded-lg border border-line">
                     {url && <img src={url} alt={k} className="w-full" />}
-                    <figcaption className="border-t border-line bg-elev px-3 py-2 font-mono text-[13px] text-muted">
+                    <figcaption className="border-t border-line bg-elev px-3 py-2 font-mono text-sm text-muted">
                       {k.split('_').join(' ')}
                     </figcaption>
                   </figure>
@@ -461,7 +457,7 @@ export default function Results({ result, onFollowUp, onRequestSwitch }:
 
         {tab === 'json' && (
           <div className="min-w-0 overflow-hidden rounded-lg border border-line bg-elev">
-            <pre className="max-h-[420px] max-w-full overflow-auto whitespace-pre-wrap break-words p-4 font-mono text-[13px] leading-relaxed text-muted">
+            <pre className="max-h-[420px] max-w-full overflow-auto whitespace-pre-wrap break-words p-4 font-mono text-sm leading-relaxed text-muted">
               {JSON.stringify(result.outputs, null, 2)}
             </pre>
           </div>
@@ -469,7 +465,7 @@ export default function Results({ result, onFollowUp, onRequestSwitch }:
       </Panel>
 
       <Panel title="Why trust this answer?">
-        <ul className="space-y-1.5 text-[15px] text-muted">
+        <ul className="space-y-1.5 text-sm text-muted">
           <li>✓ Every step recorded: validation, routing, tool selection, execution timings (see the execution trace above).</li>
           <li>✓ Models fine-tuned on public remote-sensing benchmarks: provenance and metrics in the Provenance tab.</li>
           <li>✓ Confidence is temperature-calibrated against held-out data, not a raw softmax.</li>
@@ -503,20 +499,20 @@ function ModalityBadge({ summary, onRequestSwitch }:
     && votes.filename !== votes.stats
   return (
     <span className="group relative inline-flex">
-      <span className="inline-flex items-center gap-1 rounded border border-line bg-panel px-1.5 py-0.5 font-mono text-[12.5px] uppercase text-body">
+      <span className="inline-flex items-center gap-1 rounded border border-line bg-panel px-1.5 py-0.5 font-mono text-xs uppercase text-body">
         {String(mc.label)}
         {typeof mc.confidence === 'number' && (
           <span className="text-muted">{Math.round(mc.confidence * 100)}%</span>
         )}
       </span>
       <span className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-2 w-72 -translate-x-1/2 rounded-lg border border-line bg-panel p-3 text-left opacity-0 shadow-xl transition-opacity duration-200 group-hover:opacity-100">
-        <div className="font-mono text-[12.5px] leading-relaxed text-muted">
+        <div className="font-mono text-xs leading-relaxed text-muted">
           <div>filename vote: {String(votes.filename ?? '—')}</div>
           <div>stats vote: {String(votes.stats ?? '—')}</div>
           {votes.override !== undefined && (
             <div>override: {String(votes.override)}</div>
           )}
-          <div className="mt-1 text-[11.5px]">
+          <div className="mt-1 text-xs">
             Stats win over filename (median, pixel sign, band count). Re-run with an
             explicit override if this looks wrong.
           </div>
@@ -524,7 +520,7 @@ function ModalityBadge({ summary, onRequestSwitch }:
       </span>
       {conflict && onRequestSwitch && (
         <button onClick={() => onRequestSwitch('sar')}
-          className="ml-1 rounded border border-warn/50 bg-warn-soft px-1.5 py-0.5 font-mono text-[12.5px] text-warn hover:bg-warn/20">
+          className="ml-1 rounded border border-warn/50 bg-warn-soft px-1.5 py-0.5 font-mono text-xs text-warn hover:bg-warn/20">
           looks like SAR — switch?
         </button>
       )}
@@ -542,16 +538,16 @@ function InputsGrid({ result, onRequestSwitch }: {
         <figure key={i} className="overflow-hidden rounded-lg border border-line">
           <img src={inp.composite} alt={inp.summary.file} className="w-full bg-black/5" />
           <figcaption className="flex flex-wrap items-center gap-2 border-t border-line bg-elev px-3 py-2">
-            <span className="truncate font-mono text-[13px] text-muted">{inp.summary.file}</span>
+            <span className="truncate font-mono text-sm text-muted">{inp.summary.file}</span>
             {inp.summary.acquired && (
-              <span className="rounded border border-line bg-panel px-1.5 py-0.5 font-mono text-[12.5px] text-body">
+              <span className="rounded border border-line bg-panel px-1.5 py-0.5 font-mono text-xs text-body">
                 📅 {String(inp.summary.acquired)}
               </span>
             )}
             <span className="ml-auto flex items-center gap-2">
               <ModalityBadge summary={inp.summary as unknown as Record<string, any>}
                 onRequestSwitch={onRequestSwitch} />
-              <span className="font-mono text-[13px] uppercase text-faint">{inp.summary.modality}</span>
+              <span className="font-mono text-sm uppercase text-faint">{inp.summary.modality}</span>
             </span>
           </figcaption>
         </figure>
@@ -586,8 +582,8 @@ function SwipeCompare({ result }: { result: JobResult }) {
           style={{ left: `${pos}%` }}>
           <span className="absolute top-1/2 -ml-4 h-8 w-8 -translate-y-1/2 rounded-full border-2 border-accent bg-panel" />
         </div>
-        <span className="absolute left-3 top-3 rounded bg-black/55 px-2 py-0.5 font-mono text-[13px] uppercase tracking-wide text-white">A · before</span>
-        <span className="absolute right-3 top-3 rounded bg-black/55 px-2 py-0.5 font-mono text-[13px] uppercase tracking-wide text-white">B · after</span>
+        <span className="absolute left-3 top-3 rounded bg-black/55 px-2 py-0.5 font-mono text-sm uppercase tracking-wide text-white">A · before</span>
+        <span className="absolute right-3 top-3 rounded bg-black/55 px-2 py-0.5 font-mono text-sm uppercase tracking-wide text-white">B · after</span>
       </div>
       <input type="range" min={4} max={96} value={pos} onChange={(e) => setPos(+e.target.value)}
         className="mt-3 w-full accent-[var(--c-accent)]" />
@@ -687,7 +683,7 @@ function RegionQuery({ result, preset }: { result: JobResult; preset?: number[] 
 
   return (
     <div className="rounded-lg border border-line p-4">
-      <div className="mb-2 text-[13px] uppercase tracking-wider text-faint">
+      <div className="mb-2 text-sm uppercase tracking-wider text-faint">
         Interrogate a region: drag a rectangle, then ask
       </div>
       <div className="relative inline-block max-w-full overflow-hidden rounded border border-line"

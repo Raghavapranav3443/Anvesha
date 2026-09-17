@@ -24,7 +24,7 @@ export default function FreshnessBadges({ freshness }: { freshness?: FreshnessDa
   const ok = freshness.quality === 'ok'
   return (
     <span className="group relative inline-flex">
-      <span className={`inline-flex items-center gap-1.5 rounded border px-2 py-0.5 font-mono text-[12.5px] ${
+      <span className={`inline-flex items-center gap-1.5 rounded border px-2 py-0.5 font-mono text-xs ${
         ok ? 'border-good/40 bg-good/10 text-good'
            : 'border-warn/50 bg-warn-soft text-warn'}`}>
         <span className={`h-1.5 w-1.5 rounded-full ${ok ? 'bg-good' : 'bg-warn'}`} />
@@ -34,10 +34,10 @@ export default function FreshnessBadges({ freshness }: { freshness?: FreshnessDa
         )}
       </span>
       <span className="pointer-events-none absolute right-0 top-full z-30 mt-2 w-80 rounded-lg border border-line bg-panel p-3 text-left opacity-0 shadow-xl transition-opacity duration-200 group-hover:opacity-100">
-        <div className="font-mono text-[12.5px] leading-relaxed text-muted">
+        <div className="font-mono text-xs leading-relaxed text-muted">
           <div className="text-body">latest obs {fmtDate(freshness.latest_obs)}</div>
           <div>staleness {freshness.staleness_days ?? '—'}d (threshold {freshness.threshold_days}d)</div>
-          <div className="mt-1 text-[11.5px]">{freshness.method_note}</div>
+          <div className="mt-1 text-xs">{freshness.method_note}</div>
           {freshness.why && <div className="mt-1 text-warn">why: {freshness.why}</div>}
         </div>
       </span>

@@ -27,7 +27,7 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Header, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from ..config import CONFIG
@@ -353,6 +353,31 @@ async def samples():
         except Exception:
             continue
     return out
+
+
+@app.get("/api/samples/{name}/preview")
+async def sample_preview(name: str):
+    """Quick-look PNG for the Console image-preview popup (read-only).
+
+    GeoTIFFs cannot be rendered by browsers, so the server reduces the sample
+    to an RGB composite (same path as job evidence) and streams a small PNG.
+    """
+    safe = Path(name).name                      # path-traversal guard
+    p = CONFIG.samples_dir / safe
+    if not p.is_file() or p.suffix.lower() not in ALLOWED_EXT:
+        raise _http(404, "Unknown sample.", code="not_found")
+    try:
+        from ..io_utils import rgb_composite
+        from .jobs import _encode_image
+        import base64 as _b64
+        img = load_image(p)
+        data_url = _encode_image(rgb_composite(img), max_px=768)
+        raw = _b64.b64decode(data_url.split(",", 1)[1])
+        return Response(content=raw, media_type="image/png",
+                        headers={"Cache-Control": "public, max-age=86400"})
+    except Exception:
+        raise _http(500, "Could not render preview for this sample.",
+                    code="preview_error")
 
 
 @app.get("/api/stats")
@@ -716,10 +741,8 @@ WEB_DIST = CONFIG.repo_root / "web" / "dist"
 if WEB_DIST.exists():
     app.mount("/assets", StaticFiles(directory=WEB_DIST / "assets"), name="assets")
 
-    from .boards import router as _boards_router
     from .dossier import router as _dossier_router
     from .fixtures import router as _fixtures_router
-    app.include_router(_boards_router)
     app.include_router(_dossier_router)
     app.include_router(_fixtures_router)
 

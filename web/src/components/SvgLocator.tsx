@@ -79,7 +79,7 @@ export default function SvgLocator({ geo }: { geo: GeoJSON }) {
           return <circle key={`m${fi}`} cx={px} cy={py} r="3" fill="#4C8DF6" />
         })}
       </svg>
-      <div className="absolute bottom-1 left-2 font-mono text-[10px] text-slate-500">
+      <div className="absolute bottom-1 left-2 font-mono text-xs text-slate-500">
         offline locator · no tiles · simplified Natural Earth outline
       </div>
     </div>
