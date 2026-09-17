@@ -16,18 +16,28 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+from .calib_metrics import lookup_band
 from .config import CONFIG
 
 _LOCK = threading.Lock()
 _CACHE: Optional[Dict[str, Any]] = None
+_REPORT_CACHE: Optional[Dict[str, Any]] = None
 
 
 @dataclass
 class ConfidenceMeta:
     value: float
-    method: str        # "temp" | "platt" | "formula"
+    method: str        # "temp" | "identity" | "inherited" | "formula" | ...
     n_cal: Optional[int]
     component: str
+    # ``calibrated`` is earned, never asserted: it is True only when the
+    # checkpoint really applies a non-identity temperature AND the fit recorded
+    # how many samples it used. A label like "temp" with no sample count (or
+    # with T=1.0, which is the identity) is not calibration and must not read
+    # as such -- that exact mismatch shipped once and is why this exists.
+    calibrated: bool = False
+    why: str = ""
+    measured_ece: Optional[float] = None
 
 
 def load_calibration(refresh: bool = False) -> Dict[str, Any]:
@@ -46,17 +56,58 @@ def load_calibration(refresh: bool = False) -> Dict[str, Any]:
         return _CACHE
 
 
+def load_report(refresh: bool = False) -> Dict[str, Any]:
+    """Load ``weights/calibration_report.json`` (measured reliability tables).
+
+    Written by ``scripts/eval_calibration.py``. Missing => {} and every
+    measurement-based field degrades to None rather than to a guess.
+    """
+    global _REPORT_CACHE
+    if _REPORT_CACHE is not None and not refresh:
+        return _REPORT_CACHE
+    with _LOCK:
+        if _REPORT_CACHE is not None and not refresh:
+            return _REPORT_CACHE
+        p = CONFIG.weights_dir / "calibration_report.json"
+        try:
+            data = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+        except Exception:
+            data = {}
+        comp = data.get("component")
+        _REPORT_CACHE = {comp: data} if comp else {}
+        return _REPORT_CACHE
+
+
 def get(component: str, value: float) -> ConfidenceMeta:
     """Calibrated confidence meta for a specialist, or formula fallback."""
     cal = load_calibration().get(component)
     if cal:
+        method = str(cal.get("method", "formula"))
+        n_cal = int(cal["n_cal"]) if cal.get("n_cal") else None
         return ConfidenceMeta(
-            value=float(value),
-            method=str(cal.get("method", "formula")),
-            n_cal=int(cal["n_cal"]) if cal.get("n_cal") else None,
-            component=component)
+            value=float(value), method=method, n_cal=n_cal,
+            component=component,
+            calibrated=bool(method == "temp" and n_cal),
+            why=str(cal.get("why", "")),
+            measured_ece=cal.get("measured_ece"))
     return ConfidenceMeta(value=float(value), method="formula",
-                          n_cal=None, component=component)
+                          n_cal=None, component=component,
+                          why="no calibration record on file")
+
+
+def measured_band(component: str, confidence: float) -> Optional[Dict[str, Any]]:
+    """What was actually achieved when this component claimed this confidence?
+
+    Reads the reliability table measured by ``scripts/eval_calibration.py``.
+    Returns None when nothing has been measured for this component or the band
+    has too few samples -- in that case a caller must not substitute the claim
+    for the measurement.
+    """
+    payload = load_report().get(component)
+    if not payload:
+        return None
+    table = (payload.get("checkpoint") or {}).get("reliability_table")
+    return lookup_band(float(confidence), table)
 
 
 # Specialist -> (calibration_component, human equation for formula method)
@@ -157,19 +208,53 @@ def effective_trust(component: str, confidence: float) -> Dict[str, Any]:
     the decision layer) can see which one is doing the limiting. When a
     component's reliability is unknown, trust is capped at the confidence rather
     than assumed to be fine, and ``reliability`` is reported as None.
+
+    Where a *measured* reliability table exists for this component, the band the
+    claim falls in is attached as ``band_evidence``: the confidence we showed
+    next to how often we were right when we showed it. That is the number a
+    non-expert should act on, and it is reported alongside -- never silently
+    replacing -- the model's own opinion.
     """
     rel = reliability_of(component).get("reliability")
     conf = max(0.0, min(1.0, float(confidence)))
     known = isinstance(rel, (int, float))
-    trust = conf * float(rel) if known else conf
+    model_trust = conf * float(rel) if known else conf
+    band_ev = measured_band(component, conf)
+    observed = band_ev.get("observed_accuracy") if band_ev else None
+
+    # Prefer measurement over the model's opinion. ``band_ev`` is P(this answer
+    # is right | we showed roughly this confidence), measured on held-out data --
+    # it is a direct answer to the question a user is really asking. The
+    # claim-times-method-quality product remains the fallback (and is always
+    # reported) because it generalises to components nobody has measured yet.
+    if isinstance(observed, (int, float)):
+        trust, source = float(observed), "measured_band"
+        limiting = "confidence" if conf < trust else "measured_accuracy"
+    elif known:
+        trust, source = float(model_trust), "confidence_x_reliability"
+        limiting = "reliability" if float(rel) < conf else "confidence"
+    else:
+        trust, source = float(conf), "unverified"
+        limiting = "unknown reliability"
+
     out: Dict[str, Any] = {
         "confidence": round(conf, 3),
         "reliability": round(float(rel), 3) if known else None,
+        "model_opinion_trust": round(float(model_trust), 3),
         "trust": round(float(trust), 3),
-        "limiting_factor": ("reliability" if known and float(rel) < conf
-                            else "confidence" if known else "unknown reliability"),
+        "trust_source": source,
+        "limiting_factor": limiting,
     }
-    if known:
+    if band_ev:
+        out["band_evidence"] = {
+            "band": band_ev.get("band"),
+            "claimed": band_ev.get("claimed_mean"),
+            "observed_accuracy": band_ev.get("observed_accuracy"),
+            "n": band_ev.get("n"),
+            "optimism": band_ev.get("optimism"),
+            "source": "measured on held-out data (weights/calibration_report.json)",
+        }
+    if known or source == "measured_band":
         out.update(trust_band(float(trust)))
     else:
         # No measured reliability on file. Do NOT present this as high trust on
@@ -198,6 +283,8 @@ def stamp(outputs: Dict[str, Any], component: str) -> Dict[str, Any]:
     out["confidence_meta"] = {
         "value": meta.value, "method": meta.method,
         "n_cal": meta.n_cal, "component": meta.component,
+        "calibrated": meta.calibrated,
+        "calibration_note": meta.why,
         "reliability": trust["reliability"],
         "reliability_evidence": reliability_of(component)["evidence"],
         "trust": trust["trust"],
@@ -205,6 +292,46 @@ def stamp(outputs: Dict[str, Any], component: str) -> Dict[str, Any]:
         "trust_advice": trust["advice"],
         "limiting_factor": trust["limiting_factor"],
     }
+    if meta.measured_ece is not None:
+        out["confidence_meta"]["measured_ece"] = meta.measured_ece
+    out["confidence_meta"]["model_opinion_trust"] = trust["model_opinion_trust"]
+    out["confidence_meta"]["trust_source"] = trust["trust_source"]
+    if trust.get("band_evidence"):
+        out["confidence_meta"]["band_evidence"] = trust["band_evidence"]
     if meta.method == "formula":
         out["confidence_meta"]["equation"] = formula(component)
     return out
+
+
+def claim_problems() -> Dict[str, str]:
+    """Audit the sidecar for labels the evidence does not support.
+
+    Returns ``{component: problem}``; empty means every recorded label is
+    consistent with what it claims. Used by ``tests/test_confidence_trust.py``
+    so a hand-edited or stale ``calibration.json`` cannot quietly re-introduce
+    the "calibrated" claim without a fit behind it.
+    """
+    problems: Dict[str, str] = {}
+    for component, cal in load_calibration().items():
+        if not isinstance(cal, dict):
+            problems[component] = "record is not an object"
+            continue
+        method = str(cal.get("method", "formula"))
+        param = cal.get("param")
+        n_cal = cal.get("n_cal")
+        if method == "temp":
+            if param in (None, 1.0, 1):
+                problems[component] = (
+                    "labelled 'temp' but the applied temperature is the identity, "
+                    "which carries no calibration")
+            elif not n_cal:
+                problems[component] = (
+                    "labelled 'temp' with no fitted sample count; the fit is not "
+                    "auditable")
+        elif method in ("identity", "inherited", "unverified", "unreadable"):
+            if param is not None and method == "identity" and float(param) != 1.0:
+                problems[component] = (
+                    "labelled 'identity' but records a non-identity temperature")
+        elif method not in ("formula", "platt"):
+            problems[component] = f"unknown method label {method!r}"
+    return problems

@@ -170,11 +170,30 @@ within threshold. Measured Δ −0.16% → adopted; batch-1 latency gain was nil
 reported as such.
 **Why:** optimization without a regression gate is how accuracy silently dies.
 
-### D5.4 — Calibrated confidence (temperature scaling, T=1.55)
-**Decision:** fit temperature on held-out validation; confidences are now
-calibrated probabilities.
+### D5.4 — Calibrated confidence (temperature scaling, fitted on held-out validation)
+**Decision:** fit temperature on held-out validation; confidences are calibrated
+probabilities.
 **Trade-off accepted:** raw confidence values dropped (overconfidence removed).
 A judge who probes "is 87% meaningful?" gets a defensible answer.
+
+**Superseded in two respects (see `system docs/CONFIDENCE_AND_DECISION_SPEC.md`).**
+This decision originally recorded `T = 1.55`. Two problems were found by audit:
+
+1. **The number was never in the weights.** No shipped head carried a
+   `temperature` key, so the runtime used the identity (T = 1.0) while this file,
+   `README.md` and `anvesha.md` all claimed a fit. The sidecar now derives its
+   labels from the checkpoints, and a head is only labelled calibrated when the
+   applied temperature is non-identity *and* a sample count is recorded.
+2. **The objective was wrong.** The fit minimised NLL, but the number shipped is
+   a confidence a user acts on, so the objective is now expected calibration
+   error. On RSVQA-LR val (n = 4096) the two disagree in *direction*: the
+   NLL-optimal T = 1.7 gives ECE 0.076 — worse than doing nothing — while the
+   ECE-optimal T = 0.8 gives 0.017. The selector now refuses to return a
+   temperature that fails to beat the identity.
+
+Fitting is also now forced into eval mode: it previously ran with dropout and
+batch-norm in training mode, so it was fitting a temperature to stochastic
+logits rather than to the model's actual behaviour.
 
 ---
 

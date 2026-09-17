@@ -658,13 +658,14 @@ class AgentController:
         suggestions = suggest({"selected_task": "investigation",
                                "outputs": {"investigation": {"impact": imp}}})
 
-        # Derive confidence from evidence strength instead of hardcoding.
-        # Base 0.5 + signal magnitude + finding specificity - assumed-GSD penalty.
-        _cf = min(float(imp.get("changed_fraction", 0)) * 5.0, 0.2)
-        _findings = imp.get("findings") or []
-        _specific = 0.1 if _findings and _findings[0].get("what") != "No significant thematic transition" else 0.0
-        _gsd_penalty = 0.1 if imp.get("gsd_assumed") else 0.0
-        _confidence = max(0.1, min(0.95, 0.5 + _cf + _specific - _gsd_penalty))
+        # One shared formula (satquery.impact.impact_confidence). The copy that
+        # used to be written here read this *tool output* dict, which does not
+        # carry ``changed_fraction``, so its signal term was permanently 0 and
+        # the reported confidence could only be 0.4, 0.5 or 0.6 no matter how
+        # much had changed on the ground.
+        from .impact import impact_confidence
+        _conf = impact_confidence(imp)
+        _confidence = _conf["value"]
 
         result = AgentResult(
             run_id=run_id, query=query,
@@ -677,6 +678,12 @@ class AgentController:
                            if not isinstance(v, (list, np.ndarray)) and k != "_x"},
                 "water_regions": len(wat.get("boxes", []) or []),
                 "impact": imp,
+                # Audit trail for the headline number: the terms it used and any
+                # input it could not find. A confidence nobody can decompose is
+                # a confidence nobody can check.
+                "confidence_terms": _conf["terms"],
+                "confidence_equation": _conf["equation"],
+                "confidence_missing_inputs": _conf["missing_inputs"],
             }, "suggestions": suggestions},
             visuals=visuals,
             trace=trace,

@@ -26,6 +26,9 @@ data/satquery.db
 # Model checkpoints: large binaries stay local; only the demo-critical
 # promoted checkpoints (counting head, CDVQA head) and TorchScript exports
 # are tracked.
+# Local-only backups taken before a calibration re-fit. Never tracked: the
+# re-fit is reproducible with scripts/calibrate.py.
+weights/_precal_backup/
 weights/*.pt
 !weights/count_head.pt
 !weights/cdvqa_head.pt

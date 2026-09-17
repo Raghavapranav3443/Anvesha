@@ -198,8 +198,11 @@ the receipt exists. Nobody else in the field surveyed ships this end-to-end.
 ## 7. Trust features, in plain terms
 
 - **Calibrated confidence.** Models are naturally overconfident. We fit a correction factor on
-  held-out data (temperature scaling, T = 1.55), so when the UI says 87%, history says roughly
-  87 out of 100 such answers were right.
+  held-out data (temperature scaling), so when the UI says 87%, history says roughly 87 out of
+  100 such answers were right. The fit is measured, not asserted: on RSVQA-LR validation
+  (n = 4096) the VQA head is calibrated at T = 0.8, which took expected calibration error from
+  0.025 to 0.017, and `scripts/eval_calibration.py` prints the reliability table behind it.
+  Where a head has *not* been validated, the output says so rather than implying otherwise.
 - **Graceful degradation, never silence.** Every fallback announces itself in the output
   (`source_model` field). No silent wrong answers.
 - **Provenance page.** Every number shown in the app comes from a measured checkpoint, re-runnable

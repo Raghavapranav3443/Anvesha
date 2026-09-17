@@ -42,17 +42,38 @@ def _enriched(component: str, confidence: float, method: str = "formula",
 # 1. Relaying a temperature of 1.0 is not calibration
 # --------------------------------------------------------------------------- #
 
-def test_identity_temperature_is_reported_as_uncalibrated():
-    """A T of 1.0 must not be presented as evidence of calibration."""
-    from satquery.confmeta import load_calibration
-    cal = load_calibration()
-    temps = [v.get("param") for v in cal.values() if v.get("method") == "temp"]
-    if not temps:
-        pytest.skip("no temperature-based components configured")
-    # n_cal is the defensible honesty signal: null/0 means "never fitted".
-    uncalibrated = [v for v in cal.values()
-                    if v.get("method") == "temp" and not v.get("n_cal")]
-    assert uncalibrated, "fixture assumption: shipped temps are unfitted"
+def test_no_component_claims_calibration_without_evidence():
+    """A 'temp' label must be earned: non-identity temperature AND a sample count.
+
+    The sidecar this project shipped broke exactly this rule -- it labelled three
+    heads "temp" while every ``param`` was 1.0 (the identity transform) and
+    ``n_cal`` was null, so the runtime was uncalibrated while the documents
+    claimed T=1.55. This test makes that class of drift fail loudly.
+    """
+    from satquery.confmeta import claim_problems, load_calibration
+    assert claim_problems() == {}, f"unearned calibration labels: {claim_problems()}"
+    for comp, v in load_calibration().items():
+        if v.get("method") != "temp":
+            continue
+        assert v.get("param") not in (None, 1.0), f"{comp} claims temp at identity"
+        assert v.get("n_cal"), f"{comp} claims temp with no fitted sample count"
+
+
+def test_a_hand_edited_sidecar_cannot_re_assert_calibration(tmp_path, monkeypatch):
+    """Simulate the original defect and prove the audit catches it."""
+    import json
+    import satquery.confmeta as cm
+    (tmp_path / "calibration.json").write_text(json.dumps({
+        "vqa": {"method": "temp", "param": 1.0, "n_cal": None},
+        "cdvqa": {"method": "temp", "param": 1.7, "n_cal": 0},
+    }), encoding="utf-8")
+    monkeypatch.setattr(cm, "_CACHE", None)
+    monkeypatch.setattr(cm.CONFIG, "weights_dir", tmp_path)
+    problems = cm.claim_problems()
+    assert "vqa" in problems and "cdvqa" in problems
+    # And the runtime must not present either as calibrated.
+    assert cm.get("vqa", 0.9).calibrated is False
+    assert cm.get("cdvqa", 0.9).calibrated is False
 
 
 # --------------------------------------------------------------------------- #
@@ -97,9 +118,25 @@ def test_every_stamped_component_carries_both_factors():
         assert cm["value"] == 0.90 and cm["component"] == component
 
 
-def test_trust_is_the_product_of_both_factors():
+def test_trust_prefers_measurement_over_model_opinion():
+    """The model's opinion is always reported, but where a reliability table has
+    been measured, trust is that measurement rather than the product."""
     t = effective_trust("vqa", 0.90)
-    assert t["trust"] == pytest.approx(0.90 * 0.700, abs=1e-3)
+    assert t["model_opinion_trust"] == pytest.approx(0.90 * 0.700, abs=1e-3)
+    assert t["trust_source"] in ("measured_band", "confidence_x_reliability")
+    if t["trust_source"] == "measured_band":
+        ev = t["band_evidence"]
+        assert ev["observed_accuracy"] == t["trust"]
+        assert ev["n"] >= 30
+        assert ev["source"]
+
+
+def test_measured_trust_is_monotone_in_confidence():
+    """A low claim must not come back with more trust than a high one."""
+    low = effective_trust("vqa", 0.30)["trust"]
+    high = effective_trust("vqa", 0.95)["trust"]
+    assert low < high
+    assert low < 0.25, "a 30% claim must not read as trustworthy"
 
 
 def test_confident_weak_component_reads_as_weak_evidence():

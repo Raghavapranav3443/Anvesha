@@ -253,3 +253,52 @@ def analyse_impact(a, b, change_mask: np.ndarray,
         "priority_zone": zones[0]["zone"] if zones else "",
         "distance_model": "chamfer EDT to combined water extent",
     }
+
+
+# --------------------------------------------------------------------- #
+# Confidence for impact findings
+# --------------------------------------------------------------------- #
+#
+# This formula used to be written out twice -- once in the tool that builds the
+# impact output (satquery/tools_impl.py) and once in the investigation path in
+# satquery/agent.py -- against two *different* dict shapes. Only one copy could
+# see ``changed_fraction``; the other read the tool's return dict, which does not
+# carry it, so its signal term was always 0 and its reported confidence could
+# only ever be 0.4, 0.5 or 0.6. A number that looks evidence-derived but cannot
+# vary with the evidence is worse than an honest constant -- it invites a
+# decision to be made on a figure that never measured anything.
+#
+# So the formula lives here once, and it returns the terms it used. That makes
+# the figure auditable after the fact, and makes a missing input *visible* in the
+# output instead of silently collapsing the result to a constant.
+
+IMPACT_CONF_BASE = 0.50
+IMPACT_CONF_MAX = 0.95
+IMPACT_CONF_MIN = 0.10
+_NO_TRANSITION = "No significant thematic transition"
+
+
+def impact_confidence(impact: Dict[str, Any]) -> Dict[str, Any]:
+    """Confidence for an impact analysis, together with the arithmetic used.
+
+    ``changed_fraction`` drives the signal term. A caller that passes a dict
+    without it does not get a plausible-looking number: ``missing_inputs``
+    names the absent key and the runtime records it.
+    """
+    has_cf = impact.get("changed_fraction") is not None
+    signal = min(float(impact.get("changed_fraction") or 0.0) * 5.0, 0.20)
+    findings = impact.get("findings") or []
+    first = findings[0] if findings else {}
+    specific = 0.10 if str(first.get("what", "")) not in ("", _NO_TRANSITION) \
+        else 0.0
+    gsd_penalty = 0.10 if impact.get("gsd_assumed") else 0.0
+    raw = IMPACT_CONF_BASE + signal + specific - gsd_penalty
+    value = max(IMPACT_CONF_MIN, min(IMPACT_CONF_MAX, raw))
+    return {
+        "value": round(float(value), 3),
+        "terms": {"base": IMPACT_CONF_BASE, "signal": round(signal, 4),
+                  "specificity": specific, "gsd_penalty": -gsd_penalty},
+        "equation": ("base + signal + specificity - gsd_penalty "
+                     "(clipped 0.10-0.95)"),
+        "missing_inputs": [] if has_cf else ["changed_fraction"],
+    }

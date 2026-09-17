@@ -8,6 +8,7 @@ import { Panel, Term } from './Console'
 import MapView from './MapView'
 import FreshnessBadges from './FreshnessBadges'
 import HonestyBanner from './HonestyBanner'
+import DecisionPanel from './DecisionPanel'
 import FixtureChip from './FixtureChip'
 
 function ConfidenceRing({ value }: { value: number }) {
@@ -342,6 +343,7 @@ export default function Results({ result, onFollowUp, onRequestSwitch, hideExpor
     fallback_active?: boolean; below_gate?: unknown[]; pixel_space?: boolean;
     limitation_refs?: string[]
   } | undefined
+  const decision = outputs.decision as any
 
   useEffect(() => { fetchProvenance().then(setProv).catch(() => {}) }, [])
 
@@ -388,6 +390,9 @@ export default function Results({ result, onFollowUp, onRequestSwitch, hideExpor
             <p className="mt-3 text-lg leading-relaxed text-body">{result.answer}</p>
             <div className="mt-3">
               <HonestyBanner honesty={honesty} />
+            </div>
+            <div className="mt-4">
+              <DecisionPanel decision={decision} />
             </div>
           </div>
         </div>

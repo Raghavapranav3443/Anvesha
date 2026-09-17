@@ -143,7 +143,11 @@ ISRO-style demonstration inputs ship in `samples/`
   **100/100 OK, 0 errors, ~13 req/s**, p95 ≈ 7 s wall including client polling
   (`scripts/load_test.py`, results in `runs/loadtest.json`)
 - **Calibrated confidence** — temperature-scaled probabilities (T fit on
-  held-out validation), not raw softmax
+  held-out validation), not raw softmax. The fit is measured and reproducible:
+  `scripts/eval_calibration.py` reports expected calibration error and a
+  reliability table (`confidence band -> observed accuracy`), and the checkpoint
+  records the sample count behind its temperature. A head that has not been
+  validated is labelled as such instead of being presented as calibrated.
 - **Quantization gate** — TorchScript + int8 export measured at Δ −0.16%
   accuracy (adopted); fp32 path retained
 - **SAC batch mode** — `python -m satquery.evaluate --sac-dir DIR` → answers.csv

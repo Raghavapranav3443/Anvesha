@@ -119,7 +119,7 @@ def change_vqa_tool(ctx: Dict) -> Dict:
 
 
 def impact_analysis_tool(ctx: Dict) -> Dict:
-    from .impact import analyse_impact
+    from .impact import analyse_impact, impact_confidence
     from .models.change import ChangeDetectorNet
     a, b = ctx["images"][0], ctx["images"][1]
     det = ChangeDetectorNet()
@@ -129,17 +129,18 @@ def impact_analysis_tool(ctx: Dict) -> Dict:
     vis = _overlay_mask(rgb_composite(b), mask.astype(bool),
                         color=(0.95, 0.75, 0.0))
 
-    # Derive confidence from evidence strength instead of hardcoding.
-    # Base 0.5 + signal magnitude + finding specificity - assumed-GSD penalty.
-    _cf = min(float(impact.get("changed_fraction", 0)) * 5.0, 0.2)
-    _findings = impact.get("findings") or []
-    _specific = 0.1 if _findings and _findings[0].get("what") != "No significant thematic transition" else 0.0
-    _gsd_penalty = 0.1 if impact.get("gsd_assumed") else 0.0
-    _confidence = max(0.1, min(0.95, 0.5 + _cf + _specific - _gsd_penalty))
+    # One shared, auditable formula -- see satquery.impact.impact_confidence.
+    _conf = impact_confidence(impact)
+    _confidence = _conf["value"]
 
     return {
         "findings": impact["findings"],
         "changed_area_ha": impact["changed_area_ha"],
+        # Exposed so callers downstream (the investigation path, the decision
+        # layer) can re-derive confidence from the same evidence. Without it,
+        # anything reading only this tool's output had a dead signal term.
+        "changed_fraction": impact["changed_fraction"],
+        "confidence_breakdown": _conf["terms"],
         "near_water": impact["near_water"],
         "transitions": impact["transitions"],
         "zones_top": impact["zones_top"],

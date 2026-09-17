@@ -274,6 +274,14 @@ def _enrich_result_keys(result: Any, images: List) -> None:
         outputs["honesty"] = _derive_honesty(result, images)
     except Exception:
         pass
+    try:
+        # The decision layer is a pure function over artefacts this run already
+        # produced, so it attaches here rather than running inside the agent:
+        # no network, no model loads, and it cannot alter the trace contract.
+        from .decision import decide_for_result
+        outputs["decision"] = decide_for_result(result, images)
+    except Exception:
+        pass
 
 
 # --------------------------------------------------------------------------- #

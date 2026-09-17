@@ -1,33 +1,42 @@
 {
   "vqa": {
     "method": "temp",
-    "param": 1.0,
-    "n_cal": null
+    "param": 0.8,
+    "n_cal": 4096,
+    "objective": "ece",
+    "measured_ece": 0.01652122794303068,
+    "identity_ece": 0.025385796839600554,
+    "split": "rsvqa_lr/val",
+    "why": "temperature fitted on held-out data and verified to improve ECE"
   },
   "counting": {
-    "method": "temp",
+    "method": "inherited",
+    "param": 0.8,
+    "n_cal": null,
+    "inherited_from": "vqa",
+    "why": "count head shares the VQA encoder family; not independently calibrated"
+  },
+  "cdvqa": {
+    "method": "identity",
     "param": 1.0,
     "n_cal": null,
-    "note": "shares VQA encoder family temperature"
+    "why": "no fitted temperature in the checkpoint; probabilities are the raw softmax"
   },
   "change": {
     "method": "formula",
     "equation": "thresholded change-probability map; F1 on LEVIR-CD val (thr=0.85)",
-    "gate_reference": "runs/phase3_levir_fulltest.json"
-  },
-  "cdvqa": {
-    "method": "temp",
-    "param": 1.0,
-    "n_cal": 0,
-    "gate": "beat calibrated rule-based 0.4942 (promoted val 0.7134, full-test 0.683)"
+    "gate_reference": "runs/phase3_levir_fulltest.json",
+    "why": "no temperature applies: the confidence is a closed-form blend of change-map evidence, not a softmax over classes"
   },
   "fusion": {
     "method": "formula",
-    "equation": "0.6*optical + 0.4*SAR evidence blend"
+    "equation": "0.6*optical + 0.4*SAR evidence blend",
+    "why": "closed-form evidence blend across modalities"
   },
   "grounding": {
     "method": "formula",
     "equation": "0.35*lex + 0.45*purity + 0.2*area",
-    "benchmark": "IoU@0.5 ~0.126; learned variants gated off (D15.1)"
+    "benchmark": "IoU@0.5 ~0.126; learned variants gated off (D15.1)",
+    "why": "high confidence from a low-reliability method is capped by trust, not by this label"
   }
 }
