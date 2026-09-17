@@ -216,6 +216,133 @@ export interface GeoJSON {
 // API functions
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Online acquisition — "find the imagery for me"
+// ---------------------------------------------------------------------------
+
+export interface AcquireProvider {
+  name: string
+  label: string
+  requires_signing: boolean
+  configured: boolean
+  notes: string
+}
+
+export interface AcquireStatus {
+  mode: 'airgap' | 'online'
+  defaults: { days: number; max_cloud: number; window_px: number }
+  providers: AcquireProvider[]
+  active_providers: string[]
+  cache: { used_mb?: number; limit_mb?: number; entries?: number; used_pct?: number }
+  isro: { service: string; credential_free: boolean; endpoint: string; note: string }
+}
+
+export interface AcquireCandidate {
+  id: string
+  date: string
+  cloud_pct: number | null
+  provider: string
+  epsg: number | null
+  platform: string
+}
+
+export interface AcquirePlace {
+  name: string
+  bbox: number[]
+  centroid: { lat: number; lon: number }
+  source: string
+  confidence: number
+  admin: Record<string, string>
+  area_km2: number
+  size_km: [number, number]
+  alternatives: { name: string; bbox: number[]; source: string }[]
+}
+
+export interface AcquirePlan {
+  place: AcquirePlace
+  grid: { epsg: number; width: number; height: number; pixel_size_m: number; area_ha: number }
+  date_range: { start: string; end: string }
+  max_cloud_pct: number
+  window_km: number
+  providers: string[]
+  scene_count: number
+  candidates: AcquireCandidate[]
+  pair: { before: AcquireCandidate | null; after: AcquireCandidate | null }
+  errors: { provider: string; error: string }[]
+}
+
+export interface AcquireContextLayer {
+  layer: string
+  theme: string
+  theme_label: string
+  title: string
+  coverage: number
+  control_coverage: number
+  evidence: number
+  state: string
+}
+
+export interface AcquireOutcome {
+  acquire_id: string
+  plan: AcquirePlan
+  dates: { before: string; after: string }
+  context: AcquireContextLayer[]
+  context_plain: string[]
+  context_errors: { layer: string; error: string }[]
+  warnings: string[]
+  provenance: string | null
+  elapsed_s: number
+}
+
+export async function fetchAcquireStatus(): Promise<AcquireStatus> {
+  const r = await apiFetch('/api/acquire/status')
+  return r.json()
+}
+
+/** Resolve the place and list candidate passes. Downloads nothing. */
+export async function planAcquire(opts: {
+  query: string
+  days?: number
+  maxCloudPct?: number
+  windowKm?: number
+}): Promise<AcquirePlan> {
+  const r = await apiFetch('/api/acquire/plan', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      query: opts.query,
+      days: opts.days,
+      max_cloud_pct: opts.maxCloudPct,
+      window_km: opts.windowKm,
+    }),
+    // Searching several catalogues can take a few seconds.
+    timeoutMs: 120_000,
+  })
+  return r.json()
+}
+
+/** Download the chosen pair and gather verified ISRO context. Slow by nature. */
+export async function fetchAcquire(opts: {
+  query: string
+  days?: number
+  maxCloudPct?: number
+  windowKm?: number
+}): Promise<AcquireOutcome> {
+  const r = await apiFetch('/api/acquire/fetch', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      query: opts.query,
+      days: opts.days,
+      max_cloud_pct: opts.maxCloudPct,
+      window_km: opts.windowKm,
+    }),
+    // Windowed COG reads plus ISRO tiles routinely take a minute or more.
+    timeoutMs: 420_000,
+  })
+  return r.json()
+}
+
 export async function fetchSamples(): Promise<SampleInfo[]> {
   const r = await apiFetch('/api/samples')
   return r.json()
@@ -229,6 +356,8 @@ export async function createJob(opts: {
   dateA?: string
   dateB?: string
   modality?: 'auto' | 'sar' | 'optical'   // B1: explicit modality override
+  /** Imagery fetched by the online layer, instead of uploads or samples. */
+  acquireId?: string
 }): Promise<string> {
   const fd = new FormData()
   fd.append('query', opts.query)
@@ -237,6 +366,7 @@ export async function createJob(opts: {
   fd.append('date_a', opts.dateA ?? 'T1')
   fd.append('date_b', opts.dateB ?? 'T2')
   fd.append('modality', opts.modality ?? 'auto')
+  if (opts.acquireId) fd.append('acquire_id', opts.acquireId)
   for (const f of opts.files) fd.append('files', f)
   // Allow up to 2 min for large uploads
   const r = await apiFetch('/api/jobs', { method: 'POST', body: fd, timeoutMs: 120_000 })

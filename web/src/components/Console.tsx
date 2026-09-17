@@ -5,6 +5,7 @@ import {
 } from '../api'
 import { stepLabel as sharedStepLabel, TASK_LABELS, taskLabel } from '../labels'
 import { SETUPS } from '../setups'
+import AcquirePanel from './AcquirePanel'
 import Results, { ExportLinks } from './Results'
 
 const EXAMPLES = [
@@ -117,6 +118,11 @@ export default function Console({ active = true }: { active?: boolean }) {
   const pollRef = useRef<number | null>(null)
   const abortRef = useRef<AbortController | null>(null)
   const lastInputs = useRef<(File | string)[]>([])
+  // Imagery fetched by the online layer. Kept in a ref as well as state because
+  // `launch` is called immediately after a fetch resolves, before React has
+  // re-rendered, and a stale closure would send the job off with no images.
+  const acquireRef = useRef<string>('')
+  const [acquireId, setAcquireId] = useState('')
 
   // ---- first-visit guided tour (3 pop-ups) -------------------------------- #
   // 0: imagery upload / demo samples · 1: question bar · 2: run button.
@@ -161,7 +167,17 @@ export default function Console({ active = true }: { active?: boolean }) {
     return () => next.forEach((x) => { if (x.url) URL.revokeObjectURL(x.url) })
   }, [files])
 
+  /** Choosing imagery by hand replaces anything fetched online, so a job never
+   *  ends up carrying both (the server caps an analysis at two images). */
+  function clearAcquired() {
+    if (acquireRef.current) {
+      acquireRef.current = ''
+      setAcquireId('')
+    }
+  }
+
   function toggleSample(name: string) {
+    clearAcquired()
     setSelected((s) => s.includes(name)
       ? s.filter((x) => x !== name)
       : [...s, name].slice(0, 2))
@@ -169,6 +185,7 @@ export default function Console({ active = true }: { active?: boolean }) {
   }
 
   function addFiles(f: File[]) {
+    clearAcquired()
     setFiles(f)
     if (guideStep === 0 && f.length > 0) advanceGuide()
   }
@@ -197,6 +214,7 @@ export default function Console({ active = true }: { active?: boolean }) {
         query: queryText, taskOverride: effOverride,
         files: useFiles, sampleNames: useSamples, dateA, dateB,
         modality,
+        acquireId: acquireRef.current || undefined,
       })
       abortRef.current = new AbortController()
       pollRef.current = window.setInterval(async () => {
@@ -222,9 +240,21 @@ export default function Console({ active = true }: { active?: boolean }) {
   }
 
   async function run() {
-    if (busy || (!files.length && !selected.length)) return
+    if (busy || (!files.length && !selected.length && !acquireRef.current)) return
     lastInputs.current = [...files, ...selected]
     await launch(query)
+  }
+
+  /** Online imagery arrived: analyse it straight away, in one click. */
+  function onAcquired(id: string) {
+    acquireRef.current = id
+    setAcquireId(id)
+    lastInputs.current = []            // fetched imagery replaces any selection
+    setFiles([])
+    setSelected([])
+    const q = query.trim() || 'What changed between these two dates?'
+    setQuery(q)
+    void launch(q)
   }
 
   async function followUp(q: string) {
@@ -236,6 +266,8 @@ export default function Console({ active = true }: { active?: boolean }) {
   function reset() {
     if (pollRef.current) window.clearInterval(pollRef.current)
     if (abortRef.current) abortRef.current.abort()
+    acquireRef.current = ''
+    setAcquireId('')
     setJob(null); setBusy(false); setError(''); setQuery(''); setSelected([]); setFiles([])
     setOutputOpen(false); setPreviewOpen(false)
   }
@@ -247,6 +279,9 @@ export default function Console({ active = true }: { active?: boolean }) {
 
   return (
     <div className="flex flex-col gap-6 pb-44">
+      {/* -------- online: fetch the imagery for the user -------- */}
+      <AcquirePanel onAcquired={onAcquired} busy={busy} />
+
       {/* -------- row 1: upload + analyse, side by side -------- */}
       <section className="fade-up grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
         <div className="relative">
@@ -254,7 +289,9 @@ export default function Console({ active = true }: { active?: boolean }) {
             <div className="pointer-events-none absolute -inset-1 z-30 rounded-2xl ring-2 ring-accent" />
           )}
           <Panel title="1 · Bring your imagery"
-            hint="GeoTIFF/TIFF keep their geographic reference. PNG/JPEG are for benchmark datasets. Pairs must cover the same area.">
+            hint={acquireId
+              ? `Online imagery selected (acquisition ${acquireId}). Uploading files replaces it.`
+              : "GeoTIFF/TIFF keep their geographic reference. PNG/JPEG are for benchmark datasets. Pairs must cover the same area."}>
             <Dropzone files={files} onChange={addFiles} />
             {nInputs > 0 && (
               <button onClick={() => setPreviewOpen(true)}

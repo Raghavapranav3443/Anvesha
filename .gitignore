@@ -23,6 +23,14 @@ data/vrsbench/
 data/bentxt_join/
 data/satquery.db
 
+# The unanchored `data/` rule above also matches nested directories, which
+# would silently drop the small generated indexes the acquisition layer ships:
+# the ISRO/Bhuvan layer index (~135 KB) and the offline place gazetteer. These
+# are code-adjacent data, not datasets, and the app cannot resolve a place or
+# select an ISRO layer without them. Re-included explicitly, after `data/`.
+!satquery/acquire/data/
+!satquery/acquire/data/**
+
 # Model checkpoints: large binaries stay local; only the demo-critical
 # promoted checkpoints (counting head, CDVQA head) and TorchScript exports
 # are tracked.
@@ -35,6 +43,8 @@ weights/*.pt
 weights/*_cache_*.json
 
 # Scratch / temp outputs
+# Cached upstream documents (Bhuvan capabilities, place-index build log)
+.cache/
 *.log
 gitstatus.txt
 cdvqa_full_out.txt

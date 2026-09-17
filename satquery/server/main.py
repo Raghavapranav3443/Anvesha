@@ -291,6 +291,7 @@ async def create_job(
     date_a: str = Form("T1"),
     date_b: str = Form("T2"),
     modality: str = Form("auto"),
+    acquire_id: str = Form(""),
     files: List[UploadFile] = File(default=[]),
 ):
     try:
@@ -299,10 +300,30 @@ async def create_job(
             p = CONFIG.samples_dir / Path(name).name
             if p.exists():
                 paths.append(p)
+        if acquire_id:
+            # Imagery fetched by the online layer. Paths are rebuilt from the
+            # run directory and restricted to GeoTIFFs, so an acquire_id cannot
+            # be used to read an arbitrary file. Dates come from the files'
+            # own tags, so the report carries real acquisition dates rather
+            # than the T1/T2 placeholders.
+            from ..acquire.service import acquired_images, dates_for_images
+
+            acquired = acquired_images(acquire_id)
+            if not acquired:
+                _http(404, "No fetched imagery for that acquisition.",
+                      code="acquire_not_found",
+                      hint="Fetch the imagery first with /api/acquire/fetch.")
+            paths.extend(acquired)
+            fetched_a, fetched_b = dates_for_images(acquired)
+            if date_a == "T1" and fetched_a:
+                date_a = fetched_a
+            if date_b == "T2" and fetched_b:
+                date_b = fetched_b
         if not paths:
             _http(400, "No images supplied.",
                   code="no_images",
-                  hint="Upload at least one GeoTIFF or select a sample image.")
+                  hint="Upload at least one GeoTIFF, select a sample image, or "
+                       "fetch imagery for a place in online mode.")
         if len(paths) > 2:
             _http(400, "At most 2 images per analysis.", code="too_many_files")
 
@@ -786,6 +807,138 @@ async def get_blocked(drain: bool = True):
                 "blocked": _mode.blocked_attempts(drain=drain)}
     except Exception:                              # pragma: no cover
         return {"mode": "unknown", "guard_installed": False, "blocked": []}
+
+
+# ---------------------------------------------------------------------------
+# Online acquisition (the "fetch the data for me" half)
+# ---------------------------------------------------------------------------
+
+async def _run_acquire(fn, *args, **kwargs):
+    """Run blocking acquisition work off the event loop.
+
+    Fetching reads Cloud-Optimized GeoTIFF windows over HTTPS and renders ISRO
+    map tiles; both take tens of seconds. Running them inline would stall every
+    other request on the server.
+    """
+    from starlette.concurrency import run_in_threadpool
+
+    return await run_in_threadpool(lambda: fn(*args, **kwargs))
+
+
+def _acquire_error(exc: Exception, *, action: str):
+    """Map acquire-layer failures onto honest, structured HTTP errors."""
+    from ..acquire.errors import (AcquireError, NetworkBlockedAirgap,
+                                  NoSceneFound)
+    from ..acquire.aoi import PlaceNotFound
+
+    message = str(exc)
+    if isinstance(exc, NetworkBlockedAirgap) or "air-gap" in message.lower():
+        return _http(409, message, code="airgap_mode",
+                     hint=("Anvesha is in air-gap mode, so it will not reach the "
+                           "network. Switch to online mode to fetch imagery, or "
+                           "analyse files you already have offline."))
+    if isinstance(exc, PlaceNotFound):
+        return _http(422, message, code="place_not_found",
+                     hint="Try '<town>, <state>', or give coordinates like "
+                          "'26.15, 91.75'.")
+    if isinstance(exc, NoSceneFound):
+        return _http(422, message, code="no_scene_found")
+    if isinstance(exc, AcquireError):
+        return _http(422, message, code="acquire_failed")
+    logger.exception("Unexpected error during %s", action)
+    return _http(500, f"Could not {action}.", code="internal_error",
+                 hint=repr(exc) if _DEBUG else "")
+
+
+@app.get("/api/acquire/status")
+async def acquire_status_endpoint():
+    """Online-mode state: providers, limits, cache usage, ISRO service details."""
+    from ..acquire.service import acquire_status
+
+    try:
+        return acquire_status()
+    except Exception as exc:                          # pragma: no cover
+        logger.exception("acquire status failed")
+        return {"mode": "unknown", "error": repr(exc), "providers": [],
+                "cache": {}, "defaults": {}, "isro": {}}
+
+
+@app.post("/api/acquire/plan")
+async def acquire_plan_endpoint(payload: Dict[str, Any],
+                                _auth: None = Depends(_check_auth)):
+    """Resolve the place and list candidate passes. Downloads nothing.
+
+    Existing so that a user can see which satellite passes were chosen, and how
+    cloudy they are, before spending bandwidth on them.
+    """
+    from ..acquire.service import plan as acquire_plan
+
+    query = str((payload or {}).get("query", "")).strip()
+    if not query:
+        _http(400, "No place given.", code="no_place",
+              hint="Describe the area, e.g. 'Dibrugarh, Assam'.")
+    kwargs: Dict[str, Any] = {}
+    for key, caster in (("days", int), ("max_cloud_pct", float),
+                        ("window_km", float)):
+        if payload.get(key) is not None:
+            try:
+                kwargs[key] = caster(payload[key])
+            except (TypeError, ValueError):
+                _http(400, f"Invalid value for {key}.", code="bad_parameter")
+    try:
+        result = await _run_acquire(acquire_plan, query, **kwargs)
+        return result.to_dict()
+    except StructuredHTTPException:
+        raise
+    except Exception as exc:
+        _acquire_error(exc, action="plan the acquisition")
+
+
+@app.post("/api/acquire/fetch")
+async def acquire_fetch_endpoint(payload: Dict[str, Any],
+                                 _auth: None = Depends(_check_auth)):
+    """Fetch the chosen pair plus verified ISRO context, and keep them on disk.
+
+    Returns an ``acquire_id`` naming a run directory. Feed that to
+    ``POST /api/jobs`` to analyse the fetched imagery with the offline pipeline.
+    """
+    from ..acquire.service import acquire
+
+    query = str((payload or {}).get("query", "")).strip()
+    if not query:
+        _http(400, "No place given.", code="no_place")
+    kwargs: Dict[str, Any] = {}
+    for key, caster in (("days", int), ("max_cloud_pct", float),
+                        ("window_km", float)):
+        if payload.get(key) is not None:
+            try:
+                kwargs[key] = caster(payload[key])
+            except (TypeError, ValueError):
+                _http(400, f"Invalid value for {key}.", code="bad_parameter")
+    if payload.get("include_context") is not None:
+        kwargs["include_context"] = bool(payload["include_context"])
+    try:
+        _plan, outcome = await _run_acquire(acquire, query, **kwargs)
+        log_event(outcome.acquire_id, "acquired",
+                  place=query, before=outcome.before.date,
+                  after=outcome.after.date, context=len(outcome.context))
+        return outcome.to_dict()
+    except StructuredHTTPException:
+        raise
+    except Exception as exc:
+        _acquire_error(exc, action="fetch imagery for that place")
+
+
+@app.get("/api/acquire/{acquire_id}")
+async def acquire_detail(acquire_id: str):
+    """Provenance for a past acquisition: exactly which scenes produced a result."""
+    from ..acquire.service import provenance_for, acquired_images
+
+    record = provenance_for(acquire_id)
+    if record is None:
+        _http(404, "No such acquisition.", code="not_found")
+    return {"acquire_id": Path(str(acquire_id)).name, "provenance": record,
+            "images": [p.name for p in acquired_images(acquire_id)]}
 
 
 # ---------------------------------------------------------------------------

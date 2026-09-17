@@ -233,18 +233,27 @@ def current_mode() -> Mode:
     return _mode  # type: ignore[return-value]
 
 
-def set_mode(mode: str) -> Mode:
-    """Validate, persist and apply a mode. Idempotent and safe to call often."""
-    m = str(mode).strip().lower()
-    if m not in VALID_MODES:
-        raise ValueError(f"Invalid mode {mode!r}; expected one of {VALID_MODES}.")
+def _apply_mode(mode: str, *, persist: bool) -> Mode:
+    """Set the active mode in this process, optionally writing it to disk."""
     global _mode
-    _mode = m
-    save_settings({"mode": m})
+    _mode = mode
+    if persist:
+        save_settings({"mode": mode})
     # The guard is installed regardless of mode: because its policy is dynamic,
     # keeping it resident means switching back to airgap is enforced instantly.
     install_network_guard()
-    return m  # type: ignore[return-value]
+    return mode  # type: ignore[return-value]
+
+
+def set_mode(mode: str) -> Mode:
+    """Validate, persist and apply a mode. Idempotent and safe to call often.
+
+    This is the *deliberate* path -- the UI toggle and ``POST /api/mode``.
+    """
+    m = str(mode).strip().lower()
+    if m not in VALID_MODES:
+        raise ValueError(f"Invalid mode {mode!r}; expected one of {VALID_MODES}.")
+    return _apply_mode(m, persist=True)
 
 
 # --------------------------------------------------------------------------- #
@@ -362,12 +371,18 @@ def enforce_from_env() -> None:
     ``SATQUERY_MODE=airgap`` (e.g. ``python -m satquery.evaluate`` spawned by
     the server, or the CI air-gap gate) is covered without every entry point
     having to opt in. A no-op when the env var is absent.
+
+    Deliberately **does not persist**. An environment variable is a per-process
+    override, and writing it to ``data/settings.json`` would mean that simply
+    running ``SATQUERY_MODE=online pytest`` or a smoke script permanently
+    changes the application's stored mode -- silently turning the shipping
+    air-gap default into online for every later launch.
     """
     env = mode_from_env()
     if env is None:
         return
     try:
-        set_mode(env)
+        _apply_mode(env, persist=False)
     except Exception:
         install_network_guard()
 
