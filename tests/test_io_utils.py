@@ -3,9 +3,9 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from satquery.io_utils import (RSImage, InputValidationError, load_image,
+from anvesha.io_utils import (RSImage, InputValidationError, load_image,
                                rgb_composite, validate_inputs)
-from satquery.text import concept_of_text, hashed_bow
+from anvesha.text import concept_of_text, hashed_bow
 
 
 def test_load_rgb_png(rgb_png):
@@ -64,7 +64,7 @@ def test_pair_size_mismatch_rejected(tmp_path, rgb_png):
 def test_pair_height_mismatch_rejected(tmp_path):
     """Regression: geometry check must compare b.height against b.height."""
     from PIL import Image
-    from satquery.io_utils import load_image, validate_inputs
+    from anvesha.io_utils import load_image, validate_inputs
     a_f, b_f = tmp_path / "a.png", tmp_path / "b.png"
     Image.fromarray((np.random.rand(128, 256, 3) * 255).astype(np.uint8)).save(a_f)
     Image.fromarray((np.random.rand(96, 256, 3) * 255).astype(np.uint8)).save(b_f)

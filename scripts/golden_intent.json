@@ -1,0 +1,2002 @@
+[
+  {
+    "query": "Is there a water area?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How many buildings are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is it a rural or an urban area",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Describe the land-cover of this image.",
+    "expected_task": "captioning"
+  },
+  {
+    "query": "What is shown in this image?",
+    "expected_task": "captioning"
+  },
+  {
+    "query": "Highlight the water body in this image.",
+    "expected_task": "grounding"
+  },
+  {
+    "query": "Where is the vegetation located?",
+    "expected_task": "grounding"
+  },
+  {
+    "query": "Show me where the buildings are.",
+    "expected_task": "grounding"
+  },
+  {
+    "query": "What changed between these two dates?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Has the built-up area increased or decreased?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Did the areas of trees change?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Fuse the optical and SAR evidence.",
+    "expected_task": "optical_sar"
+  },
+  {
+    "query": "Use the optical and SAR image together.",
+    "expected_task": "optical_sar"
+  },
+  {
+    "query": "Compare these two dates and describe the change.",
+    "expected_task": "change_analysis"
+  },
+  {
+    "query": "Investigate the change around the water body.",
+    "expected_task": "investigation"
+  },
+  {
+    "query": "Is it a rural or an urban area",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is it a rural or an urban area",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the areas of non-vegetated ground surface change?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a water area?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a water area?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the areas of trees changed?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a small water area?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a small water area?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the areas of low vegetation changed?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a residential building?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a residential building?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the regions of water changed?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there more water areas than commercial buildings?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there more water areas than commercial buildings?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the regions of buildings changed?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a road?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a road?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the areas of playgrounds changed?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there less roads than buildings?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there less roads than buildings?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the regions of non-vegetated ground surface change in the pre-event image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a commercial building in the image?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a commercial building in the image?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the areas of trees changed in the first image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there more buildings than roads?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there more buildings than roads?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the regions of water changed in the first image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "How many village greens are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How many village greens are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the regions of buildings change in the pre-event image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there less grass areas than buildings?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there less grass areas than buildings?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the areas of playgrounds change in the pre-change image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "How many medium residential buildings are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How many medium residential buildings are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the areas of non-vegetated ground surface change in the post-change image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a village green?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a village green?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the areas of trees changed in the second image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a small road?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a small road?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the areas of water change in the post-change image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a rectangular road?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a rectangular road?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the areas of buildings change in the post-change image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "How many small roads are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How many small roads are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the regions of playgrounds changed in the second image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there more roads than rectangular water areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there more roads than rectangular water areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the regions of non-vegetated ground surface increase?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "How many circular residential buildings are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How many circular residential buildings are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the regions of water increased?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a grass area?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a grass area?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the areas of buildings increased?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "How many rectangular commercial buildings are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How many rectangular commercial buildings are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the areas of non-vegetated ground surface decrease?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "How many farmlands are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How many farmlands are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the regions of trees decrease?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there less buildings than grass areas in the image?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there less buildings than grass areas in the image?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the areas of low vegetation decrease?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a circular parking?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a circular parking?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the areas of water decreased?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there less roads than residential buildings?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there less roads than residential buildings?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the regions of playgrounds decrease?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there more commercial buildings than roads?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there more commercial buildings than roads?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What type of change is the smallest?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a parking?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a parking?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What is the largest change?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "How many large commercial buildings are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How many large commercial buildings are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What is the smallest change in the pre-change image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there more commercial buildings than residential areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there more commercial buildings than residential areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What type of change is the smallest in the post-event image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there more commercial buildings than forests in the image?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there more commercial buildings than forests in the image?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What is the largest change in the pre-change image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a square road?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a square road?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What is the largest change in the post-event image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there less commercial buildings than farmlands?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there less commercial buildings than farmlands?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What have the regions of non-vegetated ground surface in the pre-event image mainly changed to?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a small residential building in the image?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a small residential building in the image?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What have the areas of low vegetation in the pre-change image mainly changed to?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there less grass areas than roads?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there less grass areas than roads?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What have the areas of buildings in the first image mainly changed to?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there less parkings than residential buildings?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there less parkings than residential buildings?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What is the percentage of changed areas?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a farmland in the image?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a farmland in the image?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How much of the area has not changed?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a orchard?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a orchard?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What is the change ratio of low vegetation in the pre-event image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a rectangular residential building?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a rectangular residential building?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How much area of low vegetation has changed in the post-change image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there less commercial buildings than grass areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there less commercial buildings than grass areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What is the change ratio of water in the second image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there less commercial buildings than water areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there less commercial buildings than water areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the regions of non-vegetated ground surface change?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a residential area in the image?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a residential area in the image?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the regions of trees change?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "How many medium roads are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How many medium roads are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the areas of low vegetation change?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there more buildings than water areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there more buildings than water areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the regions of water change?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there less medium grass areas than roads?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there less medium grass areas than roads?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the regions of buildings changed?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "How many orchards are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How many orchards are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the areas of playgrounds changed?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a medium residential building in the image?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a medium residential building in the image?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the areas of non-vegetated ground surface changed in the first image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there more medium water areas than commercial buildings?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there more medium water areas than commercial buildings?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the regions of trees changed in the first image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there less grass areas than residential buildings?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there less grass areas than residential buildings?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the areas of low vegetation changed in the first image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a large building?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a large building?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the areas of water changed in the first image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a square farmland in the image?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a square farmland in the image?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the areas of playgrounds change in the pre-change image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there less residential buildings than water areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there less residential buildings than water areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the areas of non-vegetated ground surface change in the post-change image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there less circular residential buildings than roads?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there less circular residential buildings than roads?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the regions of trees change in the post-event image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there less commercial buildings than roads in the image?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there less commercial buildings than roads in the image?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the areas of low vegetation changed in the second image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a commercial building at the bottom of the  circular forest?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a commercial building at the bottom of the  circular forest?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the regions of water changed in the second image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there less small grass areas than buildings?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there less small grass areas than buildings?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the regions of buildings change in the post-event image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there more water areas than small grass areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there more water areas than small grass areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the areas of playgrounds changed in the second image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a small commercial building?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a small commercial building?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the areas of non-vegetated ground surface increase?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a square water area?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a square water area?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the regions of trees increase?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a square village green?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a square village green?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the areas of low vegetation increase?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there less circular buildings than water areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there less circular buildings than water areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the areas of buildings increased?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a rectangular commercial building?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a rectangular commercial building?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the areas of playgrounds increase?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there less forests than commercial buildings?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there less forests than commercial buildings?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the regions of non-vegetated ground surface decrease?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there more grass areas than square buildings?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there more grass areas than square buildings?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the areas of trees decreased?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a square building?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a square building?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the regions of low vegetation decrease?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is it a rural or an urban area",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is it a rural or an urban area",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the regions of water decrease?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a residential building?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a residential building?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the regions of buildings decreased?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "How many small roads are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How many small roads are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the regions of playgrounds decrease?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there less commercial buildings than farmlands?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there less commercial buildings than farmlands?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What type of change is the smallest?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "How many roads are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How many roads are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What type of change is the largest?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a rectangular building?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a rectangular building?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What is the smallest change in the pre-change image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there more water areas than commercial buildings?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there more water areas than commercial buildings?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What type of change is the smallest in the post-change image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there more buildings than farmlands?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there more buildings than farmlands?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What is the largest change in the pre-event image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there more grass areas than buildings?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there more grass areas than buildings?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What type of change is the largest in the second image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a commercial building?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a commercial building?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What have the regions of non-vegetated ground surface in the pre-change image mainly changed to?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there less residential buildings than water areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there less residential buildings than water areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What have the regions of low vegetation in the pre-event image mainly changed to?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there more water areas than roads?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there more water areas than roads?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What have the areas of buildings in the pre-event image mainly changed to?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there more roads than water areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there more roads than water areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How much of the area has changed?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there more small commercial buildings than forests?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there more small commercial buildings than forests?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What is the change ratio of non-vegetated ground surface in the pre-event image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "How many grass areas are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How many grass areas are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What is the change percentage of water in the first image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "How many large forests are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How many large forests are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What is the change proportion of buildings in the first image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "How many large grass areas are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How many large grass areas are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How much area of non-vegetated ground surface has changed in the post-change image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there less water areas than forests?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there less water areas than forests?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What is the change percentage of trees in the second image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there less roads than forests?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there less roads than forests?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How much area of buildings has changed in the second image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a medium commercial building?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a medium commercial building?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What is the change proportion of playgrounds in the second image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "How many commercials are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How many commercials are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the regions of trees changed?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there more residential buildings than roads?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there more residential buildings than roads?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the areas of low vegetation change?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "How many large residential buildings are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How many large residential buildings are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the regions of water change?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there more commercial buildings than forests?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there more commercial buildings than forests?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the regions of buildings change?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "How many medium residential buildings are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How many medium residential buildings are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the areas of non-vegetated ground surface changed in the first image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there more residential buildings than water areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there more residential buildings than water areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the regions of trees change in the pre-event image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there less buildings than roads?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there less buildings than roads?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the regions of low vegetation change in the pre-event image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "How many large buildings are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How many large buildings are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the regions of water changed in the first image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there more circular grass areas than commercial buildings?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there more circular grass areas than commercial buildings?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the areas of buildings changed in the first image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there less residential buildings than roads?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there less residential buildings than roads?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the areas of playgrounds change in the pre-change image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "How many small commercial buildings are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How many small commercial buildings are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the regions of non-vegetated ground surface changed in the second image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there less square residential buildings than residential buildings?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there less square residential buildings than residential buildings?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the areas of trees change in the post-change image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "How many circular grass areas are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How many circular grass areas are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the regions of low vegetation changed in the second image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there less medium buildings than roads?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there less medium buildings than roads?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the regions of water change in the post-event image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a circular road?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a circular road?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the regions of playgrounds changed in the second image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "How many rectangular buildings are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How many rectangular buildings are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the regions of trees increase?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there more buildings than roads?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there more buildings than roads?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the regions of low vegetation increased?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there more commercial buildings than farmlands?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there more commercial buildings than farmlands?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the regions of buildings increased?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "How many large water areas are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How many large water areas are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the areas of playgrounds increased?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there more commercial buildings than water areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there more commercial buildings than water areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the regions of trees decreased?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a circular commercial building?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a circular commercial building?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the areas of water decreased?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "How many circular roads are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How many circular roads are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the areas of buildings decrease?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "How many circular buildings are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How many circular buildings are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What is the smallest change?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there more water areas on the left of a  farmland than water areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there more water areas on the left of a  farmland than water areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What is the largest change?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "How many square buildings are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How many square buildings are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What is the smallest change in the pre-event image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a medium grass area?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a medium grass area?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What is the smallest change in the second image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "How many circular residential buildings are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How many circular residential buildings are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What is the largest change in the pre-event image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there less grass areas than circular roads?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there less grass areas than circular roads?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What is the largest change in the second image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there more water areas than commercial buildings at the bottom of a  forest?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there more water areas than commercial buildings at the bottom of a  forest?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What have the areas of non-vegetated ground surface in the first image mainly changed to?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a forest at the bottom of a  large road?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a forest at the bottom of a  large road?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What have the areas of buildings in the first image mainly changed to?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there less rectangular grass areas than water areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there less rectangular grass areas than water areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How much of the area has changed?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there more buildings than grass areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there more buildings than grass areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What is the change percentage of low vegetation in the first image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is it a rural or an urban area",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is it a rural or an urban area",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What is the change ratio of non-vegetated ground surface in the post-event image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a forest in the image?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a forest in the image?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How much area of trees has changed in the post-change image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a circular nature reserve?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a circular nature reserve?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How much area of low vegetation has changed in the second image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "How many water areas are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How many water areas are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the regions of non-vegetated ground surface changed?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there less roads than water areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there less roads than water areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the regions of trees change?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a road?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a road?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the regions of buildings change?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "How many grass areas are there in the image?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How many grass areas are there in the image?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the regions of non-vegetated ground surface changed in the first image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there more nature reserves than water areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there more nature reserves than water areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the areas of low vegetation changed in the first image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there more water areas than roads?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there more water areas than roads?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the regions of buildings changed in the first image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a circular road?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a circular road?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the areas of playgrounds changed in the first image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "How many large water areas are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How many large water areas are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the areas of non-vegetated ground surface changed in the second image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "How many nature reserves are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How many nature reserves are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the regions of low vegetation changed in the second image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there more forests than water areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there more forests than water areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the regions of buildings change in the post-event image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a grass area?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a grass area?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the areas of playgrounds change in the post-change image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "How many medium roads are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How many medium roads are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the regions of trees increase?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there more square roads than water areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there more square roads than water areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the areas of low vegetation increase?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there more roads than water areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there more roads than water areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the regions of buildings increase?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there more roads than forests?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there more roads than forests?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the areas of playgrounds increase?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there more grass areas than roads?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there more grass areas than roads?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the areas of non-vegetated ground surface decrease?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there less water areas than roads?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there less water areas than roads?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the regions of trees decreased?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "How many small forests are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How many small forests are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the regions of low vegetation decrease?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there less roads than forests?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there less roads than forests?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the regions of water decrease?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there more forests than medium water areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there more forests than medium water areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the areas of playgrounds decrease?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a circular forest?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a circular forest?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What is the smallest change?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there less forests than roads?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there less forests than roads?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What is the largest change?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there more water areas than square forests?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there more water areas than square forests?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What type of change is the smallest in the pre-event image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there less grass areas than water areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there less grass areas than water areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What is the smallest change in the second image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there more water areas than nature reserves?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there more water areas than nature reserves?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What is the largest change in the first image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a water area on the left of a  road?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a water area on the left of a  road?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What is the largest change in the second image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a large water area?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a large water area?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What have the regions of non-vegetated ground surface in the pre-change image mainly changed to?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there less water areas than water areas on the right of a  forest?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there less water areas than water areas on the right of a  forest?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What have the areas of trees in the first image mainly changed to?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "How many circular roads are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How many circular roads are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What have the regions of low vegetation in the pre-event image mainly changed to?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there less water areas than grass areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there less water areas than grass areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What have the areas of buildings in the pre-event image mainly changed to?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there less forests than water areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there less forests than water areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How much of the area has changed?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there more water areas than forests?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there more water areas than forests?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How much of the area has not changed?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a medium nature reserve?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a medium nature reserve?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What is the change ratio of non-vegetated ground surface in the first image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there less roads than circular water areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there less roads than circular water areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How much area of water has changed in the pre-change image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "How many small roads are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How many small roads are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What is the change ratio of buildings in the first image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a square road?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a square road?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What is the change ratio of non-vegetated ground surface in the post-event image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "How many nature reserves next to a  road are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How many nature reserves next to a  road are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How much area of low vegetation has changed in the second image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there less roads than grass areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there less roads than grass areas?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "What is the change percentage of buildings in the second image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there more forests than roads?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there more forests than roads?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How much area of playgrounds has changed in the post-change image?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "How many grass areas next to the  water area are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How many grass areas next to the  water area are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the regions of non-vegetated ground surface change?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Are there more large water areas than medium forests?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Are there more large water areas than medium forests?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the regions of trees changed?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a rectangular road?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a rectangular road?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Did the areas of low vegetation change?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "How many forests at the top of a  road are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "How many forests at the top of a  road are there?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Have the areas of water changed?",
+    "expected_task": "change_vqa"
+  },
+  {
+    "query": "Is there a nature reserve next to a  road?",
+    "expected_task": "single_vqa"
+  },
+  {
+    "query": "Is there a nature reserve next to a  road?",
+    "expected_task": "single_vqa"
+  }
+]

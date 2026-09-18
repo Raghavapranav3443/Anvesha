@@ -32,47 +32,52 @@ export default function HistoryView() {
     <div className="space-y-6">
       <Panel title="Run history">
         <div className="mb-3 flex flex-wrap gap-1.5">
-          {['', 'single_vqa', 'captioning', 'grounding', 'change_vqa', 'change_analysis', 'optical_sar'].map(t => (
+          {['', 'single_vqa', 'captioning', 'grounding', 'change_vqa', 'change_analysis', 'change_description', 'optical_sar'].map(t => (
             <button key={t || 'all'} onClick={() => setFilter(t)}
-              className={`rounded-full border px-2.5 py-0.5 text-[14px] transition-colors ${
+              className={`rounded-full border px-2.5 py-0.5 text-sm transition-colors ${
                 filter === t ? 'border-accent/60 bg-accent/10 text-accent'
                              : 'border-line text-muted hover:text-body'}`}>
               {t ? taskLabel(t) : 'all tasks'}
             </button>
           ))}
           <button onClick={refresh}
-            className="ml-auto rounded border border-line px-2.5 py-0.5 text-[14px] text-muted hover:text-body">↻ refresh</button>
+            className="ml-auto rounded border border-line px-2.5 py-0.5 text-sm text-muted hover:text-body">↻ refresh</button>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-[15px]">
+          <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-line text-[13px] uppercase tracking-wider text-faint">
+              <tr className="border-b border-line text-sm uppercase tracking-wider text-faint">
                 <th className="py-2 pr-3 font-medium">When</th>
                 <th className="py-2 pr-3 font-medium">Task</th>
                 <th className="py-2 pr-3 font-medium">Query</th>
                 <th className="py-2 pr-3 font-medium">Answer</th>
                 <th className="py-2 pr-3 font-medium text-right">Conf</th>
+                <th className="py-2 pr-3 font-medium text-right">Report</th>
                 <th className="py-2 text-right font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
               {visible.map(r => (
                 <tr key={r.job_id} className="border-b border-line/60 hover:bg-elev">
-                  <td className="py-2 pr-3 font-mono text-[13px] text-muted">{r.created_at.slice(5, 16)}</td>
-                  <td className="py-2 pr-3 text-[15px] text-accent">{taskLabel(r.selected_task) !== '—' ? taskLabel(r.selected_task) : r.status}</td>
+                  <td className="py-2 pr-3 font-mono text-sm text-muted">{r.created_at.slice(5, 16)}</td>
+                  <td className="py-2 pr-3 text-sm text-accent">{taskLabel(r.selected_task) !== '—' ? taskLabel(r.selected_task) : r.status}</td>
                   <td className="max-w-[220px] truncate py-2 pr-3 text-muted">{r.query}</td>
                   <td className="max-w-[280px] truncate py-2 pr-3 text-body">{r.answer}</td>
-                  <td className="py-2 pr-3 text-right font-mono text-[13px] text-muted">{r.confidence?.toFixed?.(2)}</td>
+                  <td className="py-2 pr-3 text-right font-mono text-sm text-muted">{r.confidence?.toFixed?.(2)}</td>
+                  <td className="py-2 pr-3 text-right">
+                    <a href={`/api/reports/${r.run_id}/dossier`} target="_blank" rel="noreferrer"
+                      className="text-accent hover:underline">dossier</a>
+                  </td>
                   <td className="py-2 text-right">
                     <button onClick={() => open(r.job_id)} className="text-accent hover:underline">view</button>
                   </td>
                 </tr>
               ))}
               {!visible.length && !rows.length && (
-                <tr><td colSpan={6} className="py-4"><SkeletonTable rows={5} /></td></tr>
+                <tr><td colSpan={7} className="py-4"><SkeletonTable rows={5} /></td></tr>
               )}
               {!visible.length && rows.length > 0 && (
-                <tr><td colSpan={6} className="py-6 text-center text-faint">No matching runs.</td></tr>
+                <tr><td colSpan={7} className="py-6 text-center text-faint">No matching runs.</td></tr>
               )}
             </tbody>
           </table>

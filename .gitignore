@@ -3,12 +3,18 @@ __pycache__/
 .pytest_cache/
 data/
 runs/
+
+# Canonical benchmark evidence is NOT ignored -- it lives in the tracked
+# `artifacts/` directory, so a fresh clone can verify every headline number.
+# `runs/` above is per-run scratch only: reports, uploads, logs, experiments.
 *.egg-info/
 .venv/
 web/node_modules/
 .freebuff/
 pics/
 inputs.txt
+.postman
+postman
 
 # Local datasets — kept on disk for reproducibility, never pushed
 data/SECOND/
@@ -19,17 +25,30 @@ data/eurosat/
 data/rsvqa_lr/
 data/vrsbench/
 data/bentxt_join/
-data/satquery.db
+data/anvesha.db
+
+# The unanchored `data/` rule above also matches nested directories, which
+# would silently drop the small generated indexes the acquisition layer ships:
+# the ISRO/Bhuvan layer index (~135 KB) and the offline place gazetteer. These
+# are code-adjacent data, not datasets, and the app cannot resolve a place or
+# select an ISRO layer without them. Re-included explicitly, after `data/`.
+!anvesha/acquire/data/
+!anvesha/acquire/data/**
 
 # Model checkpoints: large binaries stay local; only the demo-critical
 # promoted checkpoints (counting head, CDVQA head) and TorchScript exports
 # are tracked.
+# Local-only backups taken before a calibration re-fit. Never tracked: the
+# re-fit is reproducible with scripts/calibrate.py.
+weights/_precal_backup/
 weights/*.pt
 !weights/count_head.pt
 !weights/cdvqa_head.pt
 weights/*_cache_*.json
 
 # Scratch / temp outputs
+# Cached upstream documents (Bhuvan capabilities, place-index build log)
+.cache/
 *.log
 gitstatus.txt
 cdvqa_full_out.txt
@@ -38,3 +57,11 @@ cdvqa_full_results.txt
 # Internal planning & strategy + local AI-context files (never tracked, never pushed)
 MASTERPLAN.md
 system docs/
+
+# Local SIH submission bridge (deployed separately)
+hub/
+
+# Staging directories for deploy scripts (scripts/deploy_hf_space.py builds its
+# own git repo inside here; the weights it stages are large and must never be
+# picked up by this repository's history)
+build/

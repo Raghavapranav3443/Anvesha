@@ -3,7 +3,6 @@ import HeroGlobe from './HeroGlobe'
 import ManifestTable from './ManifestTable'
 import PipelineTrack from './PipelineTrack'
 import Reveal from './Reveal'
-import Ticker from './Ticker'
 import './landing.css'
 
 function ChapterLabel({ n, title }: { n: string; title: string }) {
@@ -91,7 +90,7 @@ export default function LandingPage({ onEnterConsole }: { onEnterConsole?: () =>
   const [whyTab, setWhyTab] = useState<'plain' | 'stats'>('plain')
 
   return (
-    <div className="relative bg-black">
+    <div className="landing-root relative bg-black">
       {/* floating controls: the landing renders without app chrome */}
       <div className="fixed right-5 top-4 z-50 flex items-center gap-2">
         <button
@@ -265,7 +264,7 @@ export default function LandingPage({ onEnterConsole }: { onEnterConsole?: () =>
                 headline numbers are full public test sets, measured 2026-08-29 on this machine
                 (RSVQA-LR n=9,491 · LEVIR-CD n=1,500 · CDVQA n=39,686). Small-n rows are spot-check
                 subsets: they move a few points between runs, so quote the full-test numbers.
-                Spot-checks reproduce with <span className="font-mono">python -m satquery.evaluate --all</span>;
+                Spot-checks reproduce with <span className="font-mono">python -m anvesha.evaluate --all</span>;
                 full-test numbers with <span className="font-mono">scripts/run_benchmarks.py --n 9491</span> (RSVQA-LR),{' '}
                 <span className="font-mono">--n 1500</span> (LEVIR-CD) and{' '}
                 <span className="font-mono">scripts/eval_cdvqa.py --split test</span> (CDVQA).
@@ -275,7 +274,7 @@ export default function LandingPage({ onEnterConsole }: { onEnterConsole?: () =>
                 decoder was trained on BigEarthNet-style captions, which share no 4-grams with
                 VRSBench's human-written references — a style-distribution mismatch. The same
                 decoder scores 0.306 multi-ref BLEU on its own benchmark (row 4).
-                Full decision record: <span className="font-mono">Decisions.md</span>.
+                Full decision record: <span className="font-mono">docs/Decisions.md</span>.
               </p>
             </div>
           </Reveal>
@@ -330,7 +329,6 @@ export default function LandingPage({ onEnterConsole }: { onEnterConsole?: () =>
       </section>
 
       <section className="relative z-10 border-t border-line bg-[var(--c-bg)]">
-        <Ticker />
         <div className="mx-auto max-w-5xl px-8 py-24">
           <Reveal>
             <ChapterLabel n="05" title="Why Anvesha" />

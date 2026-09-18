@@ -1,0 +1,1 @@
+{"benchmark": "LEVIR-CD (change map)", "metric": "IoU / F1", "n": 1500, "iou": 0.6921, "f1": 0.818}

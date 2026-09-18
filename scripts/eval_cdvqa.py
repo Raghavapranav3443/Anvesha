@@ -15,7 +15,7 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from satquery.config import CONFIG
+from anvesha.config import CONFIG
 
 
 def _safe_div(a, b, eps=1e-8):
@@ -239,8 +239,8 @@ def evaluate_cdvqa(split="test", max_pairs=0, model="rules"):
     (weights/cdvqa_head.pt); they fall back to rules with a warning if the
     checkpoint is absent.
     """
-    from satquery.io_utils import load_image
-    from satquery.models.change import ChangeDetectorNet
+    from anvesha.io_utils import load_image
+    from anvesha.models.change import ChangeDetectorNet
 
     learned = None
     if model in ("learned", "compare"):
@@ -406,8 +406,8 @@ def calibrate(max_pairs: int = 400) -> dict:
     the test-split evaluation (and the live agent) picks it up automatically.
     """
     import itertools
-    from satquery.io_utils import load_image
-    from satquery.models.change import ChangeDetectorNet
+    from anvesha.io_utils import load_image
+    from anvesha.models.change import ChangeDetectorNet
 
     base = CONFIG.data_dir / "CDVQA"
     imgs = json.loads((base / "Val_images.json").read_text())["images"]

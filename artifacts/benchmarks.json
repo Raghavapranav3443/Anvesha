@@ -1,0 +1,99 @@
+[
+  {
+    "benchmark": "RSVQA-LR (test subset)",
+    "metric": "exact-match accuracy",
+    "n": 282,
+    "score": 0.773,
+    "samples": [
+      {
+        "q": "Is it a rural or an urban area",
+        "gt": "urban",
+        "pred": "rural"
+      },
+      {
+        "q": "Is there a grass area?",
+        "gt": "yes",
+        "pred": "yes"
+      },
+      {
+        "q": "Is there a road?",
+        "gt": "yes",
+        "pred": "yes"
+      },
+      {
+        "q": "Is a large road present?",
+        "gt": "no",
+        "pred": "no"
+      },
+      {
+        "q": "Are there less buildings than farmlands?",
+        "gt": "no",
+        "pred": "no"
+      },
+      {
+        "q": "Is a residential building present?",
+        "gt": "yes",
+        "pred": "yes"
+      },
+      {
+        "q": "Are there more commercial buildings than roads?",
+        "gt": "no",
+        "pred": "no"
+      },
+      {
+        "q": "Is a forest present in the image?",
+        "gt": "yes",
+        "pred": "yes"
+      },
+      {
+        "q": "What is the amount of farmlands?",
+        "gt": "47",
+        "pred": "8"
+      },
+      {
+        "q": "What is the number of circular commercial buildings in the image?",
+        "gt": "0",
+        "pred": "0"
+      }
+    ],
+    "normalized_score": 0.773
+  },
+  {
+    "benchmark": "LEVIR-CD (change map)",
+    "metric": "IoU / F1",
+    "n": 300,
+    "iou": 0.7236,
+    "f1": 0.8396,
+    "normalized_score": 0.7236
+  },
+  {
+    "benchmark": "BigEarthNet.txt captions (val)",
+    "metric": "BLEU",
+    "n": 300,
+    "score": 0.306,
+    "normalized_score": 0.306
+  },
+  {
+    "benchmark": "VRSBench-val (captioning)",
+    "metric": "BLEU-4",
+    "n": 300,
+    "score": 0.0,
+    "normalized_score": 0.0
+  },
+  {
+    "benchmark": "VRSBench-val (grounding)",
+    "metric": "IoU@0.5",
+    "n": 455,
+    "score": 0.1257,
+    "det_rate@0.5": 0.0901,
+    "normalized_score": 0.1257
+  },
+  {
+    "benchmark": "CDVQA (val subset)",
+    "metric": "answer-match",
+    "n": 2088,
+    "score": 0.6456,
+    "note": "majority-baseline=0.5096 delta=+0.136 (learned change-conditioned head)",
+    "normalized_score": 0.6456
+  }
+]

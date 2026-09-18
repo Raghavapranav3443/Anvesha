@@ -2,10 +2,10 @@ import ast
 import sys
 
 files = [
-    "satquery/agent.py",
-    "satquery/server/main.py",
-    "satquery/tools_impl.py",
-    "satquery/io_utils.py",
+    "anvesha/agent.py",
+    "anvesha/server/main.py",
+    "anvesha/tools_impl.py",
+    "anvesha/io_utils.py",
 ]
 
 ok = True

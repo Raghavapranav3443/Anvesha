@@ -1,0 +1,178 @@
+{
+  "component": "vqa",
+  "n_val": 4096,
+  "checkpoint_temperature": 0.8,
+  "checkpoint_calib": {
+    "objective": "ece",
+    "ece": 0.01652122794303068,
+    "identity_ece": 0.025385796839600554,
+    "improved": true,
+    "split": "rsvqa_lr/val",
+    "n_cal": 4096,
+    "nll": 1.4063
+  },
+  "argmax_invariant": true,
+  "identity": {
+    "temperature": 1.0,
+    "accuracy": 0.6655,
+    "mean_confidence": 0.6527,
+    "brier": 0.1054,
+    "ece": 0.0254,
+    "reliability_table": [
+      {
+        "band": "0.00-0.50",
+        "lo": 0.0,
+        "hi": 0.5,
+        "n": 824,
+        "claimed_mean": 0.114,
+        "observed_accuracy": 0.096,
+        "sufficient": true,
+        "optimism": 0.018
+      },
+      {
+        "band": "0.50-0.60",
+        "lo": 0.5,
+        "hi": 0.6,
+        "n": 1147,
+        "claimed_mean": 0.538,
+        "observed_accuracy": 0.563,
+        "sufficient": true,
+        "optimism": -0.026
+      },
+      {
+        "band": "0.60-0.70",
+        "lo": 0.6,
+        "hi": 0.7,
+        "n": 206,
+        "claimed_mean": 0.637,
+        "observed_accuracy": 0.665,
+        "sufficient": true,
+        "optimism": -0.028
+      },
+      {
+        "band": "0.70-0.80",
+        "lo": 0.7,
+        "hi": 0.8,
+        "n": 129,
+        "claimed_mean": 0.755,
+        "observed_accuracy": 0.814,
+        "sufficient": true,
+        "optimism": -0.059
+      },
+      {
+        "band": "0.80-0.90",
+        "lo": 0.8,
+        "hi": 0.9,
+        "n": 196,
+        "claimed_mean": 0.857,
+        "observed_accuracy": 0.888,
+        "sufficient": true,
+        "optimism": -0.031
+      },
+      {
+        "band": "0.90-0.95",
+        "lo": 0.9,
+        "hi": 0.95,
+        "n": 185,
+        "claimed_mean": 0.928,
+        "observed_accuracy": 0.962,
+        "sufficient": true,
+        "optimism": -0.034
+      },
+      {
+        "band": "0.95-1.00",
+        "lo": 0.95,
+        "hi": 1.0,
+        "n": 1409,
+        "claimed_mean": 0.99,
+        "observed_accuracy": 0.999,
+        "sufficient": true,
+        "optimism": -0.009
+      }
+    ],
+    "gap": -0.0128,
+    "verdict": "well_calibrated"
+  },
+  "checkpoint": {
+    "temperature": 0.8,
+    "accuracy": 0.6655,
+    "mean_confidence": 0.6727,
+    "brier": 0.1049,
+    "ece": 0.0165,
+    "reliability_table": [
+      {
+        "band": "0.00-0.50",
+        "lo": 0.0,
+        "hi": 0.5,
+        "n": 790,
+        "claimed_mean": 0.126,
+        "observed_accuracy": 0.076,
+        "sufficient": true,
+        "optimism": 0.05
+      },
+      {
+        "band": "0.50-0.60",
+        "lo": 0.5,
+        "hi": 0.6,
+        "n": 1074,
+        "claimed_mean": 0.542,
+        "observed_accuracy": 0.554,
+        "sufficient": true,
+        "optimism": -0.012
+      },
+      {
+        "band": "0.60-0.70",
+        "lo": 0.6,
+        "hi": 0.7,
+        "n": 247,
+        "claimed_mean": 0.643,
+        "observed_accuracy": 0.628,
+        "sufficient": true,
+        "optimism": 0.015
+      },
+      {
+        "band": "0.70-0.80",
+        "lo": 0.7,
+        "hi": 0.8,
+        "n": 98,
+        "claimed_mean": 0.75,
+        "observed_accuracy": 0.765,
+        "sufficient": true,
+        "optimism": -0.015
+      },
+      {
+        "band": "0.80-0.90",
+        "lo": 0.8,
+        "hi": 0.9,
+        "n": 165,
+        "claimed_mean": 0.852,
+        "observed_accuracy": 0.855,
+        "sufficient": true,
+        "optimism": -0.003
+      },
+      {
+        "band": "0.90-0.95",
+        "lo": 0.9,
+        "hi": 0.95,
+        "n": 148,
+        "claimed_mean": 0.927,
+        "observed_accuracy": 0.892,
+        "sufficient": true,
+        "optimism": 0.035
+      },
+      {
+        "band": "0.95-1.00",
+        "lo": 0.95,
+        "hi": 1.0,
+        "n": 1574,
+        "claimed_mean": 0.993,
+        "observed_accuracy": 0.996,
+        "sufficient": true,
+        "optimism": -0.003
+      }
+    ],
+    "gap": 0.0071,
+    "verdict": "well_calibrated"
+  },
+  "note": "Reliability measured on RSVQA-LR val. Bands with small n are weak evidence; ``optimism`` positive means we claimed more than we delivered."
+}

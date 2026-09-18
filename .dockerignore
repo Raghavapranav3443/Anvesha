@@ -1,26 +1,41 @@
+# Patterns are matched against paths relative to the build context root, so a
+# bare `scripts` excludes only the top-level one. `.gitignore` is NOT reused
+# here -- the two files have different semantics, and this file is what decides
+# what COPY can see.
 .git
 .github
+.freebuff
 .pytest_cache
 __pycache__
+**/__pycache__
 *.pyc
-node_modules
-web/node_modules
-web/dist/node_modules
+
+# Local state: runtime artifacts, datasets, network caches, HF cache, decks.
+# These are large and must never be in the image.
 data/
 runs/
 tests/
-scripts/
+.cache/
+hub/
+*.pptx
 *.log
+
+# NOTE: `artifacts/` is deliberately NOT excluded. It is ~20 KB of committed
+# benchmark evidence and the console's Evaluation tab reads it on startup, so a
+# container with no run history still shows the measured numbers. Both
+# Dockerfiles COPY it and assert it at build time.
+
+# Docs and planning notes are not needed at runtime.
 *.md
 !requirements.txt
-.freebuff
-anvesha.md
-Decisions.md
-ARCHITECTURE.md
-MODEL_CARDS.md
-DEMO_PLAYBOOK.md
+
+# `scripts/` is intentionally NOT ignored: the image ships the reproduction
+# scripts (benchmark/calibration entry points), and an ignored directory cannot
+# be COPYed -- that combination is what previously made `docker build` fail.
+
 inputs.txt
 LICENSE
 Dockerfile
+Dockerfile.demo
 .dockerignore
 .gitignore

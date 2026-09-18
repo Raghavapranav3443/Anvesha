@@ -10,8 +10,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import rasterio
 from rasterio.transform import from_bounds
 
-from satquery.agent import AgentController
-from satquery.io_utils import InputValidationError, load_image
+from anvesha.agent import AgentController
+from anvesha.io_utils import InputValidationError, load_image
 
 
 def _write(path, arr, count, dtype="float32", crs="EPSG:4326",
@@ -27,7 +27,7 @@ def _write(path, arr, count, dtype="float32", crs="EPSG:4326",
 
 def test_uint16_reflectance_scaling(tmp_path):
     """Sentinel-style *10000 reflectance must be handled by the encoder path."""
-    from satquery.models.backbone import normalise_for_encoder
+    from anvesha.models.backbone import normalise_for_encoder
     a = (np.random.rand(64, 64, 3).astype(np.float32) * 4000) + 200
     out = normalise_for_encoder(a, "rgb")
     assert out.min() >= 0 and out.max() <= 1
@@ -35,7 +35,7 @@ def test_uint16_reflectance_scaling(tmp_path):
 
 def test_sar_db_scale_not_loggied(tmp_path):
     """dB-scale SAR (all-negative) must pass through without log1p collapse."""
-    from satquery.models.backbone import normalise_for_encoder
+    from anvesha.models.backbone import normalise_for_encoder
     db = np.random.uniform(-30, -2, (64, 64, 2)).astype(np.float32)
     out = normalise_for_encoder(db, "sar")
     assert abs(float(out.mean())) < 1.0     # standardised, not zeroed
@@ -57,7 +57,7 @@ def test_odd_crs_geotiff(tmp_path):
     img = load_image(f)
     assert img.crs == "EPSG:4326"
     comp = load_image.__module__ and None   # placeholder no-op
-    from satquery.io_utils import rgb_composite
+    from anvesha.io_utils import rgb_composite
     assert rgb_composite(img).shape == (64, 64, 3)
 
 

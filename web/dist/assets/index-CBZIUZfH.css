@@ -1,1 +1,0 @@
-@keyframes ticker-scroll{0%{transform:translate(0)}to{transform:translate(-50%)}}.ticker-track{animation:ticker-scroll 30s linear infinite}@media (prefers-reduced-motion: reduce){.ticker-track{animation:none}}

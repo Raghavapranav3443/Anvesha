@@ -17,7 +17,7 @@ from pathlib import Path
 import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from satquery.config import CONFIG  # noqa: E402
+from anvesha.config import CONFIG  # noqa: E402
 
 
 def one_session(url: str, image_path: Path, query: str) -> dict:
@@ -99,7 +99,7 @@ def main():
         "latency_max_s": round(max(lat), 3) if lat else None,
         "sample_answers": [r["answer"] for r in rows[:3]],
     }
-    out = CONFIG.runs_dir / "loadtest.json"
+    out = CONFIG.artifact("loadtest.json")
     out.write_text(json.dumps({"summary": summary, "rows": rows}, indent=2))
     print(json.dumps(summary, indent=2))
     print("saved", out)

@@ -18,7 +18,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from satquery.config import CONFIG  # noqa: E402
+from anvesha.config import CONFIG  # noqa: E402
 
 
 def eval_rsvqa(n: int) -> dict | None:
@@ -26,7 +26,7 @@ def eval_rsvqa(n: int) -> dict | None:
     if not root.exists():
         return None
     from scripts.train_vqa import RSVQADataset
-    from satquery.models.vqa import get_vqa_model
+    from anvesha.models.vqa import get_vqa_model
     try:
         ds = RSVQADataset(root, "test", max_items=n)
     except Exception as e:
@@ -38,7 +38,7 @@ def eval_rsvqa(n: int) -> dict | None:
     for i in range(len(ds)):
         item = ds.items[i]
         f, q, y = item[0], item[1], item[3] if len(item) == 4 else item[2]
-        img = __import__("satquery.io_utils", fromlist=["load_image"]).load_image(f)
+        img = __import__("anvesha.io_utils", fromlist=["load_image"]).load_image(f)
         out = model.answer(img, q)
         pred = out["answer"]
         gt = ds.answer_vocab[y]
@@ -60,8 +60,8 @@ def eval_levir(n: int, tta: bool = False) -> dict | None:
     a_dir = cands[0]
     b_dir = a_dir.parent / "B"
     l_dir = a_dir.parent / "label"
-    from satquery.io_utils import load_image
-    from satquery.models.change import ChangeDetectorNet
+    from anvesha.io_utils import load_image
+    from anvesha.models.change import ChangeDetectorNet
     det = ChangeDetectorNet()
     inter = union = tp = fp = fn = 0
     files = sorted(a_dir.glob("*.png"))[:n]
@@ -106,8 +106,8 @@ def eval_vrsbench(n: int) -> dict | None:
         return None
 
     import tempfile
-    from satquery.io_utils import load_image
-    from satquery.models.captioner import describe
+    from anvesha.io_utils import load_image
+    from anvesha.models.captioner import describe
 
     b1_hits = tot = 0
     samples = []
@@ -166,8 +166,8 @@ def eval_cdvqa(n: int) -> dict | None:
         print("CDVQA not present under data/CDVQA (see scripts/download_datasets.py notes)")
         return None
     import json as _json
-    from satquery.models.change import analyse_pair
-    from satquery.io_utils import load_image
+    from anvesha.models.change import analyse_pair
+    from anvesha.io_utils import load_image
 
     items = _json.loads(qa_file.read_text(encoding="utf-8"))[:n]
     correct = 0
@@ -210,8 +210,8 @@ def eval_bigearthnet(n: int) -> dict | None:
         print("BigEarthNet data not found")
         return None
 
-    from satquery.io_utils import load_image
-    from satquery.models.scene import get_scene_classifier
+    from anvesha.io_utils import load_image
+    from anvesha.models.scene import get_scene_classifier
     scene = get_scene_classifier()
 
     import json as _json
@@ -272,7 +272,7 @@ def main():
     b = eval_bigearthnet(args.n)
     if b:
         results.append(b)
-    out = CONFIG.runs_dir / "benchmarks.json"
+    out = CONFIG.artifact("benchmarks.json")
     out.write_text(json.dumps(results, indent=2), encoding="utf-8")
     print(json.dumps([{k: v for k, v in r.items() if k != "samples"}
                       for r in results], indent=2))

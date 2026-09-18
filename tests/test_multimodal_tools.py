@@ -1,9 +1,9 @@
 import numpy as np
 import pytest
 
-from satquery.io_utils import load_image
-from satquery.models.change import ChangeDetectorNet, analyse_pair
-from satquery.models.optical_sar import FusionNet, _modality_scores, _sar_scores
+from anvesha.io_utils import load_image
+from anvesha.models.change import ChangeDetectorNet, analyse_pair
+from anvesha.models.optical_sar import FusionNet, _modality_scores, _sar_scores
 
 
 def test_change_map_detects_added_buildings(bitemporal_pair):
@@ -43,9 +43,9 @@ def test_fusion_trained_path_no_attributeerror(opt_sar_pair, tmp_path):
     path of FusionNet.analyse() crashed with AttributeError."""
     import torch
 
-    from satquery.config import CONFIG
-    from satquery.models.backbone import SceneEncoder
-    from satquery.models.optical_sar import FusionNet
+    from anvesha.config import CONFIG
+    from anvesha.models.backbone import SceneEncoder
+    from anvesha.models.optical_sar import FusionNet
 
     o, s = [load_image(p) for p in opt_sar_pair]
     net = FusionNet()

@@ -12,7 +12,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from satquery.config import CONFIG
+from anvesha.config import CONFIG
 
 
 def _require(path: Path, what: str):
@@ -22,7 +22,7 @@ def _require(path: Path, what: str):
 
 def test_vqa_model_loads_when_weights_exist():
     _require(CONFIG.vqa_weights, "VQA head")
-    from satquery.models.vqa import RSVQAModel
+    from anvesha.models.vqa import RSVQAModel
     m = RSVQAModel(device="cpu")
     assert m.trained is True, (
         "VQA weights exist but the model silently fell back to the "
@@ -32,7 +32,7 @@ def test_vqa_model_loads_when_weights_exist():
 
 def test_change_detector_loads_when_weights_exist():
     _require(CONFIG.change_weights, "change detector")
-    from satquery.models.change import ChangeDetectorNet
+    from anvesha.models.change import ChangeDetectorNet
     d = ChangeDetectorNet(device="cpu")
     assert d.trained is True, (
         "change weights exist but the detector silently fell back to "
@@ -42,7 +42,7 @@ def test_change_detector_loads_when_weights_exist():
 
 def test_fusion_loads_when_weights_exist():
     _require(CONFIG.fusion_weights, "optical-SAR fusion")
-    from satquery.models.optical_sar import FusionNet
+    from anvesha.models.optical_sar import FusionNet
     f = FusionNet(device="cpu")
     # FusionNet refuses synthetic-mode checkpoints by design (stays heuristic
     # until trained on real pairs) — trained=True is the only acceptable
@@ -56,7 +56,7 @@ def test_fusion_loads_when_weights_exist():
 
 def test_model_status_reports_trained():
     """The degradation-transparency helper must reflect real load state."""
-    from satquery.models.status import model_status
+    from anvesha.models.status import model_status
     status = model_status()
     assert set(status) >= {"scene_encoder", "vqa", "change", "fusion"}
     if CONFIG.scene_encoder_weights.exists():

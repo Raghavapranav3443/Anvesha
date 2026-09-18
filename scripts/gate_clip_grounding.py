@@ -30,8 +30,8 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from satquery.config import CONFIG  # noqa: E402
-from satquery.evaluate import _parse_coord, _vrsbench_val  # noqa: E402
+from anvesha.config import CONFIG  # noqa: E402
+from anvesha.evaluate import _parse_coord, _vrsbench_val  # noqa: E402
 
 
 def load_clip(args, device):
@@ -61,7 +61,7 @@ def region_scores(model, proc, loader, img, query, device, batch=64):
     capability. Threshold stays 0.30.
     """
     from PIL import Image
-    from satquery.io_utils import _to_uint8_display
+    from anvesha.io_utils import _to_uint8_display
     # load_image returns float32 [0,1]; PIL needs uint8
     im = Image.fromarray(_to_uint8_display(np.asarray(img))).convert("RGB")
     W, H = im.size
@@ -142,7 +142,7 @@ def main():
     ious, oracles, det = [], [], 0
     t0 = time.time()
     for it in items[:args.n]:
-        from satquery.io_utils import load_image
+        from anvesha.io_utils import load_image
         img = load_image(it["image"])
         arr = img.array
         if arr.ndim == 2:
@@ -187,7 +187,7 @@ def main():
     print(f"[clip] proposal-grid oracle IoU (ceiling) = {oracle:.4f}", flush=True)
     print(f"[clip] gate (>= {gate}) -> {verdict}", flush=True)
 
-    out = CONFIG.runs_dir / "clip_grounding_gate.json"
+    out = CONFIG.artifact("clip_grounding_gate.json")
     out.write_text(json.dumps({
         "loader": args.loader, "model": args.model, "arch": args.arch,
         "pretrained": args.pretrained, "device": device, "n": args.n,

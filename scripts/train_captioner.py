@@ -27,8 +27,8 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
 
-from satquery.config import CONFIG, BEN19_CLASSES
-from satquery.models.backbone import SceneEncoder, normalise_for_encoder, resize_np
+from anvesha.config import CONFIG, BEN19_CLASSES
+from anvesha.models.backbone import SceneEncoder, normalise_for_encoder, resize_np
 
 
 def simple_bleu(pred: str, ref: str, n_max: int = 4) -> float:
@@ -310,7 +310,7 @@ def main(args):
           round(best, 4))
 
     # Experiment log
-    from satquery.experiment_log import log_experiment
+    from anvesha.experiment_log import log_experiment
     log_experiment(
         script="train_captioner",
         args={"epochs": args.epochs, "lr": args.lr, "batch_size": args.batch_size,

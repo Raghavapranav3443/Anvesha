@@ -1,0 +1,33 @@
+{
+  "gate": "ADOPT",
+  "reason": "gate1(clip>bow mean)=True gate2(presence no-regress)=True [bow=0.8819 clip=0.8842]",
+  "bow": {
+    "val_mean": 0.7222,
+    "val_accs": {
+      "comp": 0.7016,
+      "count": 0.4807,
+      "presence": 0.8819,
+      "rural_urban": 0.8246
+    }
+  },
+  "clip": {
+    "val_mean": 0.7463,
+    "val_accs": {
+      "comp": 0.8133,
+      "count": 0.4807,
+      "presence": 0.8842,
+      "rural_urban": 0.807
+    }
+  },
+  "split": {
+    "train": 48853,
+    "val": 5414
+  },
+  "args": {
+    "data": "data/rsvqa_lr",
+    "image_size": "128",
+    "epochs": "8",
+    "batch_size": "128",
+    "lr": "0.0002"
+  }
+}

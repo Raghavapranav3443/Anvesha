@@ -16,8 +16,8 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
 
-from satquery.config import CONFIG, BEN19_CLASSES
-from satquery.models.backbone import SceneEncoder
+from anvesha.config import CONFIG, BEN19_CLASSES
+from anvesha.models.backbone import SceneEncoder
 
 
 class ReBENPairs(Dataset):
@@ -118,7 +118,7 @@ class BEN14KPairs(Dataset):
             self.samples.append((p1, p2, [str(x) for x in row["labels"]]))
         if max_pairs:
             self.samples = self.samples[:max_pairs]
-        from satquery.config import BEN19_CLASSES
+        from anvesha.config import BEN19_CLASSES
         self.classes = BEN19_CLASSES
         self.lut = {n: i for i, n in enumerate(BEN19_CLASSES)}
 
@@ -137,7 +137,7 @@ class BEN14KPairs(Dataset):
             s1.std(axis=(0, 1), keepdims=True) + 1e-6
         s1n = ((s1 - mu) / sd).astype(np.float32)
 
-        from satquery.models.backbone import resize_np
+        from anvesha.models.backbone import resize_np
         rgb_s = resize_np(rgb, self.image_size)
         sar_s = resize_np(s1n, self.image_size)[..., :2]
 

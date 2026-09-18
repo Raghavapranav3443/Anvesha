@@ -10,8 +10,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from fastapi.testclient import TestClient
 
-from satquery.store import Store  # noqa: F401 (exercised via API)
-from satquery.server.main import app
+from anvesha.store import Store  # noqa: F401 (exercised via API)
+from anvesha.server.main import app
 
 client = TestClient(app)
 SAMPLES = Path(__file__).resolve().parents[1] / "samples"

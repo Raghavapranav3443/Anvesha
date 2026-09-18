@@ -13,7 +13,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tests"))
 
-from satquery.config import CONFIG  # noqa: E402
+from anvesha.config import CONFIG  # noqa: E402
 
 import rasterio
 from rasterio.transform import from_bounds

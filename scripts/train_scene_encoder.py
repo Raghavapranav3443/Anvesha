@@ -22,8 +22,8 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
 
-from satquery.config import CONFIG, EUROSAT_CLASSES
-from satquery.models.backbone import SceneEncoder
+from anvesha.config import CONFIG, EUROSAT_CLASSES
+from anvesha.models.backbone import SceneEncoder
 
 
 class EuroSATDataset(Dataset):
@@ -123,7 +123,7 @@ def train(args):
         candidate_path.unlink(missing_ok=True)
 
     # Experiment log
-    from satquery.experiment_log import log_experiment
+    from anvesha.experiment_log import log_experiment
     log_experiment(
         script="train_scene_encoder",
         args={"max_per_class": args.max_per_class, "epochs": args.epochs,

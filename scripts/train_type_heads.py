@@ -5,7 +5,7 @@ once per batch under no_grad and each sample is routed per-sample to its
 type's head, so specialists can never drift the encoder. At inference the
 detected question type routes to the matching head.
 
-Outputs weights/type_heads.pt consumed by satquery.models.vqa routing.
+Outputs weights/type_heads.pt consumed by anvesha.models.vqa routing.
 """
 from __future__ import annotations
 
@@ -23,9 +23,9 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
-from satquery.config import CONFIG
-from satquery.models.backbone import SceneEncoder
-from satquery.models.vqa import _FusionHead, _hashed_bow
+from anvesha.config import CONFIG
+from anvesha.models.backbone import SceneEncoder
+from anvesha.models.vqa import _FusionHead, _hashed_bow
 from scripts.train_vqa import RSVQADataset
 
 
@@ -107,7 +107,7 @@ def main(args):
 
     backbone_kind = args.backbone
     if backbone_kind == "dino":
-        from satquery.models.dino_encoder import DinoEncoder
+        from anvesha.models.dino_encoder import DinoEncoder
         encoder = DinoEncoder(weights=str(CONFIG.weights_dir / "dinov2_vits14.pt"),
                               device=device)
     else:

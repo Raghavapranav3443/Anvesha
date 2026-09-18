@@ -31,7 +31,7 @@ export default function EvaluationView({ prov }: { prov: Provenance | null }) {
   return (
     <div className="space-y-6">
       <Panel title="Benchmark & evaluation harness">
-        <p className="mb-4 max-w-3xl text-[17px] leading-relaxed text-muted">
+        <p className="mb-4 max-w-3xl text-base leading-relaxed text-muted">
           Reproducible evaluation over the prescribed public benchmark subsets.
           The combined score is the mean of per-benchmark normalised scores —
           the same normalisation the problem statement applies before combining.
@@ -53,9 +53,9 @@ export default function EvaluationView({ prov }: { prov: Provenance | null }) {
       </Panel>
 
       <Panel title={card ? `Scorecard — combined normalised ${combined}` : 'Latest measured scorecard'}>
-        <table className="w-full text-left text-[17px]">
+        <table className="w-full text-left text-base">
           <thead>
-            <tr className="border-b border-line text-[14.5px] uppercase tracking-wider text-faint">
+            <tr className="border-b border-line text-sm uppercase tracking-wider text-faint">
               <th className="py-2 pr-3 font-medium">Benchmark</th>
               <th className="py-2 pr-3 font-medium">Metric</th>
               <th className="py-2 pr-3 font-medium">n</th>

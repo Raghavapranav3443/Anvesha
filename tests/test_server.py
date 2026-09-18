@@ -6,7 +6,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from fastapi.testclient import TestClient
 
-from satquery.server.main import app
+from anvesha.server.main import app
 
 client = TestClient(app)
 
@@ -49,3 +49,44 @@ def test_job_lifecycle():
     res = st["result"]
     assert res["selected_task"] == "optical_sar"
     assert st["trace"][0]["name"] == "validate_inputs"
+
+
+def test_stats_freshness_legend():
+    """C3/R5: /api/stats carries the additive freshness legend."""
+    r = client.get("/api/stats")
+    assert r.status_code == 200
+    body = r.json()
+    legend = body.get("freshness_legend")
+    assert legend is not None
+    assert "thresholds_by_task_days" in legend
+    assert "single_vqa" in legend["thresholds_by_task_days"]
+    assert set(legend["flags"]) == {"ok", "degraded"}
+    assert "orbital" in legend["method_note"] or "age" in legend["method_note"]
+
+
+def test_fixtures_endpoint_404_when_unbuilt():
+    """C7: /api/fixtures 404s with a warm_demo hint when no manifest exists."""
+    from anvesha.server import fixtures as fx
+    saved = fx.FIXTURES_PATH
+    fx.FIXTURES_PATH = fx.Path("_definitely_missing_manifest.json")
+    try:
+        r = client.get("/api/fixtures")
+        assert r.status_code == 404
+        assert "warm_demo" in r.json()["detail"]
+    finally:
+        fx.FIXTURES_PATH = saved
+
+
+def test_fixtures_endpoint_serves_manifest(tmp_path, monkeypatch):
+    """C7: a valid pre-baked manifest is served with no-store headers."""
+    import json as _json
+    from anvesha.server import fixtures as fx
+    p = tmp_path / "manifest.json"
+    p.write_text(_json.dumps({"fixtures": [], "all_green": True,
+                              "generated_by": "scripts/warm_demo.py"}),
+                 encoding="utf-8")
+    monkeypatch.setattr(fx, "FIXTURES_PATH", p)
+    r = client.get("/api/fixtures")
+    assert r.status_code == 200
+    assert r.json()["all_green"] is True
+    assert r.headers.get("Cache-Control") == "no-store"

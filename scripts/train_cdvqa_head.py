@@ -32,7 +32,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
 
-from satquery.config import CONFIG
+from anvesha.config import CONFIG
 
 CDVQA_CATS = ["buildings", "water", "trees", "low_vegetation", "NVG_surface"]
 QTYPES = ["change_or_not", "increase_or_not", "decrease_or_not",
@@ -83,8 +83,8 @@ def build_records(split: str, max_pairs: int, cache: Path) -> list:
         print(f"  loading cached pair features from {cache.name}")
         return json.loads(cache.read_text())
 
-    from satquery.io_utils import load_image
-    from satquery.models.change import ChangeDetectorNet
+    from anvesha.io_utils import load_image
+    from anvesha.models.change import ChangeDetectorNet
     from scripts.eval_cdvqa import compute_fine_presence, _parse_cat
 
     base = CONFIG.data_dir / "CDVQA"
@@ -271,7 +271,7 @@ def main(args):
                    f"rule-based predictor stays shipped")
     print(f"best val_acc={best:.4f} -> {verdict}")
 
-    from satquery.experiment_log import log_experiment
+    from anvesha.experiment_log import log_experiment
     log_experiment(
         script="train_cdvqa_head",
         args={"epochs": args.epochs, "lr": args.lr,

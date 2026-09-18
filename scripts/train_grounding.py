@@ -16,8 +16,8 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
 
-from satquery.config import CONFIG
-from satquery.models.backbone import SceneEncoder, normalise_for_encoder, resize_np
+from anvesha.config import CONFIG
+from anvesha.models.backbone import SceneEncoder, normalise_for_encoder, resize_np
 
 
 def bow(text: str, dim: int = 512) -> np.ndarray:

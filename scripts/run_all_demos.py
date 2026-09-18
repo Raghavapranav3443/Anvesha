@@ -1,6 +1,6 @@
 import sys
 sys.path.insert(0, ".")
-from satquery.agent import get_controller
+from anvesha.agent import get_controller
 
 c = get_controller()
 demos = [

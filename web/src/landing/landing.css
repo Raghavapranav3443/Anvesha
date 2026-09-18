@@ -1,9 +1,3 @@
-@keyframes ticker-scroll {
-  from { transform: translateX(0); }
-  to   { transform: translateX(-50%); }
-}
-.ticker-track { animation: ticker-scroll 30s linear infinite; }
-
-@media (prefers-reduced-motion: reduce) {
-  .ticker-track { animation: none; }
-}
+/* Keep the landing page on its original Inter face — the app shell switches
+   to Noto Sans (govt-portal standard) but this page is intentionally frozen. */
+.landing-root { font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif; }

@@ -27,7 +27,7 @@ sys.path.insert(0, str(ROOT))
 class TestSingletonThreadSafety:
     def test_get_controller_returns_same_instance(self):
         """Multiple threads calling get_controller() must get the same object."""
-        from satquery.agent import get_controller
+        from anvesha.agent import get_controller
         results = [None] * 10
 
         def worker(i):
@@ -52,7 +52,7 @@ class TestSingletonThreadSafety:
 class TestChamferDistance:
     def test_single_pixel_distance(self):
         """Distance from a single pixel should be Euclidean."""
-        from satquery.impact import chamfer_distance
+        from anvesha.impact import chamfer_distance
         mask = np.zeros((10, 10), dtype=bool)
         mask[5, 5] = True
         d = chamfer_distance(mask)
@@ -64,14 +64,14 @@ class TestChamferDistance:
 
     def test_all_true_mask_gives_zero(self):
         """When all pixels are True, distance should be zero everywhere."""
-        from satquery.impact import chamfer_distance
+        from anvesha.impact import chamfer_distance
         mask = np.ones((20, 20), dtype=bool)
         d = chamfer_distance(mask)
         assert np.allclose(d, 0.0), "All-True mask should give zero distance"
 
     def test_symmetry(self):
         """Distance should be symmetric around the target."""
-        from satquery.impact import chamfer_distance
+        from anvesha.impact import chamfer_distance
         mask = np.zeros((15, 15), dtype=bool)
         mask[7, 7] = True
         d = chamfer_distance(mask)
@@ -86,8 +86,8 @@ class TestChamferDistance:
 class TestExperimentLog:
     def test_log_experiment_creates_file(self, tmp_path):
         """log_experiment should create a JSONL file."""
-        from satquery.experiment_log import log_experiment
-        import satquery.config as cfg_mod
+        from anvesha.experiment_log import log_experiment
+        import anvesha.config as cfg_mod
         original_runs = cfg_mod.CONFIG.runs_dir
         cfg_mod.CONFIG.runs_dir = tmp_path
         try:
@@ -105,8 +105,8 @@ class TestExperimentLog:
 
     def test_recent_experiments_reads_back(self, tmp_path):
         """recent_experiments should return logged records."""
-        from satquery.experiment_log import log_experiment, recent_experiments
-        import satquery.config as cfg_mod
+        from anvesha.experiment_log import log_experiment, recent_experiments
+        import anvesha.config as cfg_mod
         original_runs = cfg_mod.CONFIG.runs_dir
         cfg_mod.CONFIG.runs_dir = tmp_path
         try:
@@ -126,19 +126,19 @@ class TestExperimentLog:
 
 class TestInvestigationPlan:
     def test_urban_query_selects_urban_plan(self):
-        from satquery.agent import AgentController
+        from anvesha.agent import AgentController
         plan_key = AgentController._select_investigation_plan(
             "Investigate urban expansion around the water body")
         assert plan_key == "urban"
 
     def test_vegetation_query_selects_vegetation_plan(self):
-        from satquery.agent import AgentController
+        from anvesha.agent import AgentController
         plan_key = AgentController._select_investigation_plan(
             "What happened to the forest cover?")
         assert plan_key == "vegetation"
 
     def test_default_query_returns_default_plan(self):
-        from satquery.agent import AgentController
+        from anvesha.agent import AgentController
         plan_key = AgentController._select_investigation_plan(
             "What changed between these dates?")
         assert plan_key == "default"
@@ -150,19 +150,19 @@ class TestInvestigationPlan:
 
 class TestEmbeddingRouting:
     def test_bow_vector_normalised(self):
-        from satquery.agent import _query_bow
+        from anvesha.agent import _query_bow
         vec = _query_bow("is there water in this image")
         norm = np.linalg.norm(vec)
         assert abs(norm - 1.0) < 1e-5, f"BOW vector not normalised: norm={norm:.6f}"
 
     def test_cosine_sim_identical(self):
-        from satquery.agent import _cosine_sim, _query_bow
+        from anvesha.agent import _cosine_sim, _query_bow
         vec = _query_bow("water body")
         assert abs(_cosine_sim(vec, vec) - 1.0) < 1e-5
 
     def test_task_centroids_computed(self):
-        from satquery.agent import _get_task_centroids
-        import satquery.agent as agent_mod
+        from anvesha.agent import _get_task_centroids
+        import anvesha.agent as agent_mod
         agent_mod._task_centroids = None  # reset
         centroids = _get_task_centroids()
         # Data-derived centroids cover RSVQA types; keyword fallback covers all
@@ -172,7 +172,7 @@ class TestEmbeddingRouting:
         assert first_vec.shape == (512,)
 
     def test_similar_queries_route_to_same_task(self):
-        from satquery.agent import classify_task
+        from anvesha.agent import classify_task
         r1 = classify_task("is there water present", "single")
         r2 = classify_task("can you see a water body", "single")
         # Both should route to single_vqa (the closest feasible task for single-image)

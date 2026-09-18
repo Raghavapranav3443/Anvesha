@@ -30,7 +30,7 @@ sys.path.insert(0, str(ROOT))
 
 @pytest.fixture()
 def tmp_store(tmp_path):
-    from satquery.store import Store
+    from anvesha.store import Store
     return Store(tmp_path / "test.db")
 
 
@@ -62,7 +62,7 @@ class TestCacheTTL:
 
     def test_expired_entry_is_not_returned(self, tmp_store):
         """A row older than CACHE_TTL_DAYS should be treated as a miss."""
-        import satquery.store as store_mod
+        import anvesha.store as store_mod
         # Temporarily shrink TTL to 1 day so we can easily go past it
         original_ttl = store_mod.CACHE_TTL_DAYS
         store_mod.CACHE_TTL_DAYS = 1
@@ -89,7 +89,7 @@ class TestCacheTTL:
 
     def test_purge_stale_removes_old_terminal_rows(self, tmp_store):
         """purge_stale() must delete expired done/error rows but keep active ones."""
-        import satquery.store as store_mod
+        import anvesha.store as store_mod
         original_ttl = store_mod.CACHE_TTL_DAYS
         store_mod.CACHE_TTL_DAYS = 1
         try:
@@ -132,7 +132,7 @@ class TestCacheTTL:
 @pytest.fixture(scope="module")
 def client():
     from fastapi.testclient import TestClient
-    from satquery.server.main import app
+    from anvesha.server.main import app
     return TestClient(app)
 
 
@@ -184,7 +184,7 @@ class TestStructuredErrors:
     def test_queue_full_returns_structured_429(self, client, monkeypatch):
         """Filling the queue must return 429 with structured detail/code/hint."""
         import base64
-        import satquery.server.jobs as jobs_mod
+        import anvesha.server.jobs as jobs_mod
 
         # Set queue limit to 0 so the very next create() call hits the cap
         monkeypatch.setattr(jobs_mod, "MAX_QUEUE", 0)

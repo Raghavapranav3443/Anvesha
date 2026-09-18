@@ -1,0 +1,438 @@
+{
+ "generated": "2026-09-17T17:31:07Z",
+ "source": "OpenStreetMap Nominatim",
+ "license": "ODbL 1.0 (c) OpenStreetMap contributors",
+ "count": 36,
+ "places": [
+  {
+   "name": "Andhra Pradesh",
+   "aliases": [
+    "AP"
+   ],
+   "bbox": [
+    76.76008,
+    12.62386,
+    84.7658,
+    19.16681
+   ],
+   "display_name": "Andhra Pradesh, India"
+  },
+  {
+   "name": "Arunachal Pradesh",
+   "aliases": [],
+   "bbox": [
+    91.56231,
+    26.65086,
+    97.39509,
+    29.37456
+   ],
+   "display_name": "Arunachal Pradesh, India"
+  },
+  {
+   "name": "Assam",
+   "aliases": [],
+   "bbox": [
+    89.6986,
+    24.13603,
+    96.01244,
+    27.97124
+   ],
+   "display_name": "Assam, India"
+  },
+  {
+   "name": "Bihar",
+   "aliases": [],
+   "bbox": [
+    83.32126,
+    24.28572,
+    88.2938,
+    27.52163
+   ],
+   "display_name": "Bihar, India"
+  },
+  {
+   "name": "Chhattisgarh",
+   "aliases": [],
+   "bbox": [
+    80.24418,
+    17.78222,
+    84.39596,
+    24.10669
+   ],
+   "display_name": "Chhattisgarh, India"
+  },
+  {
+   "name": "Goa",
+   "aliases": [],
+   "bbox": [
+    73.6756,
+    14.75293,
+    74.33611,
+    15.80076
+   ],
+   "display_name": "Goa, India"
+  },
+  {
+   "name": "Gujarat",
+   "aliases": [],
+   "bbox": [
+    68.17566,
+    20.11953,
+    74.47643,
+    24.71189
+   ],
+   "display_name": "Gujarat, India"
+  },
+  {
+   "name": "Haryana",
+   "aliases": [],
+   "bbox": [
+    74.47351,
+    27.65263,
+    77.60214,
+    30.92877
+   ],
+   "display_name": "Haryana, India"
+  },
+  {
+   "name": "Himachal Pradesh",
+   "aliases": [
+    "HP"
+   ],
+   "bbox": [
+    75.59401,
+    30.37717,
+    79.01238,
+    33.25567
+   ],
+   "display_name": "Himachal Pradesh, India"
+  },
+  {
+   "name": "Jharkhand",
+   "aliases": [],
+   "bbox": [
+    83.32811,
+    21.97003,
+    87.96283,
+    25.34892
+   ],
+   "display_name": "Jharkhand, India"
+  },
+  {
+   "name": "Karnataka",
+   "aliases": [
+    "Karnatak"
+   ],
+   "bbox": [
+    74.05439,
+    11.59456,
+    78.58758,
+    18.47665
+   ],
+   "display_name": "Karnataka, India"
+  },
+  {
+   "name": "Kerala",
+   "aliases": [],
+   "bbox": [
+    74.86407,
+    8.29353,
+    77.41236,
+    12.79606
+   ],
+   "display_name": "Kerala, India"
+  },
+  {
+   "name": "Madhya Pradesh",
+   "aliases": [
+    "MP"
+   ],
+   "bbox": [
+    74.02938,
+    21.07069,
+    82.81261,
+    26.86956
+   ],
+   "display_name": "Madhya Pradesh, India"
+  },
+  {
+   "name": "Maharashtra",
+   "aliases": [],
+   "bbox": [
+    72.65261,
+    15.60636,
+    80.89778,
+    22.03027
+   ],
+   "display_name": "Maharashtra, India"
+  },
+  {
+   "name": "Manipur",
+   "aliases": [],
+   "bbox": [
+    92.97071,
+    23.83362,
+    94.74524,
+    25.6921
+   ],
+   "display_name": "Manipur, India"
+  },
+  {
+   "name": "Meghalaya",
+   "aliases": [],
+   "bbox": [
+    89.81444,
+    25.03065,
+    92.80274,
+    26.11817
+   ],
+   "display_name": "Meghalaya, India"
+  },
+  {
+   "name": "Mizoram",
+   "aliases": [],
+   "bbox": [
+    92.26022,
+    21.94005,
+    93.43737,
+    24.52313
+   ],
+   "display_name": "Mizoram, India"
+  },
+  {
+   "name": "Nagaland",
+   "aliases": [],
+   "bbox": [
+    93.3267,
+    25.19843,
+    95.24238,
+    27.0358
+   ],
+   "display_name": "Nagaland, India"
+  },
+  {
+   "name": "Odisha",
+   "aliases": [
+    "Orissa"
+   ],
+   "bbox": [
+    81.38859,
+    17.81227,
+    87.48614,
+    22.56759
+   ],
+   "display_name": "Odisha, India"
+  },
+  {
+   "name": "Punjab",
+   "aliases": [],
+   "bbox": [
+    73.87983,
+    29.54294,
+    76.93906,
+    32.51118
+   ],
+   "display_name": "Punjab, India"
+  },
+  {
+   "name": "Rajasthan",
+   "aliases": [],
+   "bbox": [
+    69.48444,
+    23.05866,
+    78.27201,
+    30.19825
+   ],
+   "display_name": "Rajasthan, India"
+  },
+  {
+   "name": "Sikkim",
+   "aliases": [],
+   "bbox": [
+    88.01203,
+    27.07926,
+    88.92117,
+    28.12405
+   ],
+   "display_name": "Sikkim, India"
+  },
+  {
+   "name": "Tamil Nadu",
+   "aliases": [
+    "TN"
+   ],
+   "bbox": [
+    76.23295,
+    8.07689,
+    80.3593,
+    13.56391
+   ],
+   "display_name": "Tamil Nadu, India"
+  },
+  {
+   "name": "Telangana",
+   "aliases": [],
+   "bbox": [
+    77.23659,
+    15.83642,
+    81.32262,
+    19.9173
+   ],
+   "display_name": "Telangana, India"
+  },
+  {
+   "name": "Tripura",
+   "aliases": [],
+   "bbox": [
+    91.15081,
+    22.93761,
+    92.33585,
+    24.53088
+   ],
+   "display_name": "Tripura, India"
+  },
+  {
+   "name": "Uttar Pradesh",
+   "aliases": [
+    "UP"
+   ],
+   "bbox": [
+    77.08388,
+    23.87063,
+    84.63451,
+    30.40638
+   ],
+   "display_name": "Uttar Pradesh, India"
+  },
+  {
+   "name": "Uttarakhand",
+   "aliases": [
+    "Uttaranchal"
+   ],
+   "bbox": [
+    77.57133,
+    28.72432,
+    81.04479,
+    31.45902
+   ],
+   "display_name": "Uttarakhand, India"
+  },
+  {
+   "name": "West Bengal",
+   "aliases": [
+    "Bengal",
+    "WB"
+   ],
+   "bbox": [
+    85.81967,
+    21.5473,
+    89.8826,
+    27.22107
+   ],
+   "display_name": "West Bengal, India"
+  },
+  {
+   "name": "Andaman and Nicobar Islands",
+   "aliases": [
+    "Andaman",
+    "Nicobar"
+   ],
+   "bbox": [
+    92.20421,
+    6.75627,
+    94.27732,
+    13.67531
+   ],
+   "display_name": "Andaman and Nicobar Islands, India"
+  },
+  {
+   "name": "Chandigarh",
+   "aliases": [],
+   "bbox": [
+    76.61971,
+    30.57344,
+    76.93971,
+    30.89344
+   ],
+   "display_name": "Chandigarh, 160018, India"
+  },
+  {
+   "name": "Dadra and Nagar Haveli and Daman and Diu",
+   "aliases": [
+    "Daman",
+    "Diu",
+    "Dadra"
+   ],
+   "bbox": [
+    70.87346,
+    20.04739,
+    73.21783,
+    20.76779
+   ],
+   "display_name": "Dadra and Nagar Haveli and Daman and Diu, India"
+  },
+  {
+   "name": "Delhi",
+   "aliases": [
+    "New Delhi",
+    "NCT of Delhi"
+   ],
+   "bbox": [
+    76.83884,
+    28.40463,
+    77.34534,
+    28.88345
+   ],
+   "display_name": "Delhi, Old Delhi, Delhi, India"
+  },
+  {
+   "name": "Jammu and Kashmir",
+   "aliases": [
+    "Jammu",
+    "Kashmir"
+   ],
+   "bbox": [
+    73.75003,
+    32.27636,
+    76.78032,
+    34.78714
+   ],
+   "display_name": "Jammu and Kashmir, India"
+  },
+  {
+   "name": "Ladakh",
+   "aliases": [],
+   "bbox": [
+    75.32697,
+    32.33574,
+    79.46073,
+    35.67293
+   ],
+   "display_name": "Ladakh, India"
+  },
+  {
+   "name": "Lakshadweep",
+   "aliases": [],
+   "bbox": [
+    71.51804,
+    8.06482,
+    73.90614,
+    12.60101
+   ],
+   "display_name": "Lakshadweep, India"
+  },
+  {
+   "name": "Puducherry",
+   "aliases": [
+    "Pondicherry"
+   ],
+   "bbox": [
+    75.52659,
+    10.82772,
+    82.31371,
+    16.76171
+   ],
+   "display_name": "Puducherry, India"
+  }
+ ]
+}

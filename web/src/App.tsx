@@ -5,6 +5,8 @@ import ProvenanceView from './components/Provenance'
 import HistoryView from './components/HistoryView'
 import EvaluationView from './components/EvaluationView'
 import HelpView from './components/HelpView'
+import JudgeRun from './components/JudgeRun'
+import { ModeToggle } from './components/ModeToggle'
 import Onboarding from './components/Onboarding'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { fetchProvenance, type Provenance } from './api'
@@ -21,10 +23,11 @@ const LandingPage = hasLanding
     }>)
   : null
 
-type View = 'home' | 'console' | 'history' | 'evaluation' | 'provenance' | 'help'
+type View = 'home' | 'console' | 'history' | 'evaluation' | 'provenance' | 'help' | 'judge-run'
 
 const NAV: { id: View; label: string; icon: string; hint: string }[] = [
   { id: 'console', label: 'Console', icon: 'console', hint: 'Upload imagery & ask questions' },
+  { id: 'judge-run', label: 'Judge Run', icon: 'history', hint: '5-mandatory-workflow checklist' },
   { id: 'history', label: 'History', icon: 'history', hint: 'Past analyses & comparison' },
   { id: 'evaluation', label: 'Evaluation', icon: 'evaluation', hint: 'Measured benchmark scorecard' },
   { id: 'provenance', label: 'Provenance', icon: 'provenance', hint: 'Models, training data, metrics' },
@@ -171,14 +174,14 @@ export default function App() {
               className={`group flex w-[60px] flex-col items-center gap-0.5 rounded-lg py-2 transition-colors ${
                 view === n.id ? 'bg-accent-soft text-accent' : 'text-muted hover:bg-elev hover:text-body'}`}>
               <NavIcon name={n.icon} />
-              <span className="text-[11px] font-medium leading-tight text-center">{n.label}</span>
+              <span className="text-xs font-medium leading-tight text-center">{n.label}</span>
             </button>
           ))}
         </nav>
         <button onClick={toggleTheme} title="Toggle light/dark theme"
           className="flex w-[60px] flex-col items-center gap-0.5 rounded-lg py-2 text-muted hover:bg-elev hover:text-body">
           <NavIcon name={theme === 'light' ? 'moon' : 'sun'} className="h-[18px] w-[18px]" />
-          <span className="text-[11px] font-medium leading-tight">{theme === 'light' ? 'Dark' : 'Light'}</span>
+          <span className="text-xs font-medium leading-tight">{theme === 'light' ? 'Dark' : 'Light'}</span>
         </button>
       </aside>
       )}
@@ -193,12 +196,13 @@ export default function App() {
             {/* signature animation: satellite pass */}
             <span className="sat-pass pointer-events-none absolute inset-x-0 top-1/2 h-px bg-gradient-to-r from-transparent via-accent/40 to-transparent" />
             <div className="relative z-10 mr-auto">
-              <div className="text-[19px] font-bold tracking-tight text-body">Anvesha</div>
-              <div className="-mt-0.5 font-mono text-[14px] uppercase tracking-[.16em] text-faint">
+              <div className="text-lg font-bold tracking-tight text-body">Anvesha</div>
+              <div className="-mt-0.5 font-mono text-sm uppercase tracking-[.16em] text-faint">
                 Earth Observation &amp; Investigation System · SIH26167
               </div>
             </div>
-            <span className="hidden items-center gap-1.5 rounded-full border border-line px-3 py-1 text-[14px] text-muted md:flex">
+            <ModeToggle />
+            <span className="hidden items-center gap-1.5 rounded-full border border-line px-3 py-1 text-sm text-muted md:flex">
               <span className="h-2 w-2 rounded-full bg-good" /> system ready
             </span>
           </div>
@@ -219,6 +223,7 @@ export default function App() {
           )}
           <ErrorBoundary>
             <div style={{ display: view === 'console' ? 'block' : 'none' }}><Console active={view === 'console'} /></div>
+            {view === 'judge-run' && <JudgeRun />}
             {view === 'history' && <HistoryView />}
             {view === 'evaluation' && <EvaluationView prov={prov} />}
             {view === 'provenance' && <ProvenanceView prov={prov} />}

@@ -1,0 +1,43 @@
+{
+  "n": 500,
+  "accuracy_classify_task": 0.964,
+  "accuracy_with_rerank": 0.964,
+  "per_task": {
+    "captioning": {
+      "correct": 2,
+      "total": 2,
+      "acc": 1.0
+    },
+    "change_analysis": {
+      "correct": 1,
+      "total": 1,
+      "acc": 1.0
+    },
+    "change_vqa": {
+      "correct": 146,
+      "total": 164,
+      "acc": 0.89
+    },
+    "grounding": {
+      "correct": 3,
+      "total": 3,
+      "acc": 1.0
+    },
+    "investigation": {
+      "correct": 1,
+      "total": 1,
+      "acc": 1.0
+    },
+    "optical_sar": {
+      "correct": 2,
+      "total": 2,
+      "acc": 1.0
+    },
+    "single_vqa": {
+      "correct": 327,
+      "total": 327,
+      "acc": 1.0
+    }
+  },
+  "note": "B2 keyword expansion (R4) + capped-absolute rerank keyword score. Regression fix: density-normalised rerank scoring rewarded short keyword lists and flipped 'can you see a water body' to captioning; capped absolute hits keep the tie on single_vqa."
+}

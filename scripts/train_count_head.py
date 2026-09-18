@@ -24,8 +24,8 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 
-from satquery.config import CONFIG
-from satquery.models.backbone import SceneEncoder
+from anvesha.config import CONFIG
+from anvesha.models.backbone import SceneEncoder
 from scripts.train_vqa import RSVQADataset, _Head
 
 
@@ -204,7 +204,7 @@ def main(args):
     tmp.replace(final)
     print(f"saved {final} (best val_digit_acc={best:.4f})")
 
-    from satquery.experiment_log import log_experiment
+    from anvesha.experiment_log import log_experiment
     log_experiment(
         script="train_count_head_v4",
         args={"image_size": args.image_size, "epochs": args.epochs,

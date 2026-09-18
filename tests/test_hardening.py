@@ -6,7 +6,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from fastapi.testclient import TestClient
 
-from satquery.server.main import app
+from anvesha.server.main import app
 
 client = TestClient(app)
 

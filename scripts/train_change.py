@@ -26,9 +26,9 @@ import torch
 import torch.nn as nn
 from torch.utils.data import ConcatDataset, DataLoader, Dataset
 
-from satquery.config import CONFIG
-from satquery.models.backbone import SceneEncoder
-from satquery.models.change import ChangeHeadV2
+from anvesha.config import CONFIG
+from anvesha.models.backbone import SceneEncoder
+from anvesha.models.change import ChangeHeadV2
 
 
 class SecondDataset(Dataset):
@@ -254,7 +254,7 @@ def train(args):
               f"promotion floor {PROMOTE_FLOOR}")
 
     # Experiment log
-    from satquery.experiment_log import log_experiment
+    from anvesha.experiment_log import log_experiment
     log_experiment(
         script="train_change",
         args={"dataset": args.dataset, "crop": args.crop, "epochs": args.epochs, "max_pairs": args.max_pairs,
