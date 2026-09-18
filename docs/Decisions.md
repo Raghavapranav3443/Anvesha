@@ -1146,3 +1146,43 @@ before" as fact.
 largest-contiguous-region fact out of `impact.py` and downgrade to `verify_first`, naming
 the alternative, when one component dominates the flagged area. It is deferred to a
 deliberate change because it alters what the demo headline says on stage.
+
+### D28 — The deployment target was re-measured: Render cannot run this, and the free SDK is Gradio
+
+**Context.** The plan was a Hugging Face **Docker** Space. Two things moved underneath it:
+HF's docs now state that creating a Docker Space requires a paid plan (free personal
+accounts get Gradio Spaces on ZeroGPU), and Render was evaluated as the alternative.
+
+**Measured, not assumed** — the whole application, staged:
+
+| Stage | RSS |
+|---|---|
+| baseline Python | 17 MB |
+| `import torch` | **481 MB** |
+| four specialists loaded | **918 MB** (peak 985 MB) |
+
+Render's Free instance is **0.1 CPU / 512 MB**, and its $7 tier is the same 512 MB, so it
+cannot import the application at all. It also builds from Git, where seven of the nine
+demo checkpoints (~298 MB) are untracked by design, so it would build a container that
+answers only in fallbacks; and its 750 free instance hours per month are consumed almost
+exactly by one always-on service, with exhaustion suspending every free service in the
+workspace until the next month. Its `/robots.txt` replies are served by Render itself and
+do not wake a slept service, so any keep-alive must probe `/healthz`.
+
+**Decision.** Keep HF Spaces and support the **free Gradio SDK**. `--sdk gradio` emits an
+`app.py` that binds the *same* `anvesha.server.main:app` to 7860; no Dockerfile, no Gradio
+interface, and nothing about the application changes. Verified against the staged tree
+locally: `/healthz` reports all four specialists `trained`, `/` serves the console, and
+`/api/provenance` returns the artifact-backed numbers.
+
+Two supporting changes: `Config.data_dir` / `runs_dir` are overridable via
+`ANVESHA_DATA_DIR` / `ANVESHA_RUNS_DIR` (a Space replaces its code directory on every
+rebuild, so run state belongs on a writable tree), and `.github/workflows/keepalive.yml`
+probes `/healthz` every 5 minutes so no visitor meets a cold start — failing loudly if
+`model_status` stops being all `trained`, which is the one signal separating the measured
+product from a healthy-looking container serving heuristics.
+
+**Not yet proven.** No HF account was available, so the SDK assumption (that a Gradio Space
+will serve an app which never calls `demo.launch()`) is verified only as far as local
+serving on 7860. If HF's runtime rejects it, the remedy is small and known: mount a trivial
+`gr.Blocks` as the outer application so the Space genuinely declares a Gradio interface.

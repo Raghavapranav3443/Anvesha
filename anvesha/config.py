@@ -1,9 +1,23 @@
 """Global configuration and label spaces for Anvesha AI."""
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+def _tree(env: str, default: Path) -> Path:
+    """A writable run-state tree, overridable by environment variable.
+
+    Hosts disagree about which directories are writable. A Hugging Face Space
+    replaces its code directory on every rebuild, and other platforms mount
+    the image read-only, so pointing the two trees that are *written to* at a
+    mount of the operator's choosing keeps the application working without a
+    code change. Read-only trees (weights, artifacts) stay where they are.
+    """
+    raw = os.environ.get(env, "").strip()
+    return Path(raw).expanduser().resolve() if raw else default
 
 # BigEarthNet 19-class nomenclature (reBEN / BigEarthNet-19 labels)
 BEN19_CLASSES = [
@@ -58,9 +72,9 @@ CONCEPT_TO_EUROSAT = {
 class Config:
     def __init__(self) -> None:
         self.repo_root = REPO_ROOT
-        self.data_dir = REPO_ROOT / "data"
+        self.data_dir = _tree("ANVESHA_DATA_DIR", REPO_ROOT / "data")
         self.weights_dir = REPO_ROOT / "weights"
-        self.runs_dir = REPO_ROOT / "runs"
+        self.runs_dir = _tree("ANVESHA_RUNS_DIR", REPO_ROOT / "runs")
         self.samples_dir = REPO_ROOT / "samples"
         self.artifacts_dir = REPO_ROOT / "artifacts"
         for d in (self.data_dir, self.weights_dir, self.runs_dir,

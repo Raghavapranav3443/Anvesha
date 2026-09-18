@@ -84,13 +84,52 @@ WEIGHTS = [
     "weights/vqa_head.pt",
 ]
 
+# The free Space SDK is Gradio, not Docker: as of July 2026 creating a Docker
+# Space requires a paid plan, while Gradio Spaces remain free with the same
+# 16 GB / 2 vCPU hardware. A Gradio Space still runs whatever `app.py` starts,
+# so this entry point binds the *same* FastAPI application (identical routes,
+# identical console, identical /healthz) to the port the Gradio runtime
+# proxies. There is no Gradio interface to build; the console IS the UI.
+SPACE_APP = '''"""Entry point for the free (Gradio-SDK) Space.
+
+The application is a FastAPI service, not a Gradio interface. This file exists
+only to (a) bind it to 7860, the port the Gradio SDK runtime proxies, and
+(b) move run state off the code directory, which a Space replaces on every
+rebuild. The app served here is the same ``anvesha.server.main:app`` the Docker
+image runs, so nothing about the deployment changes what a judge sees.
+"""
+import os
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent
+sys.path.insert(0, str(ROOT))
+
+# /tmp is the writable tree: the SQLite store and the acquisition cache must
+# not be written into the Space's code directory, and nothing here is expected
+# to survive a rebuild.
+RUN_STATE = Path(os.environ.get("ANVESHA_RUN_ROOT", "/tmp/anvesha"))
+os.environ.setdefault("ANVESHA_DATA_DIR", str(RUN_STATE / "data"))
+os.environ.setdefault("ANVESHA_RUNS_DIR", str(RUN_STATE / "runs"))
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run("anvesha.server.main:app", host="0.0.0.0",
+                port=int(os.environ.get("PORT", "7860")), log_level="info")
+'''
+
+# apt packages the runtime image needs (the Dockerfile installs the same two
+# for libGL/libglib, which Pillow/rasterio pull in on import).
+SPACE_PACKAGES = "libgl1\nlibglib2.0-0\n"
+
 SPACE_CARD = """---
 title: {title}
 emoji: 🛰️
 colorFrom: indigo
 colorTo: gray
-sdk: docker
-app_port: {port}
+sdk: {sdk}
+{app_port}app_file: app.py
 pinned: false
 {extra}---
 
@@ -138,6 +177,37 @@ def _redact(token: str) -> str:
     return token.replace(os.environ.get("HF_TOKEN", "") or "\x00", "***")
 
 
+def _installed(dist: str) -> str:
+    """Base version of an installed distribution, without any local segment."""
+    try:
+        from importlib.metadata import version
+        return version(dist).split("+")[0]
+    except Exception:
+        return ""
+
+
+def space_requirements() -> str:
+    """Root requirements with torch pinned to a CPU build.
+
+    A free Space installs ``requirements.txt`` verbatim on 2 vCPU, so an
+    unpinned ``torch`` fetches the multi-GB CUDA wheel that the CPU-only free
+    hardware cannot use. Pinning the base version and offering the CPU index as
+    an extra resolves to ``<version>+cpu``: for the same release, the local
+    version segment outranks the plain one (PEP 440), so the CPU build wins.
+    """
+    lines = ["--extra-index-url https://download.pytorch.org/whl/cpu"]
+    for raw in (ROOT / "requirements.txt").read_text(
+            encoding="utf-8").splitlines():
+        name = raw.strip().split("=")[0].split("<")[0].split(">")[0]
+        name = name.split("[")[0].strip().lower()
+        if name in ("torch", "torchvision"):
+            pinned = _installed(name)
+            lines.append(f"{name}=={pinned}" if pinned else name)
+        else:
+            lines.append(raw)
+    return "\n".join(lines) + "\n"
+
+
 def check_weights(staging: Path) -> list[Path]:
     """Return the staged weight files, or abort naming the ones missing."""
     missing = [w for w in WEIGHTS if not (ROOT / w).exists()]
@@ -152,7 +222,8 @@ def check_weights(staging: Path) -> list[Path]:
     return [staging / w for w in WEIGHTS]
 
 
-def stage(staging: Path, title: str, port: int, private: bool) -> None:
+def stage(staging: Path, title: str, port: int, private: bool,
+          sdk: str = "docker") -> None:
     """Build the Space's working tree from scratch."""
     if staging.exists():
         shutil.rmtree(staging)
@@ -186,10 +257,19 @@ def stage(staging: Path, title: str, port: int, private: bool) -> None:
         print(f"  {w.relative_to(staging)}  ({src.stat().st_size / 1e6:.1f} MB)")
     print(f"  weights total: {total / 1e6:.0f} MB")
 
-    # The Space builds the repo-root Dockerfile; it is Dockerfile.demo, which
-    # whitelists exactly the weights staged above and sets ANVESHA_RERANK=0.
-    shutil.copy2(ROOT / "Dockerfile.demo", staging / "Dockerfile")
-    print("  Dockerfile (from Dockerfile.demo)")
+    if sdk == "docker":
+        # The Space builds the repo-root Dockerfile; it is Dockerfile.demo,
+        # which whitelists exactly the weights staged above and sets
+        # ANVESHA_RERANK=0.
+        shutil.copy2(ROOT / "Dockerfile.demo", staging / "Dockerfile")
+        print("  Dockerfile (from Dockerfile.demo)")
+    else:
+        # The free SDK: no Dockerfile, just an entry point bound to 7860.
+        (staging / "app.py").write_text(SPACE_APP, encoding="utf-8")
+        (staging / "packages.txt").write_text(SPACE_PACKAGES, encoding="utf-8")
+        (staging / "requirements.txt").write_text(space_requirements(),
+                                                  encoding="utf-8")
+        print("  app.py, packages.txt, requirements.txt (sdk: %s)" % sdk)
 
     # Git LFS is how Spaces accepts binaries this size.
     (staging / ".gitattributes").write_text(
@@ -197,12 +277,17 @@ def stage(staging: Path, title: str, port: int, private: bool) -> None:
     print("  .gitattributes (LFS for weights/*.pt)")
 
     extra = "private: true\n" if private else ""
+    # A Gradio Space always serves 7860; app_port is a Docker-SDK key.
+    app_port = f"app_port: {port}\n" if sdk == "docker" else ""
     (staging / "README.md").write_text(
-        SPACE_CARD.format(title=title, port=port, extra=extra), encoding="utf-8")
-    print("  README.md (Space card)")
+        SPACE_CARD.format(title=title, sdk=sdk, app_port=app_port, port=port,
+                          extra=extra),
+        encoding="utf-8")
+    print("  README.md (Space card, sdk: %s)" % sdk)
 
 
-def push(staging: Path, user: str, space: str, token: str, port: int) -> None:
+def push(staging: Path, user: str, space: str, token: str, port: int,
+         sdk: str = "docker") -> None:
     banner("pushing to the Space")
     git = shutil.which("git")
     if not git:
@@ -229,6 +314,9 @@ def push(staging: Path, user: str, space: str, token: str, port: int) -> None:
     print(f"  pushed. Space URL: https://huggingface.co/spaces/{user}/{space}")
     print(f"  app URL (after the build finishes): "
           f"https://{user}-{space}.hf.space  on port {port}")
+    if sdk == "gradio":
+        print("  note: the free Gradio SDK spaces sleep when idle and wake on\n"
+              "    the next request — see the keep-alive workflow.")
 
 
 def main() -> int:
@@ -237,8 +325,12 @@ def main() -> int:
     ap.add_argument("--user", required=True, help="Hugging Face username/org")
     ap.add_argument("--space", required=True, help="Space name (must already exist)")
     ap.add_argument("--title", default="Anvesha — EO Investigation System")
-    ap.add_argument("--port", type=int, default=8000,
-                    help="container port; must match the Dockerfile EXPOSE/CMD")
+    ap.add_argument("--port", type=int, default=None,
+                    help="container port; defaults to 7860 for --sdk gradio "
+                         "and 8000 for --sdk docker")
+    ap.add_argument("--sdk", choices=("docker", "gradio"), default="docker",
+                    help="Space SDK. 'gradio' is the free one and needs no "
+                         "Dockerfile; 'docker' now requires a paid HF plan")
     ap.add_argument("--staging", default="build/hf_space")
     ap.add_argument("--private", action="store_true")
     ap.add_argument("--dry-run", action="store_true",
@@ -247,15 +339,21 @@ def main() -> int:
                     help="defaults to $HF_TOKEN")
     args = ap.parse_args()
 
+    port = args.port or (7860 if args.sdk == "gradio" else 8000)
+    if args.sdk == "gradio" and args.port not in (None, 7860):
+        sys.exit("a Gradio Space always serves 7860; drop --port")
+
     staging = (ROOT / args.staging).resolve()
     print(f"repository: {ROOT}")
     print(f"staging:    {staging}")
+    print(f"sdk:        {args.sdk}  (port {port})")
 
-    stage(staging, args.title, args.port, args.private)
+    stage(staging, args.title, port, args.private, args.sdk)
 
     # Cheap post-conditions: the two things whose absence broke a real deploy.
+    entry = "Dockerfile" if args.sdk == "docker" else "app.py"
     checks = {
-        "Dockerfile": staging / "Dockerfile",
+        entry: staging / entry,
         "web/dist/index.html": staging / "web/dist" / "index.html",
         "anvesha/acquire/data/bhuvan_layers.json":
             staging / "anvesha/acquire/data/bhuvan_layers.json",
@@ -272,13 +370,13 @@ def main() -> int:
         banner("dry run — nothing pushed")
         print(f"  review: {staging}")
         print("  push with:  HF_TOKEN=... python scripts/deploy_hf_space.py "
-              f"--user {args.user} --space {args.space}")
+              f"--user {args.user} --space {args.space} --sdk {args.sdk}")
         return 0
 
     if not args.token:
         sys.exit("no token: set HF_TOKEN or pass --token (needs write access "
                  "to the Space)")
-    push(staging, args.user, args.space, args.token, args.port)
+    push(staging, args.user, args.space, args.token, port, args.sdk)
     return 0
 
 

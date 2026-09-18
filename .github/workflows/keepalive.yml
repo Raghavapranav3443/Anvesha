@@ -1,0 +1,94 @@
+name: keep-alive
+
+# Free hosts stop a container that sees no traffic and start it again on the
+# next request, so the first visitor after a quiet spell waits out a cold
+# start. A judge meeting a spinner on screening day is the one failure this
+# project cannot afford, so this probe keeps the deployed app awake and, just
+# as importantly, checks that it is still *the measured product*.
+#
+# Three operational notes:
+#   * GitHub runs scheduled workflows on the repository's *default* branch, so
+#     this file only takes effect there (or when dispatched by hand).
+#   * GitHub's own minimum interval is 5 minutes and it may delay a run under
+#     load; that is still far inside the idle windows that matter (~15 min on
+#     Render, ~48 h on a Hugging Face Space).
+#   * Probe /healthz, never /robots.txt: an idle host answers robots.txt itself
+#     and that request does not wake anything.
+#
+# Set the target once as a repository variable (Settings -> Secrets and
+# variables -> Actions -> Variables), so changing hosts never needs a code
+# change:  APP_URL = https://<your-space>.hf.space
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+    inputs:
+      url:
+        description: Base URL to probe (defaults to the APP_URL variable)
+        required: false
+        type: string
+
+concurrency:
+  group: keep-alive
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Wake and verify the deployment
+        env:
+          BASE_URL: ${{ inputs.url || vars.APP_URL }}
+        run: |
+          set -uo pipefail
+          if [ -z "${BASE_URL:-}" ]; then
+            echo "::error::no target: set the APP_URL repository variable (or pass a url input)"
+            exit 1
+          fi
+          BASE_URL="${BASE_URL%/}"
+          echo "probing $BASE_URL/healthz"
+
+          # A sleeping container is woken by this request itself; give it room
+          # to boot, import torch and load the specialists before giving up.
+          code=$(curl -sS -o health.json -w '%{http_code}' \
+                   --max-time 150 --retry 2 --retry-delay 20 \
+                   "$BASE_URL/healthz" || echo 000)
+          echo "HTTP $code"
+          echo "----- /healthz -----"
+          head -c 1200 health.json 2>/dev/null || true
+          echo
+          echo "--------------------"
+
+          if [ "$code" = "000" ]; then
+            echo "::error::could not reach $BASE_URL — the service may be suspended, deleted, or still cold after 150 s"
+            exit 1
+          fi
+
+          # The check that matters: a container that lost its weights starts
+          # fine, passes every liveness probe, and answers entirely in
+          # heuristic fallbacks while looking perfectly healthy. Only this
+          # distinguishes the measured product from a convincing demo of one.
+          python3 - <<'PY'
+          import json
+          import sys
+
+          try:
+              with open("health.json") as fh:
+                  health = json.load(fh)
+          except Exception as exc:
+              # A cold start can answer before the app is ready; the next run
+              # will tell the truth. Only a *ready but untrained* app is fatal.
+              print(f"::warning::healthz was not JSON yet ({exc}); treating as still starting")
+              sys.exit(0)
+
+          status = health.get("model_status") or {}
+          untrained = sorted(k for k, v in status.items() if v != "trained")
+          if untrained:
+              print(f"::error::deployment is answering without its weights: {untrained} are not 'trained'")
+              sys.exit(1)
+
+          print(f"all specialists trained: {sorted(status)}")
+          print(f"airgap: {health.get('airgap', {}).get('mode')}")
+          PY
