@@ -1231,3 +1231,70 @@ scipy exactly, and the shape-versus-share discrimination; `tests/test_decision.p
 cases — the hedge fires and keeps every measured number, scattered work still concludes `act`,
 and absent geometry facts leave the previous verdict untouched (absence of a fact is not
 evidence of anything).
+
+
+### D30 — The deployment is live, and everything that broke was runtime-only
+
+Anvesha is deployed and verified at `https://Raghavapranav3443-anvesha.hf.space`
+(Gradio SDK, free hardware, air-gap default). It is recorded here because the three
+failures that had to be solved were invisible to every check that ran before it: the local
+simulation, the Docker build assertion, and the whole test suite. Each one produced a
+container that looked healthy while the product was not.
+
+**Trap 1 — our own air-gap guard killed the Space.** The ZeroGPU runtime files a startup
+report to an internal `device-api.zero` endpoint and terminates any Space that never
+registers: *"No @spaces.GPU function detected"*, seconds after uvicorn had bound
+successfully. Our guard blocked that outbound socket, because it is supposed to block
+every outbound socket in air-gap mode. The guard was right and the deployment was wrong to
+treat platform plumbing as user traffic.
+
+The fix is a *scoped, audited* escape hatch (`anvesha.acquire.mode.unguarded()`) rather
+than a weakened promise. It stands the hook down for the calling thread only — proven
+thread-local by test, so worker threads keep enforcing — it is used at exactly one call
+site, and every event it lets through is recorded and surfaced in `/healthz` as
+`unguarded_events`. A concession nobody can see is indistinguishable from a hole; this one
+is visible on the same surface that proves the guard is installed.
+
+**Trap 2 — gradio's Node SSR server stole the port.** `mount_gradio_app` starts a Node SSR
+server that binds the *user-facing* port, and Hugging Face sets `GRADIO_SERVER_PORT=7860`.
+The result was `Errno 98 address already in use` from uvicorn while Node held the socket and
+proxied to a Python app that had never bound — which is why the public URL answered 502/503
+while the log looked like a healthy application. Gradio 6 documents the port rule; the
+resolution is `GRADIO_SSR_MODE=False` before gradio imports plus `ssr_mode=False` on the
+mount. The console is served by uvicorn; SSR was never needed, and the throwaway gradio HTTP
+server is no longer started at all.
+
+**Trap 3 — CUDA was advertised but not grantable, and three specialists died quietly.**
+`/healthz` reported **1/4 trained**. The survivor was `change`, and the reason is decisive:
+`models/status.py` is the one place that passes `device="cpu"` explicitly. ZeroGPU patches
+torch so `torch.cuda.is_available()` returns True, while real CUDA memory is only granted
+inside a scheduled `@spaces.GPU` call, so `Config.resolve_device()`'s auto-detection chose a
+device the app could never allocate on. Auto-detection was not lying about torch; it was
+lying about the host.
+
+`ANVESHA_DEVICE` now overrides device selection, and the Space entry point pins `cpu`. This
+also corrects a claim: the recorded evidence was produced on a **CUDA** host
+(`artifacts/clip_grounding_gate.json` says `device: cuda`), while the live demo runs on CPU.
+Accuracy is computed from frozen weights and is device-independent in kind; latency and
+throughput are not, so the runbook now says plainly not to quote a workstation-GPU latency
+as the Space's. `/healthz` reports `device` (what the app uses) and `cuda_reported` (what
+torch advertises) precisely so that mismatch is visible instead of inferred.
+
+**A fourth finding, in the documentation rather than the code.** The runbook told the
+operator to set `ANVESHA_TOKEN` on the Space. That gates `/api/*` behind a bearer token, and
+the console sends no `Authorization` header — so following the runbook would have 401'd the
+demo's own calls for every visitor, silently, from the first click. Corrected: the token is
+for scripted API use, not for the demo Space.
+
+**What was verified, not assumed.** `/healthz`: all four specialists `trained`,
+`degraded: false`, guard installed and enforced. Console `/` and `/api/provenance`: 200,
+numbers matching the tracked `artifacts/`. End-to-end: a `change_analysis` job posted to the
+public API from two bundled samples completed in ~12 s with the Decision panel populated —
+`verify_first`, trust moderate 0.448, limiting factor `confidence`, and advice carrying both
+*what we found* and *what it means*. Acquisition remains the one online-only step, by
+design: air-gap refuses it with `409 airgap_mode` rather than pretending.
+
+**Tests.** `tests/test_airgap.py` adds the hatch's contract: it stands down inside, re-arms
+after, records what it let through, does **not** unguard other threads, and leaves loopback
+untouched. `tests/test_model_loading.py` adds the device override — env beats auto-detect,
+junk values are ignored rather than trusted, and an explicit `Config.device` still wins.

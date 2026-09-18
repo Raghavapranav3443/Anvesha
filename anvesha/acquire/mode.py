@@ -82,6 +82,10 @@ _LOOPBACK_ADDRS = frozenset({"127.0.0.1", "::1", "0.0.0.0", "::"})
 
 _BLOCK_LOG_LIMIT = 200
 
+# Events deliberately let through by the scoped ``unguarded`` escape hatch.
+# A concession that is not recorded is a hole, so these land in /healthz too.
+_unguarded_log: Deque[Dict[str, Any]] = collections.deque(maxlen=_BLOCK_LOG_LIMIT)
+
 # --------------------------------------------------------------------------- #
 # Settings
 # --------------------------------------------------------------------------- #
@@ -314,6 +318,20 @@ def _record_block(event: str, target: str) -> None:
         pass
 
 
+def _record_unguarded(event: str, target: str) -> None:
+    """Record an event the scoped escape hatch deliberately let through.
+
+    Same constraints as :func:`_record_block`: never raises, never does I/O.
+    A concession that is not recorded is a hole, so this lands in the same
+    bounded log surfaced by ``/healthz``.
+    """
+    try:
+        _unguarded_log.append({"event": event, "target": target,
+                               "at": _now()})
+    except Exception:
+        pass
+
+
 def _audit(event: str, args: tuple) -> None:
     """The installed hook. Must stay cheap for non-network events."""
     if event not in _NETWORK_EVENTS:
@@ -323,7 +341,19 @@ def _audit(event: str, args: tuple) -> None:
     if current_mode() != "airgap":
         return                                  # POLICY read at call time
     if getattr(_tls, "active", False):
-        return                                  # never recurse
+        # Scoped escape hatch (platform plumbing only): stand down, but keep
+        # the concession auditable. Recording must never recurse into the hook.
+        if not getattr(_tls, "logging", False):
+            _tls.logging = True
+            try:
+                try:
+                    target = _target_of(event, args)
+                except Exception:
+                    target = "<unresolvable>"
+                _record_unguarded(event, target or "<unresolvable>")
+            finally:
+                _tls.logging = False
+        return
     try:
         target = _target_of(event, args)
     except Exception:
@@ -334,6 +364,28 @@ def _audit(event: str, args: tuple) -> None:
     raise NetworkBlockedAirgap(
         f"air-gap mode: outbound {event} to {target} was blocked",
         event=event, target=target)
+
+
+class unguarded:
+    """Scoped escape hatch from the guard, for platform plumbing only.
+
+    The air-gap promise is about the analysis: no user request, and no part of
+    the analysis pipeline, ever reaches the network. A hosting platform's own
+    startup bookkeeping is a different thing entirely -- Hugging Face's ZeroGPU
+    runtime, for one, must file a startup report to an internal
+    ``device-api.zero`` endpoint or it kills the Space -- and being killed over
+    infrastructure traffic helps no one. Inside this context the hook stands
+    down for the *calling thread* only, and every unblocked event is still
+    audited, so the concession is visible in ``/healthz`` rather than silent.
+    """
+
+    def __enter__(self) -> "unguarded":
+        self._prev = getattr(_tls, "active", False)
+        _tls.active = True
+        return self
+
+    def __exit__(self, *exc) -> None:
+        _tls.active = self._prev
 
 
 def install_network_guard() -> bool:
@@ -409,6 +461,10 @@ def guard_status() -> Dict[str, Any]:
         "blocked_count": len(_blocked),
         "network_allowed": current_mode() == "online" and not guard_disabled_by_env(),
         "blocked_events": sorted(_NETWORK_EVENTS),
+        # The scoped escape hatch is a concession and must stay visible: any
+        # traffic it let through is recorded here.
+        "unguarded_events": len(_unguarded_log),
+        "unguarded_log": list(_unguarded_log)[-_BLOCK_LOG_LIMIT:],
     }
 
 

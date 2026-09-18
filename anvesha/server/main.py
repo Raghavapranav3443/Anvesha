@@ -736,12 +736,23 @@ async def evaluate_status(eid: str):
 
 @app.get("/healthz")
 async def healthz():
+    # Report the device the app actually runs on, not what torch advertises.
+    # Hugging Face's ZeroGPU runtime patches torch so cuda.is_available() is
+    # True while real CUDA memory is only granted inside a scheduled
+    # @spaces.GPU call; on a host like that the two answers differ, and
+    # reporting the advertised one hides the very mismatch that silently
+    # degraded three specialists to heuristics. `cuda_reported` keeps the
+    # patch visible instead of papering over it.
     try:
         import torch
-        device  = "cuda" if torch.cuda.is_available() else "cpu"
         threads = torch.get_num_threads()
+        cuda_reported = bool(torch.cuda.is_available())
     except Exception:
-        device, threads = "unknown", 0
+        threads, cuda_reported = 0, False
+    try:
+        device = CONFIG.resolve_device()
+    except Exception:
+        device = "unknown"
     jstats = JOBS.stats()
     try:
         from ..models.status import model_status
@@ -751,6 +762,7 @@ async def healthz():
     return {
         "status":           "ok",
         "device":           device,
+        "cuda_reported":    cuda_reported,
         "torch_threads":    threads,
         "workers":          WORKERS,
         "gpu_semaphored":   gpu_semaphore() is not None,
