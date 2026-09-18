@@ -382,3 +382,109 @@ def test_no_env_var_leaves_package_import_inert():
                           capture_output=True, text=True, env=env, timeout=180)
     assert "GUARD=False" in proc.stdout, proc.stdout
     assert "DNS=RESOLVED" in proc.stdout or "DNS=socket.gaierror" in proc.stdout
+
+
+# --------------------------------------------------------------------------- #
+# The scoped escape hatch is real, narrow, and audited
+# --------------------------------------------------------------------------- #
+
+def _probe_dns(host: str):
+    """DNS lookup; return the exception raised, or None if it resolved.
+
+    Deliberately network-agnostic: these tests assert on the *kind* of failure
+    (our guard vs. the operating system's own DNS), never on a host actually
+    resolving, so they hold on an offline machine and in CI alike.
+    """
+    try:
+        socket.getaddrinfo(host, 443)
+        return None
+    except Exception as exc:                       # noqa: BLE001 - we inspect it
+        return exc
+
+
+# An internal platform name that must never resolve from a user machine: the
+# point is that the guard stood down, not that the name exists.
+PLATFORM_HOST = "device-api.zero"
+
+
+def test_unguarded_lets_platform_plumbing_through():
+    """The hatch exists for hosting-platform startup bookkeeping only.
+
+    Hugging Face's ZeroGPU runtime files a startup report to an internal
+    ``device-api.zero`` endpoint and kills the Space if it never arrives; that
+    report happens once, at startup, outside any request. Blocking it costs a
+    deployment and protects nothing. A real DNS failure (gaierror) is fine here
+    -- what must not happen is our guard raising.
+    """
+    M.set_mode("airgap")
+    with M.unguarded():
+        exc = _probe_dns(PLATFORM_HOST)
+    assert not isinstance(exc, NetworkBlockedAirgap), \
+        f"guard did not stand down inside unguarded(): {exc!r}"
+
+
+def test_unguarded_is_scoped_and_re_arms():
+    """A hatch that stays open is just a disabled guard."""
+    M.set_mode("airgap")
+    with M.unguarded():
+        inside = _probe_dns(PLATFORM_HOST)
+    after = _probe_dns(PLATFORM_HOST)
+    assert not isinstance(inside, NetworkBlockedAirgap)
+    assert isinstance(after, NetworkBlockedAirgap), \
+        f"guard stayed open after the hatch closed: {after!r}"
+
+
+def test_unguarded_concessions_are_auditable():
+    """A concession nobody can see is indistinguishable from a hole.
+
+    Every event the hatch lets through is recorded and surfaced by
+    ``guard_status`` (which /healthz exposes), so the air-gap claim stays
+    checkable rather than merely asserted."""
+    M.set_mode("airgap")
+    before = M.guard_status()["unguarded_events"]
+    with M.unguarded():
+        _probe_dns(PLATFORM_HOST)
+    after = M.guard_status()
+    assert after["unguarded_events"] == before + 1
+    logged = after["unguarded_log"][-1]
+    assert logged["event"] == "socket.getaddrinfo"
+    assert PLATFORM_HOST in logged["target"]
+
+
+def test_unguarded_does_not_apply_to_other_threads():
+    """The concession is thread-local: it must not unguard the request path.
+
+    Model loading and request handling can run on worker threads, and those
+    must stay bound by the air-gap policy while the startup thread reports.
+    """
+    M.set_mode("airgap")
+    seen = {}
+
+    def worker():
+        seen["exc"] = _try_connect(NONROUTABLE, timeout=1.0)
+
+    with M.unguarded():
+        t = threading.Thread(target=worker)
+        t.start()
+        t.join(timeout=30)
+    assert isinstance(seen.get("exc"), NetworkBlockedAirgap), \
+        f"worker thread escaped the guard: {seen.get('exc')!r}"
+
+
+def test_unguarded_does_not_block_what_already_worked():
+    """Loopback (the server's own socket, internal health probes) is unaffected."""
+    M.set_mode("airgap")
+    with M.unguarded():
+        infos = socket.getaddrinfo("localhost", 80)
+    assert infos
+
+
+def test_unguarded_guarded_outbound_still_logged_after_closure():
+    """Closing the hatch must restore blocking *and* the block log."""
+    M.set_mode("airgap")
+    with M.unguarded():
+        _probe_dns(PLATFORM_HOST)
+    blocked_before = M.guard_status()["blocked_count"]
+    with pytest.raises(NetworkBlockedAirgap):
+        socket.getaddrinfo(PLATFORM_HOST, 443)
+    assert M.guard_status()["blocked_count"] == blocked_before + 1

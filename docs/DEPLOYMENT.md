@@ -4,6 +4,15 @@ Target: **Hugging Face Spaces** — a permanent public URL, enough RAM for CPU-o
 torch (16 GB on the free hardware), and it accepts the weights this repository
 deliberately does not track.
 
+> **Status: live and verified (2026-09-18) — `https://Raghavapranav3443-anvesha.hf.space`**
+> Gradio SDK, free hardware, air-gap default. `/healthz` reports all four specialists
+> `trained` with `degraded: false`; the guard is installed and enforced; the console and
+> `/api/provenance` both return 200; and a full `change_analysis` job posted to the public
+> API completes with the Decision panel populated (`verify_first`, trust moderate).
+> Three failures had to be solved to get there, and all three were **runtime-only**: they
+> reproduce neither locally nor against the Dockerfile. They are recorded in §4 so the
+> next deploy does not rediscover them.
+
 Which *SDK* matters, and that changed in July 2026: creating a **Docker** Space now
 requires a paid plan, while **Gradio** Spaces stay free. It makes no difference to what
 runs — a Space executes whatever `app.py` starts — so `--sdk gradio` swaps only the
@@ -142,9 +151,23 @@ Re-running the script is the update path: edit the source repository, re-run, re
 | 6 | Load the console, choose a demo sample, run **Investigation** | trace streams, map renders, **Decision panel** shows *What to do* |
 | 7 | Upload `samples/demo_change_2020.tif` + `demo_change_2024.tif` | change map + hectares, unchanged from local |
 | 8 | Optional: ONLINE toggle, type a place, fetch | needs network egress; the Space has it. Leave the default air-gap otherwise |
+| 9 | Same response, `device` vs `cuda_reported` | `device: cpu` — what the app runs on. `cuda_reported: true` is expected on ZeroGPU: torch *advertises* CUDA that the app cannot allocate, which is exactly the mismatch that degraded three specialists (trap 3) |
 
 Check 3 is the one that matters. It is the difference between the product you measured
-and a demo that sounds confident while every model is a heuristic.
+and a demo that sounds confident while every model is a heuristic. Check 9 is its
+companion: `device: cuda` there is a warning sign, not a sign of speed.
+
+### Traps the first live deploy hit
+
+Each of these passed every local test and failed on the real runtime. All three fixes are
+in `scripts/deploy_hf_space.py`; any FastAPI + torch app on a free Gradio Space will meet
+the same three.
+
+| Trap | Symptom | Cause | Fix |
+|---|---|---|---|
+| **1. Our own air-gap guard killed the Space** | `Exit code 3` seconds after uvicorn bound; log line *"No @spaces.GPU function detected"* | The runtime requires a startup report to its internal `device-api.zero` endpoint or it kills the Space. Air-gap mode blocked that outbound socket, so registration never arrived — the guard working correctly, on traffic that is platform plumbing rather than analysis | `anvesha.acquire.mode.unguarded()` — a thread-local escape hatch used only around that one startup call. Every event it lets through is recorded and surfaced in `/healthz` (`unguarded_events`), so the concession is auditable rather than silent |
+| **2. Gradio's Node SSR server stole port 7860** | `ERROR: [Errno 98] address already in use`, and the public URL answered 502/503 while the log showed a healthy app | `mount_gradio_app` starts a Node SSR server that binds the *user-facing* port, and HF's Gradio runtime sets `GRADIO_SERVER_PORT=7860`. Node held the port and proxied to a Python app that could never bind it | `GRADIO_SSR_MODE=False` before gradio is imported **and** `ssr_mode=False` on the mount. The console is served by uvicorn; nothing needs SSR, and the throwaway gradio HTTP server is not started at all |
+| **3. CUDA was advertised but not grantable** | `/healthz` reported **1/4 trained** — only `change` survived, and it is the one specialist instantiated with an explicit `device="cpu"` | ZeroGPU patches torch so `torch.cuda.is_available()` is True, but real CUDA memory is only granted inside a scheduled `@spaces.GPU` call. Auto-detection therefore chose a device the app could never allocate on, and each specialist that touched it silently fell back to heuristics | `ANVESHA_DEVICE=cpu` in the Space entry point, honoured by `Config.resolve_device()`. CPU is also the deterministic choice for a demo container |
 
 **Cold start.** The container preloads the four specialists on a background thread at
 startup (`Specialist preload complete: 4/4 trained` in the logs), so `/healthz` answers
@@ -159,9 +182,13 @@ than opening the URL by hand on the day.
 
 ## 5. Judge-proofing
 
-- **Set a token before you share the link.** Space → Settings → *Variables and secrets* →
-  `ANVESHA_TOKEN` = any value. Without it the API is open to anyone with the URL
-  (`start.py` warns about this locally too).
+- **Do *not* set `ANVESHA_TOKEN` on the demo Space.** It gates `/api/*` behind a bearer
+  token, and the console sends no `Authorization` header — so setting it returns 401 to
+  the console's own calls and breaks the demo for every visitor, silently, from the
+  first click. Set it only if you intend to drive the API from scripts and not from the
+  page. The residual risk is that anyone with the URL can submit jobs; the mitigations
+  that actually apply are an unguessable URL, air-gap mode, and pausing the Space after
+  screening.
 - **Keep air-gap as the shipping default.** It is the honest position and the
   reproducible one: cut the network, re-run the analysis, get the same answer. Use the
   ONLINE toggle deliberately, as a demonstration, not as the resting state.
@@ -189,6 +216,8 @@ than opening the URL by hand on the day.
 | `RemoteCLIP` / `DINOv2` excluded | The CLIP re-rank stage stays off — correct, since it is off by default and measured 0.4 pp *worse*. Router intent accuracy is unaffected (0.964). |
 | Bhoonidhi (SAR) not configured | `/api/acquire/status` says so. Bhuvan is the credential-free ISRO source that works. |
 | Fetching needs the network | Re-analysing already-fetched files does not. That distinction is the offline promise (`README.md`). |
+| **The demo runs on CPU; the evidence was recorded on CUDA** | `artifacts/clip_grounding_gate.json` records `device: cuda`, so the recorded accuracies came from a CUDA host. Accuracy is computed from frozen weights and so is device-independent in kind, but **wall-clock and throughput are not** — do not quote a latency measured on a workstation GPU as the Space's latency. `/healthz` reports both values (`device`, `cuda_reported`) so the difference is visible rather than assumed. |
+| The free tier restricts the *runtime*, not the code | ZeroGPU hardware is shared and scheduled; the app never calls it (see trap 1). Long analyses are bounded by CPU, not by the GPU quota. |
 
 ## 7. If the Space build fails
 

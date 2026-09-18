@@ -92,6 +92,28 @@ class Config:
         self.device = "auto"
 
     def resolve_device(self) -> str:
+        """Which torch device the specialists run on.
+
+        ``ANVESHA_DEVICE`` overrides everything, because auto-detection is not
+        always the truth.        Hugging Face's ZeroGPU runtime monkey-patches torch so
+        that ``torch.cuda.is_available()`` reports True, but real CUDA memory is
+        only granted inside a scheduled ``@spaces.GPU`` call; a model moved to
+        "cuda" outside one fails to allocate and every specialist that touched it
+        silently degrades to heuristics (observed in production as 1/4 trained,
+        with only the explicitly CPU-bound change detector surviving). The
+        deployed demo therefore pins ``ANVESHA_DEVICE=cpu`` through the Space
+        entry point.
+
+        Note that this is *not* the device the evaluation evidence was produced
+        on: ``artifacts/clip_grounding_gate.json`` records ``device: cuda``, so
+        the recorded accuracy figures come from a CUDA host. Accuracy is
+        computed from the same frozen weights and so is device-independent in
+        kind, but wall-clock and throughput figures are not -- see
+        docs/DEPLOYMENT.md, "What the Space cannot tell you".
+        """
+        env = os.environ.get("ANVESHA_DEVICE", "").strip().lower()
+        if env in ("cpu", "cuda"):
+            return env
         if self.device != "auto":
             return self.device
         try:

@@ -54,6 +54,50 @@ def test_fusion_loads_when_weights_exist():
         and f.sar_encoder is not None
 
 
+# --------------------------------------------------------------------------- #
+# Device selection: auto-detection is not always the truth
+# --------------------------------------------------------------------------- #
+
+@pytest.fixture
+def _clean_device_env(monkeypatch):
+    monkeypatch.delenv("ANVESHA_DEVICE", raising=False)
+    saved = CONFIG.device
+    yield monkeypatch
+    CONFIG.device = saved
+
+
+def test_device_env_override_wins_over_autodetect(_clean_device_env, monkeypatch):
+    """`ANVESHA_DEVICE=cpu` must beat `torch.cuda.is_available()`.
+
+    Hugging Face's ZeroGPU runtime patches torch so cuda looks available, but
+    real CUDA memory is only granted inside a scheduled @spaces.GPU call. Auto
+    detection therefore selected a device the app could not allocate on, and
+    three of four specialists silently degraded to heuristics in the first live
+    deploy -- only the explicitly CPU-bound change detector survived. The
+    override is what pins the deployed demo to the same CPU configuration its
+    benchmarks were measured on.
+    """
+    import torch
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
+    monkeypatch.setenv("ANVESHA_DEVICE", "cpu")
+    assert CONFIG.resolve_device() == "cpu"
+    monkeypatch.setenv("ANVESHA_DEVICE", "cuda")
+    assert CONFIG.resolve_device() == "cuda"
+
+
+def test_device_env_override_ignores_junk(_clean_device_env, monkeypatch):
+    """A typo must not silently pin the app to a bogus device."""
+    import torch
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: False)
+    monkeypatch.setenv("ANVESHA_DEVICE", "gpu-ish")
+    assert CONFIG.resolve_device() == "cpu"          # falls back to detection
+
+
+def test_explicit_config_device_still_respected(_clean_device_env):
+    CONFIG.device = "cpu"
+    assert CONFIG.resolve_device() == "cpu"
+
+
 def test_model_status_reports_trained():
     """The degradation-transparency helper must reflect real load state."""
     from anvesha.models.status import model_status

@@ -9,6 +9,12 @@ imagery, interprets the query, routes it to **remote-sensing specialist models**
 and returns evidence-grounded answers — confidence scores, visual overlays,
 exportable GeoTIFF masks, and a fully auditable execution trace.
 
+> ### 🔗 Live demo — <https://Raghavapranav3443-anvesha.hf.space>
+> No install, no credentials, nothing to run. The deployed Space serves this console and
+> the same API, with all four specialists loaded `trained` (verifiable at `/healthz`) and
+> air-gap mode on by default. Deployed and verified 2026-09-18 — runbook and its runtime
+> traps: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
 ---
 
 ## Mandatory scope coverage (SIH26167)
