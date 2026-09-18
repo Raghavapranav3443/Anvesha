@@ -21,8 +21,8 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
 
-from satquery.config import CONFIG
-from satquery.models.backbone import SceneEncoder, normalise_for_encoder, resize_np, to_tensor
+from anvesha.config import CONFIG
+from anvesha.models.backbone import SceneEncoder, normalise_for_encoder, resize_np, to_tensor
 from scripts.train_grounding import GroundingHead, box_to_heat_target, heat_to_box
 
 

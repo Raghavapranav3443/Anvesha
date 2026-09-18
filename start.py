@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One-command launcher for Anvesha (SatQuery AI).
+"""One-command launcher for Anvesha (Anvesha AI).
 
 What it does
 ------------
@@ -25,7 +25,7 @@ Usage
     python start.py --strict            # abort on any missing dependency
     python start.py --skip-deps         # skip dependency checks (faster restart)
 
-Environment overrides: SATQUERY_PORT, SATQUERY_HOST, SATQUERY_TOKEN.
+Environment overrides: ANVESHA_PORT, ANVESHA_HOST, ANVESHA_TOKEN.
 Stdlib-only checks; works on Windows, Linux and macOS.
 """
 from __future__ import annotations
@@ -43,7 +43,7 @@ import webbrowser
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent
-APP_MARKER = "satquery.server.main"
+APP_MARKER = "anvesha.server.main"
 
 # --------------------------------------------------------------------------- #
 # Colour helpers (no dependency — ANSI codes, safe on Windows 10+)
@@ -327,9 +327,9 @@ def _pids_matching_windows() -> set[int]:
     out = subprocess.run(
         ["powershell", "-NoProfile", "-Command",
          "Get-CimInstance Win32_Process | Where-Object { "
-         "$_.CommandLine -like '*satquery.server.main*' -or "
+         "$_.CommandLine -like '*anvesha.server.main*' -or "
          "($_.CommandLine -like '*start.py*' -and "
-         "$_.CommandLine -like '*SatQuery*') } "
+         "$_.CommandLine -like '*Anvesha*') } "
          "| Select-Object -ExpandProperty ProcessId"],
         capture_output=True, text=True).stdout
     return {int(tok) for tok in out.split() if tok.isdigit()}
@@ -337,7 +337,7 @@ def _pids_matching_windows() -> set[int]:
 
 def _pids_matching_unix() -> set[int]:
     out = subprocess.run(["pgrep", "-f",
-                          "satquery.server.main|SatQuery.*start\\.py"],
+                          "anvesha.server.main|Anvesha.*start\\.py"],
                          capture_output=True, text=True).stdout
     return {int(tok) for tok in out.split() if tok.isdigit()}
 
@@ -429,11 +429,11 @@ def _check_frontend_build(strict: bool = False) -> None:
 def _warn_auth_posture(host: str) -> None:
     """Unauthenticated + LAN-exposed = anyone on the venue network can hit
     the API. Remind the operator before the demo starts."""
-    if not os.environ.get("SATQUERY_TOKEN", "").strip() \
+    if not os.environ.get("ANVESHA_TOKEN", "").strip() \
             and host not in ("127.0.0.1", "localhost"):
-        print(_warn("  SATQUERY_TOKEN is not set while binding to a "
+        print(_warn("  ANVESHA_TOKEN is not set while binding to a "
                      "non-localhost host — the API is open to the whole network. "
-                     "Set SATQUERY_TOKEN for the demo venue."))
+                     "Set ANVESHA_TOKEN for the demo venue."))
 
 
 def main() -> None:
@@ -441,9 +441,9 @@ def main() -> None:
         description="Launch the Anvesha EO Investigation System "
                     "(kills stale instances first, serves API + console).")
     ap.add_argument("--host",
-                    default=os.environ.get("SATQUERY_HOST", "127.0.0.1"))
+                    default=os.environ.get("ANVESHA_HOST", "127.0.0.1"))
     ap.add_argument("--port", type=int,
-                    default=int(os.environ.get("SATQUERY_PORT", "8000")))
+                    default=int(os.environ.get("ANVESHA_PORT", "8000")))
     ap.add_argument("--no-browser", action="store_true",
                     help="do not auto-open the web console")
     ap.add_argument("--strict", action="store_true",
@@ -512,12 +512,12 @@ def main() -> None:
         ))
 
     try:
-        config = uvicorn.Config("satquery.server.main:app", host=args.host,
+        config = uvicorn.Config("anvesha.server.main:app", host=args.host,
                                 port=args.port, log_level="info")
         server = uvicorn.Server(config)
     except ImportError as e:
         sys.exit(_err(
-            f"Failed to import the SatQuery app: {e}\n"
+            f"Failed to import the Anvesha app: {e}\n"
             "  Ensure the project structure is intact and you are at the repo root."
         ))
 

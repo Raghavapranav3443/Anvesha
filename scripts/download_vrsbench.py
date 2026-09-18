@@ -10,7 +10,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from satquery.config import CONFIG
+from anvesha.config import CONFIG
 
 BASE = "https://huggingface.co/datasets/xiang709/VRSBench/resolve/main/"
 OUT = CONFIG.data_dir / "vrsbench"

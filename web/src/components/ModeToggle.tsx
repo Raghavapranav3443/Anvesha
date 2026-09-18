@@ -80,7 +80,7 @@ export function ModeToggle() {
       : { dot: 'bg-good', text: 'Online' }
 
   const hint = state.guard_disabled_by_env
-    ? 'SATQUERY_AIRGAP_GUARD=0 is set, so outbound network is NOT being blocked.'
+    ? 'ANVESHA_AIRGAP_GUARD=0 is set, so outbound network is NOT being blocked.'
     : airgap
       ? 'Outbound network is blocked in this process. Click to allow fetching imagery.'
       : 'Outbound network is allowed. Click to return to air-gapped operation.'

@@ -6,8 +6,8 @@ from __future__ import annotations
 import os
 from types import SimpleNamespace
 
-from satquery import patches
-from satquery.registry import ToolSpec, build_default_registry
+from anvesha import patches
+from anvesha.registry import ToolSpec, build_default_registry
 
 
 def _fake_registry() -> dict:
@@ -50,13 +50,13 @@ def test_apply_patches_is_idempotent():
         first = reg["dummy_a"].fn
         patches.apply_patches(reg)
         assert reg["dummy_a"].fn is first          # never double-wrapped
-        assert first._satquery_patched is True
+        assert first._anvesha_patched is True
     finally:
         patches._ENRICHERS.pop("dummy_a", None)
 
 
 def test_kill_switch_disables_layer(monkeypatch):
-    monkeypatch.setenv("SATQUERY_PATCHES", "0")
+    monkeypatch.setenv("ANVESHA_PATCHES", "0")
     assert patches.patches_enabled() is False
     reg = _fake_registry()
     patches._ENRICHERS["dummy_a"] = lambda ctx, out: out.setdefault("p", 1)
@@ -95,7 +95,7 @@ def test_enrich_result_additive_keys_present():
 
 
 def test_enrich_result_kill_switch(monkeypatch):
-    monkeypatch.setenv("SATQUERY_PATCHES", "0")
+    monkeypatch.setenv("ANVESHA_PATCHES", "0")
     res = SimpleNamespace(outputs={"answer": "a", "confidence": 0.5},
                           run_id="r1")
     patches.enrich_result(res, [])

@@ -7,7 +7,7 @@ REM  the CLIP stack is promoted ONLY if it beats the control.
 REM  Production captioner.pt is never touched during the run.
 REM  Estimated: 1-2 hours. Log: runs\phase2b_caption_gate.log
 REM ============================================================
-cd /d c:\Users\Rupesh\Desktop\Projects\SatQuery
+cd /d "%~dp0.."
 
 echo Phase 2b: captioner A/B gate...
 python scripts\train_captioner_clip.py > runs\phase2b_caption_gate.log 2>&1

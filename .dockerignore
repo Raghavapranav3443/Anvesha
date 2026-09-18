@@ -20,6 +20,11 @@ hub/
 *.pptx
 *.log
 
+# NOTE: `artifacts/` is deliberately NOT excluded. It is ~20 KB of committed
+# benchmark evidence and the console's Evaluation tab reads it on startup, so a
+# container with no run history still shows the measured numbers. Both
+# Dockerfiles COPY it and assert it at build time.
+
 # Docs and planning notes are not needed at runtime.
 *.md
 !requirements.txt

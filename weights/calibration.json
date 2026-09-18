@@ -25,7 +25,7 @@
   "change": {
     "method": "formula",
     "equation": "thresholded change-probability map; F1 on LEVIR-CD val (thr=0.85)",
-    "gate_reference": "runs/phase3_levir_fulltest.json",
+    "gate_reference": "artifacts/phase3_levir_fulltest.json",
     "why": "no temperature applies: the confidence is a closed-form blend of change-map evidence, not a softmax over classes"
   },
   "fusion": {

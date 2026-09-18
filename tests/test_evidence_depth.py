@@ -7,13 +7,13 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from satquery.fusion.agreement import (build_agreement, write_geotiff,
+from anvesha.fusion.agreement import (build_agreement, write_geotiff,
                                        _optical_evidence, _cloud_mask)
-from satquery.change.transitions import (build_transitions, _index_class_map,
+from anvesha.change.transitions import (build_transitions, _index_class_map,
                                          _WATER_NAME)
-from satquery.grounding.priors import shape_priors, prior_score
-from satquery.grounding.ensemble import rank_regions, GroundingRanked
-from satquery.io_utils import RSImage
+from anvesha.grounding.priors import shape_priors, prior_score
+from anvesha.grounding.ensemble import rank_regions, GroundingRanked
+from anvesha.io_utils import RSImage
 
 
 def _z(n=64):
@@ -74,7 +74,7 @@ def test_write_geotiff_roundtrip(tmp_path):
 
 def test_write_overlay_png(tmp_path):
     """G6: the agreement map must also render as a PNG for inline UI display."""
-    from satquery.fusion.agreement import write_overlay_png
+    from anvesha.fusion.agreement import write_overlay_png
     art = build_agreement(_opt(veg=True), _sar())
     p = tmp_path / "agreement_overlay.png"
     write_overlay_png(art.overlay, p)

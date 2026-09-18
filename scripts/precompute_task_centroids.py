@@ -22,7 +22,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from satquery.config import CONFIG
+from anvesha.config import CONFIG
 
 
 def bow(text: str, dim: int = 512) -> np.ndarray:

@@ -26,9 +26,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import torch
 from torch.utils.data import DataLoader, WeightedRandomSampler
 
-from satquery.config import CONFIG
-from satquery.models.backbone import SceneEncoder
-from satquery.models.count_density import DensityHead
+from anvesha.config import CONFIG
+from anvesha.models.backbone import SceneEncoder
+from anvesha.models.count_density import DensityHead
 from scripts.train_count_head import CountDataset, OrdinalSoftCE
 from scripts.train_vqa import RSVQADataset
 
@@ -142,7 +142,7 @@ def main(args):
         verdict = f"NOT PROMOTED - gate {GATE} not met; ordinal v4 stays shipped"
     print(f"best val_digit_acc={best:.4f} -> {verdict}")
 
-    from satquery.experiment_log import log_experiment
+    from anvesha.experiment_log import log_experiment
     log_experiment(
         script="train_count_density_v5",
         args={"image_size": args.image_size, "epochs": args.epochs,

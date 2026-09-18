@@ -3,8 +3,8 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from satquery.agent import classify_task
-from satquery.io_utils import InputValidationError, load_image
+from anvesha.agent import classify_task
+from anvesha.io_utils import InputValidationError, load_image
 
 
 def test_intent_routing_single(controller, rgb_png):
@@ -97,10 +97,10 @@ def test_scene_encoder_loads_when_weights_exist():
     """Regression: a swallowed NameError in _load() used to silently disable
     the fine-tuned scene encoder."""
     import pytest as _pytest
-    from satquery.config import CONFIG
+    from anvesha.config import CONFIG
     if not CONFIG.scene_encoder_weights.exists():
         _pytest.skip("no trained scene encoder in weights/")
-    from satquery.models.scene import SceneClassifier
+    from anvesha.models.scene import SceneClassifier
     sc = SceneClassifier()
     assert sc.trained is True
     assert sc.encoder is not None
@@ -135,7 +135,7 @@ def test_intent_routing_novel_phrasings():
 
 
 def test_report_written(controller, rgb_png):
-    from satquery.config import CONFIG
+    from anvesha.config import CONFIG
     res = controller.run([rgb_png], "Is there water in this image?")
     assert Path(res.report_paths["json"]).exists()
     assert Path(res.report_paths["markdown"]).exists()

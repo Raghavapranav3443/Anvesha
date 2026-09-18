@@ -17,10 +17,10 @@ import json
 import numpy as np
 import pytest
 
-from satquery import patches
-from satquery.agent import AgentResult, write_report
-from satquery.io_utils import RSImage
-from satquery.decision.render import as_markdown, decision_heading
+from anvesha import patches
+from anvesha.agent import AgentResult, write_report
+from anvesha.io_utils import RSImage
+from anvesha.decision.render import as_markdown, decision_heading
 
 
 def _img():
@@ -56,8 +56,8 @@ def _result(run_id: str = "test-decision-report"):
 
 @pytest.fixture()
 def reported(tmp_path, monkeypatch):
-    import satquery.agent as agent
-    from satquery.config import CONFIG
+    import anvesha.agent as agent
+    from anvesha.config import CONFIG
     monkeypatch.setattr(CONFIG, "runs_dir", tmp_path)
     res = _result()
     patches.enrich_result(res, [_img()])
@@ -77,7 +77,7 @@ def test_enrichment_attaches_a_decision():
 
 def test_kill_switch_still_suppresses_it(monkeypatch):
     """The frozen additive contract: no patch keys when patches are off."""
-    monkeypatch.setenv("SATQUERY_PATCHES", "0")
+    monkeypatch.setenv("ANVESHA_PATCHES", "0")
     res = _result("test-decision-kill")
     patches.enrich_result(res, [_img()])
     assert "decision" not in res.outputs
@@ -124,7 +124,7 @@ def test_markdown_leads_with_the_action_not_a_metric(reported):
 
 
 def test_markdown_contains_no_jargon(reported):
-    from satquery.decision import find_jargon
+    from anvesha.decision import find_jargon
     _, paths = reported
     md = paths["markdown"].read_text(encoding="utf-8")
     section = md.split("## What to do", 1)[1].split("## Outputs", 1)[0]

@@ -2,7 +2,7 @@
 
 Reads the project's own benchmark question files (already on disk in data/),
 extracts the top-N content tokens per intent bucket, and writes:
-  * weights/task_keywords.json   -> {task: [tokens]}  (consumed by satquery.rerank)
+  * weights/task_keywords.json   -> {task: [tokens]}  (consumed by anvesha.rerank)
   * scripts/golden_intent.json   -> [{query, expected_task}] golden set
 Run offline; no network, no models. Safe to re-run (idempotent output).
 """
@@ -163,8 +163,8 @@ def build_golden(n_golden: int = 500) -> list:
 
 def eval_golden() -> dict:
     """B2 metric: intent accuracy of classify_task (+rerank) on the golden set."""
-    from satquery.agent import classify_task
-    from satquery.rerank import re_rank
+    from anvesha.agent import classify_task
+    from anvesha.rerank import re_rank
     golden = build_golden(500)
     CFG = {"change_vqa": "bitemporal_pair",
            "change_analysis": "bitemporal_pair",

@@ -3,6 +3,10 @@ __pycache__/
 .pytest_cache/
 data/
 runs/
+
+# Canonical benchmark evidence is NOT ignored -- it lives in the tracked
+# `artifacts/` directory, so a fresh clone can verify every headline number.
+# `runs/` above is per-run scratch only: reports, uploads, logs, experiments.
 *.egg-info/
 .venv/
 web/node_modules/
@@ -21,15 +25,15 @@ data/eurosat/
 data/rsvqa_lr/
 data/vrsbench/
 data/bentxt_join/
-data/satquery.db
+data/anvesha.db
 
 # The unanchored `data/` rule above also matches nested directories, which
 # would silently drop the small generated indexes the acquisition layer ships:
 # the ISRO/Bhuvan layer index (~135 KB) and the offline place gazetteer. These
 # are code-adjacent data, not datasets, and the app cannot resolve a place or
 # select an ISRO layer without them. Re-included explicitly, after `data/`.
-!satquery/acquire/data/
-!satquery/acquire/data/**
+!anvesha/acquire/data/
+!anvesha/acquire/data/**
 
 # Model checkpoints: large binaries stay local; only the demo-critical
 # promoted checkpoints (counting head, CDVQA head) and TorchScript exports
@@ -56,3 +60,8 @@ system docs/
 
 # Local SIH submission bridge (deployed separately)
 hub/
+
+# Staging directories for deploy scripts (scripts/deploy_hf_space.py builds its
+# own git repo inside here; the weights it stages are large and must never be
+# picked up by this repository's history)
+build/

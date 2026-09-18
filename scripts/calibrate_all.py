@@ -1,6 +1,6 @@
 """B7 -- calibration extension: record *honest* method labels for all heads.
 
-The runtime half (``satquery.confmeta``) stamps every confidence with
+The runtime half (``anvesha.confmeta``) stamps every confidence with
 ``{value, method, n_cal}``; this script produces the ``weights/calibration.json``
 sidecar it reads. Philosophy: be honest about what each head's confidence is.
 
@@ -35,7 +35,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from satquery.config import CONFIG
+from anvesha.config import CONFIG
 
 
 def _read_head_calib(path: Path, component: str):
@@ -100,7 +100,7 @@ def _record_change():
     return {"change": {
         "method": "formula",
         "equation": "thresholded change-probability map; F1 on LEVIR-CD val (thr=0.85)",
-        "gate_reference": "runs/phase3_levir_fulltest.json",
+        "gate_reference": "artifacts/phase3_levir_fulltest.json",
         "why": "no temperature applies: the confidence is a closed-form blend of "
                "change-map evidence, not a softmax over classes"}}
 

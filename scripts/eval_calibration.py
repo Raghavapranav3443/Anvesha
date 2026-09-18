@@ -15,7 +15,7 @@ that table instead of trusting the model's self-assessment, so advice given to a
 non-expert is anchored to how often this system has actually been right at that
 confidence, not to how sure it sounds.
 
-The metric implementations live in ``satquery.calib_metrics`` (pure NumPy,
+The metric implementations live in ``anvesha.calib_metrics`` (pure NumPy,
 unit-tested); this script only supplies the model and the data.
 
   python scripts/eval_calibration.py [--limit 4000] [--json out.json]
@@ -31,12 +31,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import torch
 
-from satquery.calib_metrics import (brier_score, expected_calibration_error,
+from anvesha.calib_metrics import (brier_score, expected_calibration_error,
                                     judge, reliability_table)
-from satquery.config import CONFIG
+from anvesha.config import CONFIG
 from scripts.calibrate import collect_logits
-from satquery.models.backbone import SceneEncoder
-from satquery.models.vqa import _FusionHead
+from anvesha.models.backbone import SceneEncoder
+from anvesha.models.vqa import _FusionHead
 from scripts.train_vqa import RSVQADataset
 
 

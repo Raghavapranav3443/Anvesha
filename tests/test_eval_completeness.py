@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from satquery.evaluate import (_norm_answer, _vrsbench_val_qa, _write_dryrun,
+from anvesha.evaluate import (_norm_answer, _vrsbench_val_qa, _write_dryrun,
                                bench_vrsbench_vqa)
 
 
@@ -42,7 +42,7 @@ def test_bench_vrsbench_vqa_guard_zero_n():
 
 
 def test_bench_vrsbench_vqa_loader_guards_missing_data(tmp_path, monkeypatch):
-    from satquery import evaluate as ev
+    from anvesha import evaluate as ev
     monkeypatch.setattr(ev.CONFIG, "data_dir", tmp_path)
     assert bench_vrsbench_vqa(10) is None
 

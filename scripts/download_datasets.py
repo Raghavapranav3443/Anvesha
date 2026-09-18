@@ -1,4 +1,4 @@
-"""Download open remote-sensing datasets used by SatQuery AI.
+"""Download open remote-sensing datasets used by Anvesha AI.
 
 Usage:
   python scripts/download_datasets.py eurosat          # ~90 MB, quick track
@@ -23,7 +23,7 @@ from pathlib import Path
 import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from satquery.config import CONFIG  # noqa: E402
+from anvesha.config import CONFIG  # noqa: E402
 
 DATA = CONFIG.data_dir
 

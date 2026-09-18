@@ -18,7 +18,7 @@ SAMPLES = ROOT / "samples"
 
 @pytest.fixture(scope="module")
 def controller():
-    from satquery.agent import AgentController
+    from anvesha.agent import AgentController
     return AgentController()
 
 
@@ -29,7 +29,7 @@ def controller():
 class TestISROIntegration:
     def test_single_image_vqa(self, controller):
         """Full VQA pipeline on ISRO Cartosat-2S optical image."""
-        from satquery.io_utils import load_image
+        from anvesha.io_utils import load_image
         img = load_image(SAMPLES / "demo_isroformat_optical.tif")
         result = controller.run([img], "Is there water in this image?")
         assert result.selected_task in ("single_vqa", "grounding", "captioning")
@@ -44,7 +44,7 @@ class TestISROIntegration:
 
     def test_single_image_captioning(self, controller):
         """Full captioning pipeline on ISRO sample."""
-        from satquery.io_utils import load_image
+        from anvesha.io_utils import load_image
         img = load_image(SAMPLES / "demo_isroformat_optical.tif")
         result = controller.run([img], "Describe the scene")
         assert result.selected_task in ("captioning", "single_vqa")
@@ -53,7 +53,7 @@ class TestISROIntegration:
 
     def test_trace_completeness(self, controller):
         """Verify the execution trace has all required pipeline steps."""
-        from satquery.io_utils import load_image
+        from anvesha.io_utils import load_image
         img = load_image(SAMPLES / "demo_isroformat_optical.tif")
         result = controller.run([img], "What is shown in this image?")
         step_names = [s["name"] for s in result.trace]
@@ -70,7 +70,7 @@ class TestISROIntegration:
 class TestChangeDetectionIntegration:
     def test_bitemporal_change(self, controller):
         """Full change detection pipeline on demo bi-temporal pair."""
-        from satquery.io_utils import load_image
+        from anvesha.io_utils import load_image
         a = load_image(SAMPLES / "demo_change_2020.tif")
         b = load_image(SAMPLES / "demo_change_2024.tif")
         result = controller.run([a, b], "What changed between these dates?")

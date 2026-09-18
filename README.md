@@ -1,9 +1,9 @@
 # 🛰️ Anvesha — Earth Observation & Investigation System
 
 **An agentic vision-language assistant for multimodal remote-sensing image analysis through natural-language queries.**
-*Built for ISRO/SAC problem statement SIH26167 (Smart India Hackathon). Formerly SatQuery AI.*
+*Built for ISRO/SAC problem statement SIH26167 (Smart India Hackathon). Formerly Anvesha AI.*
 
-SatQuery AI is not a single generic model. An **agent controller** validates your
+Anvesha AI is not a single generic model. An **agent controller** validates your
 imagery, interprets the query, routes it to **remote-sensing specialist models**
 (each fine-tuned on real satellite data), executes them with bound parameters,
 and returns evidence-grounded answers — confidence scores, visual overlays,
@@ -41,20 +41,20 @@ python start.py                      # flags: --port / --host / --no-browser
 # → http://localhost:8000   (EO Mission Console UI)
 
 # manual alternative (React build included in repo; rebuild with `npm ci && npm run build` in web/)
-# python -m uvicorn satquery.server.main:app --port 8000
+# python -m uvicorn anvesha.server.main:app --port 8000
 ```
 
 Docker (offline-deployable, weights baked at build time):
 
 ```bash
-docker build -t satquery .
-docker run -p 8000:8000 satquery
+docker build -t anvesha .
+docker run -p 8000:8000 anvesha
 ```
 
 ### Optional: "find imagery for me" (online lane)
 
 The app ships in **air-gap mode**. Typing a place name and fetching imagery is an
-opt-in, per-process switch (`SATQUERY_MODE=online`, or the ONLINE toggle in the
+opt-in, per-process switch (`ANVESHA_MODE=online`, or the ONLINE toggle in the
 console's *Find imagery for me* panel). Nothing else about the pipeline changes:
 fetching produces GeoTIFFs plus a provenance sidecar on disk, and the ordinary
 (offline) pipeline analyses them exactly as it would an upload.
@@ -122,8 +122,8 @@ python scripts/train_optical_sar.py --dataset bigearthnet_14k --epochs 10
 ## Evaluation & SAC batch mode
 
 ```bash
-python -m satquery.evaluate --all            # normalized public-benchmark scorecard
-python -m satquery.evaluate --sac-dir DIR    # folder of co-registered pairs → answers.csv
+python -m anvesha.evaluate --all            # normalized public-benchmark scorecard
+python -m anvesha.evaluate --sac-dir DIR    # folder of co-registered pairs → answers.csv
                                              # + per-item GeoTIFF change masks + traces
 ```
 
@@ -153,24 +153,26 @@ Spot-check subsets move a few points between runs — the full-test rows are can
 *LEVIR-CD: CPU-class Siamese FPN, 44MB weights, tiled inference — capability
 demo, not SOTA claim. TTA (+2-3 F1 points) available via `--tta` flag.
 Protocol note: the 0.692/0.818 headline is the latest full-split measurement
-(n=1,500, thr=0.85, 2026-08-29, `runs/phase3_levir_fulltest.json`); an earlier
-full-split run of the same protocol measured 0.668/0.801; the MODEL_CARDS
-0.60/0.75 figure is the n=300 spot-check protocol — same model, different
-evaluation sets. The latest full-split number is canonical.*
+(n=1,500, thr=0.85, 2026-08-29, `artifacts/phase3_levir_fulltest.json`); an earlier
+full-split run of the same protocol measured 0.668/0.801. On the n=300 spot-check
+subset the same thr=0.85 protocol currently measures 0.7236/0.8396
+(`artifacts/scorecard.json`) against 0.60/0.75 for an earlier head; MODEL_CARDS
+quoted that older spot-check. The latest full-split number is canonical.*
 
 ### Captioning & scene classification
 
 | Benchmark | Metric | Score | Protocol Note |
 |---|---|---|---|
-| BigEarthNet.txt captions (val) | BLEU (multi-ref) | **0.32** | Multi-reference protocol |
+| BigEarthNet.txt captions (val) | BLEU (multi-ref) | **0.306** | Multi-reference protocol, n=300 (`artifacts/scorecard.json`) |
 | BigEarthNet.txt captions (val) | BLEU (single-ref) | **0.59** | Training-validation metric |
 | EuroSAT (val) | classification accuracy | **0.91** | Quick-track warm-start, 200 img/class |
 
-*Captioning BLEU varies wildly by protocol. The 0.32 is the harder multi-reference
-number; single-reference training-validation is 0.59. See `run_benchmarks.py` for
-exact protocol.*
+*Captioning BLEU varies wildly by protocol. The 0.306 is the harder multi-reference
+number (max-over-references, shipped `weights/captioner.pt`, n=300); single-reference
+training-validation is 0.59. See `bench_caption_bleu` in `anvesha/evaluate.py`
+for exact protocol.*
 
-Spot-check numbers reproduce via `python -m satquery.evaluate --all`; canonical
+Spot-check numbers reproduce via `python -m anvesha.evaluate --all`; canonical
 full-test numbers via `python scripts/run_benchmarks.py --n 9491` (RSVQA-LR),
 `--n 1500` (LEVIR-CD) and `python scripts/eval_cdvqa.py --split test` (CDVQA).
 
@@ -180,7 +182,8 @@ and saves change masks as georeferenced rasters ready for GIS comparison against
 reference annotations.
 
 ISRO-style demonstration inputs ship in `samples/`
-(`isro_cartosat2s_optical.tif`, `isro_risat_sar.tif`).
+(`demo_isroformat_optical.tif`, `demo_isroformat_sar.tif`; the rest of the `demo_*`
+set covers change pairs, optical–SAR pairs and single-image cases).
 
 ## Production features (v3)
 
@@ -192,7 +195,7 @@ ISRO-style demonstration inputs ship in `samples/`
 - **Concurrent by design** — bounded worker pool, GPU semaphore, capped torch
   threads. Load test (this laptop, 100 concurrent fresh VQA sessions):
   **100/100 OK, 0 errors, ~13 req/s**, p95 ≈ 7 s wall including client polling
-  (`scripts/load_test.py`, results in `runs/loadtest.json`)
+  (`scripts/load_test.py`, results in `artifacts/loadtest.json`)
 - **Calibrated confidence** — temperature-scaled probabilities (T fit on
   held-out validation), not raw softmax. The fit is measured and reproducible:
   `scripts/eval_calibration.py` reports expected calibration error and a
@@ -201,9 +204,9 @@ ISRO-style demonstration inputs ship in `samples/`
   validated is labelled as such instead of being presented as calibrated.
 - **Quantization gate** — TorchScript + int8 export measured at Δ −0.16%
   accuracy (adopted); fp32 path retained
-- **SAC batch mode** — `python -m satquery.evaluate --sac-dir DIR` → answers.csv
+- **SAC batch mode** — `python -m anvesha.evaluate --sac-dir DIR` → answers.csv
   + per-item GeoTIFF masks, never halting on failures
-- Optional bearer-token auth (`SATQUERY_TOKEN`), structured JSON logs,
+- Optional bearer-token auth (`ANVESHA_TOKEN`), structured JSON logs,
   `/healthz`, Docker packaging, CI workflow
 
 ## Tests
@@ -213,7 +216,7 @@ python -m pytest tests -q     # I/O · routing · all specialists · API lifecyc
 ```
 
 **386 passed, 1 skipped** in both profiles — plain, and with the air-gap guard
-active (`SATQUERY_MODE=airgap`), where every outbound socket and DNS call is
+active (`ANVESHA_MODE=airgap`), where every outbound socket and DNS call is
 refused at the interpreter level. Synthetic GeoTIFF fixtures make the suite
 offline-capable; it passes with and without trained weights (fallback paths are
 themselves under test), and the acquisition layer is tested through a fake
@@ -248,22 +251,22 @@ transport, so no test touches the real network.
 └──────────────▲──────────────────────────────▲──────────────────────────────┘
                │ REST + job polling           │ static assets (/assets/*)
 ┌──────────────┴──────────────────────────────┴──────────────────────────────┐
-│ FastAPI service — satquery/server/main.py                                   │
+│ FastAPI service — anvesha/server/main.py                                   │
 │  POST /api/jobs      GET /api/jobs/{id}      GET /api/history               │
 │  GET /api/samples    GET /api/provenance     POST /api/evaluate/run         │
 │  GET /api/reports/{id}/report.pdf | /report.md | visuals/*.png|*.tif        │
 │  GET /api/geo/{id} (GeoJSON overlays)        GET /healthz                   │
 │  optional bearer-token auth · CORS · SPA fallback (API paths always JSON)   │
 │                                                                             │
-│  JobStore — satquery/server/jobs.py                                         │
-│   bounded ThreadPoolExecutor (SATQUERY_WORKERS=4)                           │
+│  JobStore — anvesha/server/jobs.py                                         │
+│   bounded ThreadPoolExecutor (ANVESHA_WORKERS=4)                           │
 │   GPU serialised via semaphore (CUDA only) · torch threads capped           │
 │   queue cap → HTTP 429 · LRU eviction of finished jobs                      │
 │   result cache: sha256(inputs + query) → instant identical re-runs          │
 └──────────────▲─────────────────────────────────────────────────────────────┘
                │ controller.run(..., trace_callback=publish)
 ┌──────────────┴─────────────────────────────────────────────────────────────┐
-│ AgentController — satquery/agent.py                                         │
+│ AgentController — anvesha/agent.py                                         │
 │  1 validate_inputs   format · modality · CRS · co-registration geometry     │
 │  2 classify_task     keyword + BOW embedding blend + feasibility filter    │
 │        └ low confidence → clarification options ("did you mean…?")          │
@@ -279,19 +282,19 @@ transport, so no test touches the real network.
 │ Specialist registry (tools_impl.py)      shared backbone: SceneEncoder      │
 │                                          (ResNet-18, EuroSAT-warm-started)  │
 │  single_vqa   encoder ⊕ per-type specialist heads + balanced-sampling count      │
-│               head + flip-TTA · RSVQA-LR · per-type: presence 91%          │
+│               head + flip-TTA · RSVQA-LR · per-type: presence 88%          │
 │  captioning   plan-conditioned transformer decoder ⊕ template fallback      │
-│               · BigEarthNet.txt captions · multi-ref BLEU 0.32              │
+│               · BigEarthNet.txt captions · multi-ref BLEU 0.31              │
 │  grounding    spectral-index response maps + boxes (fully interpretable)    │
 │  change_*     Siamese FPN-lite detector + TTA (4-way avg), tiled infer.     │
-│               · LEVIR-CD IoU 0.668 / F1 0.801 + description + change-VQA     │
+│               · LEVIR-CD IoU 0.692 / F1 0.818 + description + change-VQA     │
 │  optical_sar  dual-branch S1(dB-aware) ⊕ S2 fusion · BEN v2 pairs ·         │
 │               label recall 0.85                                             │
 └──────────────▲─────────────────────────────────────────────────────────────┘
                │
 ┌──────────────┴─────────────────────────────────────────────────────────────┐
 │ Storage & artifacts                                                         │
-│  data/satquery.db   SQLite — history + cached results (restart-safe)        │
+│  data/anvesha.db   SQLite — history + cached results (restart-safe)        │
 │  weights/*.pt       trained specialists (+ TorchScript int8 exports, ts/)   │
 │  runs/<run_id>/     reports json/md/pdf · visuals png · georeferenced tif   │
 │  samples/           ISRO-style demo inputs (Cartosat-2S optical, RISAT SAR) │
@@ -300,7 +303,18 @@ transport, so no test touches the real network.
 
 </details>
 
-See also [ARCHITECTURE.md](ARCHITECTURE.md) for design contracts.
+## Documentation
+
+| Document | What it answers |
+|---|---|
+| [docs/anvesha.md](docs/anvesha.md) | **Start here for a non-specialist walkthrough** — what the system does, in plain language |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Module/contract layout and the six agent stages |
+| [docs/MODEL_CARDS.md](docs/MODEL_CARDS.md) | Per-specialist model cards: data, training, measured scores, rejected experiments |
+| [docs/Decisions.md](docs/Decisions.md) | Decision record D0–D25: every trade-off, gate and bug, with the artifact behind it |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Container + Hugging Face Space deployment runbook and its known traps |
+| [docs/MARKET_ANALYSIS_AND_AUDIT.md](docs/MARKET_ANALYSIS_AND_AUDIT.md) | Competitive positioning and the honest-claims audit |
+| [docs/FRONTEND_AUDIT_REPORT.md](docs/FRONTEND_AUDIT_REPORT.md) | Console UX/a11y audit findings |
+| [artifacts/](artifacts/) | **The evidence**: every headline number above, as the JSON its script wrote |
 
 ## Data sources (verified online)
 

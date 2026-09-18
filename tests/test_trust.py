@@ -7,12 +7,12 @@ from types import SimpleNamespace
 
 import pytest
 
-from satquery.answers.compose import compose_answer
-from satquery.captions.compose import compose_caption
-from satquery.confmeta import get, formula, stamp
-from satquery.freshness import clocks_for, _THRESHOLDS
-from satquery.dossier import emit, DossierDoc
-from satquery.io_utils import RSImage
+from anvesha.answers.compose import compose_answer
+from anvesha.captions.compose import compose_caption
+from anvesha.confmeta import get, formula, stamp
+from anvesha.freshness import clocks_for, _THRESHOLDS
+from anvesha.dossier import emit, DossierDoc
+from anvesha.io_utils import RSImage
 
 
 def _z():
@@ -71,7 +71,7 @@ def test_answer_no_crash_empty():
 # ---- B7 confmeta --------------------------------------------------------- #
 
 def test_confmeta_formula_fallback(tmp_path, monkeypatch):
-    import satquery.confmeta as cm
+    import anvesha.confmeta as cm
     monkeypatch.setattr(cm, "_CACHE", None)
     monkeypatch.setattr(cm.CONFIG, "weights_dir", tmp_path)
     m = get("grounding", 0.5)

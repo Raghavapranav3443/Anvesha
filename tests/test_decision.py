@@ -18,9 +18,9 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from satquery.decision import (JARGON, compose, decide, find_jargon,
+from anvesha.decision import (JARGON, compose, decide, find_jargon,
                                human_area, threshold_sweep)
-from satquery.decision.rules import RULES, refusal_rules, verdict_rules
+from anvesha.decision.rules import RULES, refusal_rules, verdict_rules
 
 ACT_META = {
     "value": 0.8, "method": "formula", "component": "impact_analysis",
@@ -208,7 +208,7 @@ def test_fallback_tiers_are_reachable_when_nothing_specific_applies():
 
 def test_no_verdict_rule_is_both_specific_and_fallback():
     """A rule that is specific must be consultable in the first pass."""
-    from satquery.decision.rules import fallback_rules
+    from anvesha.decision.rules import fallback_rules
     fb = {r.id for r in fallback_rules()}
     assert fb <= {"V4_modest_change", "V5_no_action"}
     # Every non-fallback verdict must be evaluable without the fallback pass.
@@ -277,7 +277,7 @@ def test_jargon_matcher_uses_word_boundaries():
 def test_every_rule_renders_jargon_free_text():
     """A future rule that leaks a metric name fails here, not in front of a user."""
     facts = None
-    from satquery.decision.facts import assemble
+    from anvesha.decision.facts import assemble
     facts = assemble(impact())
     for rule in RULES:
         if not rule.render:
@@ -365,10 +365,10 @@ def test_human_area_uses_familiar_comparisons():
 def test_decision_layer_needs_no_network_and_no_models(monkeypatch):
     """The decision layer must work with the grid down."""
     import socket
-    import satquery.decision.engine as eng
-    import satquery.decision.facts as fct
-    import satquery.decision.advise as adv
-    import satquery.decision.sensitivity as sen
+    import anvesha.decision.engine as eng
+    import anvesha.decision.facts as fct
+    import anvesha.decision.advise as adv
+    import anvesha.decision.sensitivity as sen
 
     def _boom(*a, **k):
         raise AssertionError("decision layer attempted network access")
@@ -379,7 +379,7 @@ def test_decision_layer_needs_no_network_and_no_models(monkeypatch):
 
 
 def test_public_api_is_composable_from_a_plain_dict():
-    from satquery.decision import decide as d
+    from anvesha.decision import decide as d
     rec = d(impact())
     assert rec["schema"] == "anvesha.decision/1"
     assert compose(rec)["outcome_label"]

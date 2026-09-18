@@ -8,9 +8,9 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from satquery.agent import AgentController
-from satquery.io_utils import load_image
-from satquery.suggestions import suggest
+from anvesha.agent import AgentController
+from anvesha.io_utils import load_image
+from anvesha.suggestions import suggest
 
 
 # ------------------------------------------------------------------- #
@@ -18,7 +18,7 @@ from satquery.suggestions import suggest
 # ------------------------------------------------------------------- #
 
 def test_impact_analysis_tool(controller, bitemporal_pair):
-    from satquery.tools_impl import impact_analysis_tool
+    from anvesha.tools_impl import impact_analysis_tool
     a, b = [load_image(p) for p in bitemporal_pair]
     out = impact_analysis_tool({"images": [a, b], "query": "", "params": {}})
     assert "findings" in out and out["findings"]
@@ -31,7 +31,7 @@ def test_impact_analysis_tool(controller, bitemporal_pair):
 
 
 def test_impact_gsd_assumed_for_non_geo(rgb_png):
-    from satquery.impact import gsd_meters
+    from anvesha.impact import gsd_meters
     img = load_image(rgb_png)
     assert gsd_meters(img) == 10.0       # labelled assumption
 
@@ -109,13 +109,13 @@ def test_suggestions_conditional_rules():
 # ------------------------------------------------------------------- #
 
 def test_count_head_routing(controller, rgb_png):
-    from satquery.config import CONFIG
+    from anvesha.config import CONFIG
     if not (CONFIG.weights_dir / "count_head.pt").exists():
         pytest.skip("count head not trained")
     if not CONFIG.vqa_weights.exists():
         pytest.skip("VQA weights not present (count head loads via the "
                     "trained VQA model; CI has no vqa_head.pt)")
-    from satquery.models.vqa import get_vqa_model
+    from anvesha.models.vqa import get_vqa_model
     m = get_vqa_model()
     res = m.answer(load_image(rgb_png), "How many roads are visible in this image?")
     assert res["source"].startswith("dedicated counting head")
@@ -127,10 +127,10 @@ def test_count_head_routing(controller, rgb_png):
 # ------------------------------------------------------------------- #
 
 def test_type_head_routing(controller, rgb_png):
-    from satquery.config import CONFIG
+    from anvesha.config import CONFIG
     if not (CONFIG.weights_dir / "type_heads.pt").exists():
         pytest.skip("type heads not trained")
-    from satquery.models.vqa import get_vqa_model
+    from anvesha.models.vqa import get_vqa_model
     m = get_vqa_model()
     assert m.th is not None
     # presence question routes to the presence specialist, decodes a string
@@ -148,13 +148,13 @@ def test_type_head_routing(controller, rgb_png):
 # ------------------------------------------------------------------- #
 
 def test_torchscript_cpu_path():
-    from satquery.config import CONFIG
+    from anvesha.config import CONFIG
     if not (CONFIG.weights_dir / "ts" / "vqa_encoder_int8.ts").exists():
         pytest.skip("TorchScript export not present")
     if not CONFIG.vqa_weights.exists():
         pytest.skip("VQA weights not present (TorchScript path activates "
                     "only on a trained model; CI has no vqa_head.pt)")
-    from satquery.models.vqa import RSVQAModel
+    from anvesha.models.vqa import RSVQAModel
     m = RSVQAModel(device="cpu")
     assert m.trained
     import torch.jit as jit
@@ -167,7 +167,7 @@ def test_torchscript_cpu_path():
 # ------------------------------------------------------------------- #
 
 def test_clarification_on_ambiguous_query(controller, rgb_png):
-    from satquery.agent import build_clarification, classify_task
+    from anvesha.agent import build_clarification, classify_task
     intent = classify_task("tell me about this place", "single")
     clar = build_clarification("tell me about this place", intent, "single")
     if clar is not None:
@@ -177,7 +177,7 @@ def test_clarification_on_ambiguous_query(controller, rgb_png):
 
 
 def test_clarification_skips_strong_intent_and_empty_query():
-    from satquery.agent import build_clarification, classify_task
+    from anvesha.agent import build_clarification, classify_task
     strong = classify_task("Highlight the water body referred to in the query.",
                            "single")
     assert strong["confidence"] >= 0.55
@@ -189,7 +189,7 @@ def test_clarification_surfaces_in_run_outputs(controller, rgb_png):
     # Use a deliberately ambiguous query that has weak keyword + embedding signal.
     # NOTE: the clarification gate keys off the *intent* confidence, not the
     # answer confidence (which comes from the specialist tool output).
-    from satquery.agent import CLARIFY_THRESHOLD, classify_task
+    from anvesha.agent import CLARIFY_THRESHOLD, classify_task
     res = controller.run([rgb_png], "something")
     intent_conf = classify_task("something", "single")["confidence"]
     clar = res.outputs.get("clarification")

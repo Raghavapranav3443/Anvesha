@@ -6,7 +6,7 @@ REM  Logs land in runs\phase2_vqa_gate.log and runs\phase3_train.log
 REM  Neither run can harm production weights: both use candidate
 REM  checkpoints gated on pre-registered floors/evaluations.
 REM ============================================================
-cd /d c:\Users\Rupesh\Desktop\Projects\SatQuery
+cd /d "%~dp0.."
 
 echo [1/2] Phase 2: CLIP-vs-BOW type-heads A/B gate...
 python scripts\train_type_heads_clip.py > runs\phase2_vqa_gate.log 2>&1

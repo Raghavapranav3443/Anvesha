@@ -31,10 +31,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import torch
 import torch.nn as nn
 
-from satquery.config import CONFIG
-from satquery.models.backbone import SceneEncoder
-from satquery.models.vqa import _FusionHead, _hashed_bow
-from satquery.models.clip_text import get_clip_text
+from anvesha.config import CONFIG
+from anvesha.models.backbone import SceneEncoder
+from anvesha.models.vqa import _FusionHead, _hashed_bow
+from anvesha.models.clip_text import get_clip_text
 from scripts.train_vqa import RSVQADataset
 
 
@@ -331,7 +331,7 @@ def main(args):
            "bow": bow_r, "clip": clip_r,
            "split": {"train": len(tr), "val": len(va)},
            "args": {k: str(v) for k, v in vars(args).items()}}
-    (CONFIG.runs_dir / "phase2_vqa_gate.json").write_text(
+    CONFIG.artifact("phase2_vqa_gate.json").write_text(
         json.dumps(out, indent=2), encoding="utf-8")
     print("logged runs/phase2_vqa_gate.json", flush=True)
 

@@ -5,8 +5,8 @@ pair of analysis-ready GeoTIFFs and a verified ISRO context reading.
 
 Run it in online mode::
 
-    SATQUERY_MODE=online python scripts/acquire_smoke.py
-    SATQUERY_MODE=online python scripts/acquire_smoke.py --place "Dibrugarh, Assam"
+    ANVESHA_MODE=online python scripts/acquire_smoke.py
+    ANVESHA_MODE=online python scripts/acquire_smoke.py --place "Dibrugarh, Assam"
 
 It is deliberately a *script* rather than a test: the test suite must pass with
 the network provably cut, so nothing in ``tests/`` touches the internet. This
@@ -23,11 +23,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from satquery.acquire import mode as acquire_mode          # noqa: E402
-from satquery.acquire.fetch import fetch_scene, pick_pair, plan_grid  # noqa: E402
-from satquery.acquire.http import default_transport        # noqa: E402
-from satquery.acquire.providers import BhuvanProvider, default_providers  # noqa: E402
-from satquery.acquire.providers.stac import search_with_fallback  # noqa: E402
+from anvesha.acquire import mode as acquire_mode          # noqa: E402
+from anvesha.acquire.fetch import fetch_scene, pick_pair, plan_grid  # noqa: E402
+from anvesha.acquire.http import default_transport        # noqa: E402
+from anvesha.acquire.providers import BhuvanProvider, default_providers  # noqa: E402
+from anvesha.acquire.providers.stac import search_with_fallback  # noqa: E402
 
 
 def banner(text: str) -> None:
@@ -47,13 +47,13 @@ def main() -> int:
     status = acquire_mode.guard_status()
     print(f"  mode={status['mode']}  guard_installed={status['guard_installed']}")
     if status["mode"] != "online":
-        print("\n  Refusing to run: start with SATQUERY_MODE=online.")
+        print("\n  Refusing to run: start with ANVESHA_MODE=online.")
         return 2
 
     transport = default_transport()
 
     banner("1. RESOLVE PLACE -> AOI")
-    from satquery.acquire.aoi import analysis_window, gazetteer_lookup
+    from anvesha.acquire.aoi import analysis_window, gazetteer_lookup
 
     offline_hits = gazetteer_lookup(args.place)
     print(f"  offline gazetteer matches: {[a.name for a in offline_hits]}")
@@ -123,7 +123,7 @@ def main() -> int:
     banner("5. ISRO CONTEXT (Bhuvan, verified presence)")
     state = aoi.admin.get("state") or args.place.split(",")[-1].strip()
     bhuvan = BhuvanProvider(transport)
-    from satquery.acquire.providers.bhuvan import state_codes_for
+    from anvesha.acquire.providers.bhuvan import state_codes_for
 
     print(f"  state={state!r} -> Bhuvan codes {state_codes_for(state)}")
     started = time.time()

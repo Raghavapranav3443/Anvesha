@@ -18,7 +18,7 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from satquery.config import CONFIG, EUROSAT_CLASSES
+from anvesha.config import CONFIG, EUROSAT_CLASSES
 
 
 def collect_split(root: Path, lo: int, hi: int):
@@ -59,7 +59,7 @@ class Featurizer:
             self.dim = 384
         else:
             import torch
-            from satquery.models.backbone import SceneEncoder
+            from anvesha.models.backbone import SceneEncoder
             enc = SceneEncoder(3).to(device).eval()
             ck = CONFIG.scene_encoder_weights
             if ck.exists():

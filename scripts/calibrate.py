@@ -29,10 +29,10 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
-from satquery.calib_metrics import select_temperature
-from satquery.config import CONFIG
-from satquery.models.backbone import SceneEncoder
-from satquery.models.vqa import _FusionHead, _hashed_bow, infer_question_type
+from anvesha.calib_metrics import select_temperature
+from anvesha.config import CONFIG
+from anvesha.models.backbone import SceneEncoder
+from anvesha.models.vqa import _FusionHead, _hashed_bow, infer_question_type
 from scripts.train_vqa import RSVQADataset
 
 
@@ -84,7 +84,7 @@ def confidence_curves(logits, temperatures):
 def best_temperature(logits, ys):
     """ECE-optimal temperature, never worse than the identity.
 
-    Selection lives in ``satquery.calib_metrics`` so it can be unit-tested
+    Selection lives in ``anvesha.calib_metrics`` so it can be unit-tested
     without loading a model.
     """
     correct = (logits.argmax(dim=-1) == ys).detach().cpu().numpy()
@@ -127,7 +127,7 @@ def calibrate_vqa(device):
               f"uncalibrated rather than fitted.")
 
     # Record the provenance of the number so the runtime can verify the claim
-    # instead of trusting a hand-written label (see satquery.confmeta.verify).
+    # instead of trusting a hand-written label (see anvesha.confmeta.verify).
     ck["temperature"] = t
     ck["n_cal"] = int(len(ys))
     ck["calib"] = {"objective": "ece", "ece": pick["ece"],

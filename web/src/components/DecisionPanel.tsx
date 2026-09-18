@@ -1,6 +1,6 @@
 // Decision layer — the final stage: "what do I do with this analysis?"
 //
-// Renders the frozen `decision` dict emitted by satquery/decision. Written for a
+// Renders the frozen `decision` dict emitted by anvesha/decision. Written for a
 // non-expert: the headline says what to do, not what was computed. The
 // "what this cannot tell you" section is shown as prominently as the action,
 // because a recommendation without its limits is how a tool misleads someone.

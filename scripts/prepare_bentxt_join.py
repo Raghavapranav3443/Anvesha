@@ -17,7 +17,7 @@ def main() -> None:
     import pandas as pd
     from huggingface_hub import hf_hub_download
 
-    from satquery.config import CONFIG
+    from anvesha.config import CONFIG
 
     local = {p.stem for p in CONFIG.data_dir.joinpath(
         "bigearthnet_14k", "BEN_14k", "BigEarthNet-S2").rglob("*.tif")}

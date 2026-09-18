@@ -130,10 +130,10 @@ def Image_write(path: Path, arr: np.ndarray):
 @pytest.fixture(scope="session", autouse=True)
 def _fast_env():
     import os
-    os.environ.setdefault("SATQUERY_SKIP_TRAINING_DOWNLOADS", "1")
+    os.environ.setdefault("ANVESHA_SKIP_TRAINING_DOWNLOADS", "1")
 
 
 @pytest.fixture(scope="session")
 def controller():
-    from satquery.agent import AgentController
+    from anvesha.agent import AgentController
     return AgentController()

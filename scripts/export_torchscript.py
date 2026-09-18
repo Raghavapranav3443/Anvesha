@@ -17,9 +17,9 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
-from satquery.config import CONFIG
-from satquery.models.backbone import SceneEncoder
-from satquery.models.vqa import _FusionHead, infer_question_type
+from anvesha.config import CONFIG
+from anvesha.models.backbone import SceneEncoder
+from anvesha.models.vqa import _FusionHead, infer_question_type
 from scripts.train_vqa import RSVQADataset
 
 TS_DIR = CONFIG.weights_dir / "ts"

@@ -14,7 +14,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 WEB = REPO / "web" / "src"
-SAT = REPO / "satquery" / "server"
+SAT = REPO / "anvesha" / "server"
 
 FAILURES: list[str] = []
 

@@ -8,8 +8,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from satquery.io_utils import load_image
-from satquery.modality_certainty import refine_modality, stats_vote, _stats_evidence
+from anvesha.io_utils import load_image
+from anvesha.modality_certainty import refine_modality, stats_vote, _stats_evidence
 
 
 def _write_tif(path, arr, crs="EPSG:32633"):

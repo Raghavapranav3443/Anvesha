@@ -1,5 +1,5 @@
 @echo off
-cd /d C:\Users\Rupesh\Desktop\Projects\SatQuery
+cd /d "%~dp0.."
 echo [%date% %time%] chain2 start > runs\train_chain2.log
 python -u scripts\train_vqa.py --epochs 20 --image-size 128 --batch-size 128 --lr 3e-4 >> runs\train_chain2.log 2>&1
 echo [%date% %time%] vqa done >> runs\train_chain2.log

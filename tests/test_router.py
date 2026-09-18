@@ -10,15 +10,15 @@ from pathlib import Path
 
 import pytest
 
-from satquery.rerank import (re_rank, expanded_keywords, TASK_SENTENCES,
+from anvesha.rerank import (re_rank, expanded_keywords, TASK_SENTENCES,
                              best_intent, _short_circuit)
 
 
 # ---- rerank module ------------------------------------------------------- #
 
 def test_task_sentences_all_tasks():
-    from satquery.agent import TASK_ALIASES
-    from satquery.registry import TASK_IDS
+    from anvesha.agent import TASK_ALIASES
+    from anvesha.registry import TASK_IDS
     for t in TASK_IDS:
         assert t in TASK_SENTENCES
 
@@ -29,7 +29,7 @@ def test_short_circuit_sar_pair():
 
 
 def test_rerank_keyword_only_fallback_when_disabled(monkeypatch):
-    monkeypatch.setenv("SATQUERY_RERANK", "0")
+    monkeypatch.setenv("ANVESHA_RERANK", "0")
     ranked = [("single_vqa", 0.8), ("captioning", 0.2)]
     out, method = re_rank("is there water?", ranked, top_k=2)
     assert out == ranked
@@ -37,7 +37,7 @@ def test_rerank_keyword_only_fallback_when_disabled(monkeypatch):
 
 
 def test_rerank_preserves_feasible_order_without_clip(monkeypatch):
-    monkeypatch.setenv("SATQUERY_RERANK", "1")
+    monkeypatch.setenv("ANVESHA_RERANK", "1")
     ranked = [("single_vqa", 0.9), ("captioning", 0.3)]
     out, method = re_rank("how many buildings are there?", ranked, top_k=2,
                           configuration="single")

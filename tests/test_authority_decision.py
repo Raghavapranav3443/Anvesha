@@ -22,9 +22,9 @@ from __future__ import annotations
 
 import pytest
 
-from satquery.decision import decide
-from satquery.decision.authority import MIN_CONFLICT_AREA_HA
-from satquery.decision.rules import SIGNIFICANT_AREA_HA
+from anvesha.decision import decide
+from anvesha.decision.authority import MIN_CONFLICT_AREA_HA
+from anvesha.decision.rules import SIGNIFICANT_AREA_HA
 
 ACT_META = {
     "value": 0.8, "method": "formula", "component": "impact_analysis",

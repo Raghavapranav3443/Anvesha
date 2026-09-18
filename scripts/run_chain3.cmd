@@ -1,5 +1,5 @@
 @echo off
-cd /d C:\Users\Rupesh\Desktop\Projects\SatQuery
+cd /d "%~dp0.."
 :wait
 timeout /t 30 /nobreak >nul
 findstr /C:"VQA2 COMPLETE" runs\train_chain2.log >nul 2>&1

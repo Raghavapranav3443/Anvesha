@@ -1,4 +1,4 @@
-"""Generate the offline place index used by ``satquery.acquire.aoi``.
+"""Generate the offline place index used by ``anvesha.acquire.aoi``.
 
 Why this exists
 ---------------
@@ -31,7 +31,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-OUT_PATH = ROOT / "satquery" / "acquire" / "data" / "india_states.json"
+OUT_PATH = ROOT / "anvesha" / "acquire" / "data" / "india_states.json"
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
 SLEEP_S = 1.1
 USER_AGENT = "Anvesha-place-index-builder/1.0 (SIH project; contact: team@anvesha.local)"

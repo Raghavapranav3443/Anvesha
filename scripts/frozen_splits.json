@@ -2,7 +2,7 @@
   "_comment": "Frozen evaluation splits for pre-registered gates (D0). Every measurement below is deterministic; changing an entry requires a new D0-style freeze note in Decisions.md.",
   "vrsbench_val": {
     "n": 200,
-    "ordering": "satquery.evaluate._vrsbench_val() — sorted(Annotations_val/*.json), first n items with caption+objects",
+    "ordering": "anvesha.evaluate._vrsbench_val() — sorted(Annotations_val/*.json), first n items with caption+objects",
     "purpose": "B3 grounding ensemble gate (IoU@0.5 vs 0.126 + 0.01 margin) + B10 vrsbench_vqa bench",
     "gate_margin": 0.01
   },
@@ -14,7 +14,7 @@
   "levir_fulltest": {
     "n": 1500,
     "threshold": 0.85,
-    "protocol": "full-split thresholded protocol; canonical runs/phase3_levir_fulltest.json (IoU 0.692 / F1 0.818)",
+    "protocol": "full-split thresholded protocol; canonical artifacts/phase3_levir_fulltest.json (IoU 0.692 / F1 0.818)",
     "purpose": "B7 change-head calibration val logits + any TTA protocol note"
   },
   "cdvqa_val": {

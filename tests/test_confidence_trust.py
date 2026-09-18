@@ -22,8 +22,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from satquery import patches
-from satquery.confmeta import (RELIABILITY, effective_trust, reliability_of,
+from anvesha import patches
+from anvesha.confmeta import (RELIABILITY, effective_trust, reliability_of,
                                trust_band)
 
 
@@ -50,7 +50,7 @@ def test_no_component_claims_calibration_without_evidence():
     ``n_cal`` was null, so the runtime was uncalibrated while the documents
     claimed T=1.55. This test makes that class of drift fail loudly.
     """
-    from satquery.confmeta import claim_problems, load_calibration
+    from anvesha.confmeta import claim_problems, load_calibration
     assert claim_problems() == {}, f"unearned calibration labels: {claim_problems()}"
     for comp, v in load_calibration().items():
         if v.get("method") != "temp":
@@ -62,7 +62,7 @@ def test_no_component_claims_calibration_without_evidence():
 def test_a_hand_edited_sidecar_cannot_re_assert_calibration(tmp_path, monkeypatch):
     """Simulate the original defect and prove the audit catches it."""
     import json
-    import satquery.confmeta as cm
+    import anvesha.confmeta as cm
     (tmp_path / "calibration.json").write_text(json.dumps({
         "vqa": {"method": "temp", "param": 1.0, "n_cal": None},
         "cdvqa": {"method": "temp", "param": 1.7, "n_cal": 0},
@@ -107,7 +107,7 @@ def test_below_gate_records_the_gate_actually_used():
 def test_every_stamped_component_carries_both_factors():
     """Stamping happens per-tool via confmeta.stamp (not in enrich_result),
     so exercise the unit that actually attaches the factors."""
-    from satquery.confmeta import stamp
+    from anvesha.confmeta import stamp
     for component in ("vqa", "change_analysis", "grounding"):
         cm = stamp({"answer": "a", "confidence": 0.90}, component)["confidence_meta"]
         assert cm["reliability"] is not None, component

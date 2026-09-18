@@ -41,7 +41,7 @@ BATTERY = [
 _ROUTE_SCRIPT = """
 import json, sys
 %PRELUDE%
-from satquery.agent import classify_task
+from anvesha.agent import classify_task
 BATTERY = json.loads(sys.argv[1])
 out = {q: classify_task(q, cfg)["task"] for q, cfg in BATTERY}
 print("ROUTES=" + json.dumps(out, sort_keys=True))
@@ -53,7 +53,7 @@ def _route(battery, *, seed="0", prelude="", env_extra=None):
     script = _ROUTE_SCRIPT.replace("%PRELUDE%", prelude)
     env = dict(os.environ)
     env["PYTHONHASHSEED"] = seed
-    env.pop("SATQUERY_RERANK_CLIP", None)
+    env.pop("ANVESHA_RERANK_CLIP", None)
     if env_extra:
         env.update(env_extra)
     proc = subprocess.run(
@@ -107,7 +107,7 @@ def test_routing_independent_of_clip_load_state():
     """
     cold = _route(BATTERY, prelude="")
     warm = _route(BATTERY, prelude=(
-        "from satquery.models.clip_text import get_clip_text\n"
+        "from anvesha.models.clip_text import get_clip_text\n"
         "_warm = get_clip_text()\n"))
     assert cold == warm
 
@@ -115,10 +115,10 @@ def test_routing_independent_of_clip_load_state():
 def test_routing_independent_of_clip_rerank_switch():
     """The opt-in CLIP re-rank term must not perturb default routing."""
     default = _route(BATTERY)
-    enabled = _route(BATTERY, env_extra={"SATQUERY_RERANK_CLIP": "1"})
+    enabled = _route(BATTERY, env_extra={"ANVESHA_RERANK_CLIP": "1"})
     # The term is opt-in and measured to cost accuracy, so with it enabled the
     # vector may differ -- but it must still be *deterministic*.
-    again = _route(BATTERY, env_extra={"SATQUERY_RERANK_CLIP": "1"})
+    again = _route(BATTERY, env_extra={"ANVESHA_RERANK_CLIP": "1"})
     assert enabled == again
     assert set(default) == set(enabled)
 
@@ -128,7 +128,7 @@ def test_routing_independent_of_clip_rerank_switch():
 # --------------------------------------------------------------------------- #
 
 def test_tie_index_prefers_declared_configuration_order():
-    from satquery.agent import _tie_index
+    from anvesha.agent import _tie_index
     # single_vqa is declared before grounding, which is before captioning
     assert _tie_index("single_vqa", "single") < _tie_index("grounding", "single")
     assert _tie_index("grounding", "single") < _tie_index("captioning", "single")
@@ -139,7 +139,7 @@ def test_tie_index_prefers_declared_configuration_order():
 
 def test_tie_index_is_total_and_deterministic():
     """Unknown ids must sort last, in a stable way (no exceptions, no ties)."""
-    from satquery.agent import _tie_index
+    from anvesha.agent import _tie_index
     tasks = ["single_vqa", "captioning", "grounding", "change_vqa",
              "change_analysis", "impact_analysis", "optical_sar",
              "investigation", "not_a_real_task"]
@@ -153,7 +153,7 @@ def test_tie_index_is_total_and_deterministic():
 def test_rerank_method_reports_computed_value():
     """`rerank_method` used to be a hardcoded "none", hiding re-ranks from the
     trace. It must now reflect what actually happened."""
-    from satquery.agent import classify_task
+    from anvesha.agent import classify_task
     info = classify_task("is there water present", "single")
     assert info["rerank_method"] != "none"
     assert isinstance(info["rerank_method"], str) and info["rerank_method"]
@@ -161,7 +161,7 @@ def test_rerank_method_reports_computed_value():
 
 def test_classify_report_shape_is_stable():
     """The keys the trace/report depend on must all still be present."""
-    from satquery.agent import classify_task
+    from anvesha.agent import classify_task
     info = classify_task("is there water present", "single")
     assert set(info) >= {"task", "confidence", "method", "ranked_candidates",
                          "infeasible_ignored", "rerank_method"}

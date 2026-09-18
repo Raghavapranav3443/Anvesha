@@ -13,8 +13,8 @@ import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 
-from satquery.config import CONFIG
-from satquery.server.main import app
+from anvesha.config import CONFIG
+from anvesha.server.main import app
 
 client = TestClient(app)
 
@@ -57,7 +57,7 @@ def test_plan_refuses_in_airgap_mode_with_409(monkeypatch):
     test that silently depends on the machine's last-used mode would make a live
     network call on a developer's box and quietly pass.
     """
-    from satquery.acquire import http as http_mod
+    from anvesha.acquire import http as http_mod
 
     monkeypatch.setattr(http_mod, "current_mode", lambda: "airgap")
     resp = client.post("/api/acquire/plan", json={"query": "Assam"})
@@ -69,8 +69,8 @@ def test_plan_refuses_in_airgap_mode_with_409(monkeypatch):
 
 def test_blocked_network_is_never_reported_as_no_imagery(monkeypatch):
     """A policy refusal must not masquerade as an empty catalogue."""
-    from satquery.acquire.errors import NetworkBlockedAirgap
-    from satquery.acquire.providers.stac import (StacProvider,
+    from anvesha.acquire.errors import NetworkBlockedAirgap
+    from anvesha.acquire.providers.stac import (StacProvider,
                                                  search_with_fallback)
 
     def refuse(*_a, **_k):
@@ -92,8 +92,8 @@ def test_plan_rejects_a_bad_numeric_parameter():
 
 
 def test_plan_maps_unknown_place_to_422(monkeypatch):
-    from satquery.acquire import service as service_mod
-    from satquery.acquire.aoi import PlaceNotFound
+    from anvesha.acquire import service as service_mod
+    from anvesha.acquire.aoi import PlaceNotFound
 
     def boom(*_a, **_k):
         raise PlaceNotFound("could not find a place matching 'zzz'")
@@ -105,8 +105,8 @@ def test_plan_maps_unknown_place_to_422(monkeypatch):
 
 
 def test_plan_maps_empty_catalogue_to_422(monkeypatch):
-    from satquery.acquire import service as service_mod
-    from satquery.acquire.errors import NoSceneFound
+    from anvesha.acquire import service as service_mod
+    from anvesha.acquire.errors import NoSceneFound
 
     def boom(*_a, **_k):
         raise NoSceneFound("no usable image pair")
@@ -147,7 +147,7 @@ def _write_fake_acquisition(acquire_id: str, dates=("2026-04-17", "2026-08-10"))
 
 
 def test_acquired_images_returns_only_geotiffs_in_date_order():
-    from satquery.acquire.service import acquired_images
+    from anvesha.acquire.service import acquired_images
 
     folder = _write_fake_acquisition("acq-order-test")
     names = [p.name for p in acquired_images("acq-order-test")]
@@ -158,7 +158,7 @@ def test_acquired_images_returns_only_geotiffs_in_date_order():
 
 def test_acquire_id_cannot_escape_the_runs_directory():
     """A traversal attempt must yield nothing, not a readable path."""
-    from satquery.acquire.service import acquired_images
+    from anvesha.acquire.service import acquired_images
 
     for hostile in ("../../etc", "..\\..\\windows\\system32", "a/../../b",
                     "/absolute/path", "....//....//etc"):
@@ -166,7 +166,7 @@ def test_acquire_id_cannot_escape_the_runs_directory():
 
 
 def test_dates_are_recovered_from_the_files_themselves():
-    from satquery.acquire.service import acquired_images, dates_for_images
+    from anvesha.acquire.service import acquired_images, dates_for_images
 
     _write_fake_acquisition("acq-dates-test")
     files = acquired_images("acq-dates-test")

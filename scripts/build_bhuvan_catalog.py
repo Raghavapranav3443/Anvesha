@@ -48,7 +48,7 @@ CAPABILITIES_URL = (
     "?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities"
 )
 CACHE_PATH = ROOT / ".cache" / "bhuvan_wms.xml"
-OUT_PATH = ROOT / "satquery" / "acquire" / "data" / "bhuvan_layers.json"
+OUT_PATH = ROOT / "anvesha" / "acquire" / "data" / "bhuvan_layers.json"
 CACHE_TTL_S = 7 * 24 * 3600
 
 # Indian state / UT codes as they appear in Bhuvan NUIS layer names. Derived

@@ -24,8 +24,8 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
 
-from satquery.config import CONFIG
-from satquery.models.backbone import SceneEncoder
+from anvesha.config import CONFIG
+from anvesha.models.backbone import SceneEncoder
 
 
 def bow(text: str, dim: int = 512) -> np.ndarray:
@@ -201,7 +201,7 @@ def train(args):
     print(f"saved {CONFIG.vqa_weights} (best val_acc={best:.4f})")
 
     # Experiment log
-    from satquery.experiment_log import log_experiment
+    from anvesha.experiment_log import log_experiment
     log_experiment(
         script="train_vqa",
         args={"image_size": args.image_size, "epochs": args.epochs,

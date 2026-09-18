@@ -23,8 +23,8 @@ from pathlib import Path
 
 import pytest
 
-from satquery.acquire import mode as M
-from satquery.acquire.errors import (AcquireError, NetworkBlockedAirgap)
+from anvesha.acquire import mode as M
+from anvesha.acquire.errors import (AcquireError, NetworkBlockedAirgap)
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -264,7 +264,7 @@ def test_escape_hatch_disables_enforcement(monkeypatch):
 _CHILD = (
     "import socket, sys\n"
     "sys.path.insert(0, sys.argv[1])\n"
-    "import satquery\n"
+    "import anvesha\n"
     "try:\n"
     "    socket.create_connection(('192.0.2.1', 443), timeout=2)\n"
     "    print('REACHED')\n"
@@ -275,10 +275,10 @@ _CHILD = (
 
 
 def test_child_process_inherits_airgap_mode():
-    """The server spawns `python -m satquery.evaluate`; without env inheritance
+    """The server spawns `python -m anvesha.evaluate`; without env inheritance
     an 'air-gapped' deployment could still download in a child."""
     env = dict(os.environ)
-    env["SATQUERY_MODE"] = "airgap"
+    env["ANVESHA_MODE"] = "airgap"
     proc = subprocess.run([sys.executable, "-c", _CHILD, str(ROOT)],
                           capture_output=True, text=True, env=env, timeout=180)
     assert "BLOCKED" in proc.stdout, \
@@ -287,7 +287,7 @@ def test_child_process_inherits_airgap_mode():
 
 def test_child_process_online_mode_not_blocked():
     env = dict(os.environ)
-    env["SATQUERY_MODE"] = "online"
+    env["ANVESHA_MODE"] = "online"
     proc = subprocess.run([sys.executable, "-c", _CHILD, str(ROOT)],
                           capture_output=True, text=True, env=env, timeout=180)
     assert "BLOCKED" not in proc.stdout
@@ -323,11 +323,11 @@ def test_invalid_mode_rejected():
 
 
 def test_mode_from_env():
-    os.environ["SATQUERY_MODE"] = "online"
+    os.environ["ANVESHA_MODE"] = "online"
     try:
         assert M.mode_from_env() == "online"
     finally:
-        os.environ.pop("SATQUERY_MODE", None)
+        os.environ.pop("ANVESHA_MODE", None)
     assert M.mode_from_env() is None
 
 
@@ -338,8 +338,8 @@ def test_mode_from_env():
 _GATE_PROBE = (
     "import sys, socket\n"
     "sys.path.insert(0, sys.argv[1])\n"
-    "import satquery\n"
-    "from satquery.acquire import mode as M\n"
+    "import anvesha\n"
+    "from anvesha.acquire import mode as M\n"
     "print('MODE=' + str(M.current_mode()))\n"
     "print('GUARD=' + str(M.guard_installed()))\n"
     "try:\n"
@@ -351,7 +351,7 @@ _GATE_PROBE = (
 
 
 def test_env_gate_is_not_vacuous():
-    """`SATQUERY_MODE=airgap pytest ...` only proves anything if it enforces.
+    """`ANVESHA_MODE=airgap pytest ...` only proves anything if it enforces.
 
     A green suite with a guard that never fires looks identical to a green suite
     with no guard at all, so this test asserts that the env-var gate is actually
@@ -359,7 +359,7 @@ def test_env_gate_is_not_vacuous():
     passes with the network cut") could silently become vacuous.
     """
     env = dict(os.environ)
-    env["SATQUERY_MODE"] = "airgap"
+    env["ANVESHA_MODE"] = "airgap"
     proc = subprocess.run([sys.executable, "-c", _GATE_PROBE, str(ROOT)],
                           capture_output=True, text=True, env=env, timeout=180)
     assert "MODE=airgap" in proc.stdout, proc.stdout
@@ -370,14 +370,14 @@ def test_env_gate_is_not_vacuous():
 
 
 def test_no_env_var_leaves_package_import_inert():
-    """Importing satquery must not install a guard on its own.
+    """Importing anvesha must not install a guard on its own.
 
     Scripts such as `scripts/download_datasets.py` legitimately need the
     network; only an explicit mode (env var, server startup, or enforce())
     should arm the guard.
     """
     env = dict(os.environ)
-    env.pop("SATQUERY_MODE", None)
+    env.pop("ANVESHA_MODE", None)
     proc = subprocess.run([sys.executable, "-c", _GATE_PROBE, str(ROOT)],
                           capture_output=True, text=True, env=env, timeout=180)
     assert "GUARD=False" in proc.stdout, proc.stdout

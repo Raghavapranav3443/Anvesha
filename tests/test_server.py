@@ -6,7 +6,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from fastapi.testclient import TestClient
 
-from satquery.server.main import app
+from anvesha.server.main import app
 
 client = TestClient(app)
 
@@ -66,7 +66,7 @@ def test_stats_freshness_legend():
 
 def test_fixtures_endpoint_404_when_unbuilt():
     """C7: /api/fixtures 404s with a warm_demo hint when no manifest exists."""
-    from satquery.server import fixtures as fx
+    from anvesha.server import fixtures as fx
     saved = fx.FIXTURES_PATH
     fx.FIXTURES_PATH = fx.Path("_definitely_missing_manifest.json")
     try:
@@ -80,7 +80,7 @@ def test_fixtures_endpoint_404_when_unbuilt():
 def test_fixtures_endpoint_serves_manifest(tmp_path, monkeypatch):
     """C7: a valid pre-baked manifest is served with no-store headers."""
     import json as _json
-    from satquery.server import fixtures as fx
+    from anvesha.server import fixtures as fx
     p = tmp_path / "manifest.json"
     p.write_text(_json.dumps({"fixtures": [], "all_green": True,
                               "generated_by": "scripts/warm_demo.py"}),

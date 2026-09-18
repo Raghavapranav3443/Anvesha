@@ -9,7 +9,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from satquery.calib_metrics import (accuracy_confidence_gap, brier_score,
+from anvesha.calib_metrics import (accuracy_confidence_gap, brier_score,
                                     expected_calibration_error, judge,
                                     lookup_band, reliability_table,
                                     select_temperature)

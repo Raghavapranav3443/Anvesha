@@ -1,0 +1,13 @@
+{
+  "loader": "transformers",
+  "model": "openai/clip-vit-base-patch32",
+  "arch": "ViT-B-32",
+  "pretrained": null,
+  "device": "cuda",
+  "n": 50,
+  "mean_iou": 0.0811,
+  "det_rate": 0.0125,
+  "oracle_iou": 0.2725,
+  "gate": 0.3,
+  "verdict": "REJECT"
+}

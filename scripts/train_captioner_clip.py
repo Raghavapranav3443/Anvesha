@@ -30,8 +30,8 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
-from satquery.config import CONFIG
-from satquery.models.backbone import SceneEncoder
+from anvesha.config import CONFIG
+from anvesha.models.backbone import SceneEncoder
 from scripts.train_captioner import (CaptionDataset, CaptionVocab, Captioner,
                                      collate_pad, simple_bleu)
 
@@ -142,7 +142,7 @@ def main():
 
     clip = None
     try:
-        from satquery.models.clip_text import get_clip_text
+        from anvesha.models.clip_text import get_clip_text
         clip = get_clip_text()
     except Exception:
         clip = None
@@ -179,7 +179,7 @@ def main():
         print("PROMOTED -> weights/captioner.pt")
 
     CONFIG.runs_dir.mkdir(parents=True, exist_ok=True)
-    (CONFIG.runs_dir / "captioner_gate.json").write_text(
+    CONFIG.artifact("captioner_gate.json").write_text(
         json.dumps(gate, indent=1), encoding="utf-8")
     print("logged runs/captioner_gate.json")
 

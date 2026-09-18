@@ -4,10 +4,10 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from satquery.geodate import (GeoBox, extract_acquired, extract_from_name,
+from anvesha.geodate import (GeoBox, extract_acquired, extract_from_name,
                               extract_from_tags, pixel_to_lonlat,
                               polygon_geojson, quadrant_of)
-from satquery.io_utils import RSImage, load_image
+from anvesha.io_utils import RSImage, load_image
 
 
 def _write_tif_with_tags(path, arr, tags, crs="EPSG:4326"):

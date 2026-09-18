@@ -6,8 +6,8 @@ import shutil
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from satquery.config import CONFIG
-from satquery.evaluate import sac_batch
+from anvesha.config import CONFIG
+from anvesha.evaluate import sac_batch
 
 
 def test_sac_batch(tmp_path):

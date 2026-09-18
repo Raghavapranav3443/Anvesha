@@ -1,7 +1,7 @@
 const ROWS = [
   {
     task: 'Visual Q&A', approach: 'per-type specialist heads + CLIP text encoder + ordinal counting',
-    data: 'RSVQA-LR · 54k triplets', score: '0.700 full test (n=9,491) · presence 0.88'
+    data: 'RSVQA-LR · 54k triplets', score: '0.700 full test (n=9,491) · presence 0.88 (val)'
   },
   {
     task: 'Scene description', approach: 'plan-conditioned decoder on CLIP vision features',

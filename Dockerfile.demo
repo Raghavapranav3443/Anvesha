@@ -1,8 +1,14 @@
 # Demo bundle: same app, whitelisted weights only (~430MB-class image).
-# Excludes RemoteCLIP-ViT-B-32.pt (605MB, only used by the optional B2
-# CLIP re-rank) and dinov2_vits14.pt (88MB, negative-result repro).
-# Rerank is disabled via SATQUERY_RERANK=0 so the slim image never tries to
-# load a weight that isn't there; all specialists degrade gracefully.
+# Excludes RemoteCLIP-ViT-B-32.pt (605MB) and dinov2_vits14.pt (88MB,
+# negative-result repro).
+#
+# The router's keyword re-rank stays ENABLED here. It does not need the CLIP
+# weight: the CLIP contribution is opt-in (`ANVESHA_RERANK_CLIP=1`, off by
+# default) because it measured 0.4pp *worse* than keyword-only, so the tower
+# is only ever touched when explicitly requested. Setting ANVESHA_RERANK=0
+# would have skipped re-ranking entirely and returned the unranked top-k,
+# making the deployed Space route the query less accurately than the intent
+# accuracy documented in MODEL_CARDS.
 FROM python:3.12-slim AS builder
 
 WORKDIR /app
@@ -20,8 +26,7 @@ FROM python:3.12-slim AS runtime
 
 WORKDIR /app
 ENV PIP_NO_CACHE_DIR=1 PYTHONUNBUFFERED=1
-ENV SATQUERY_RERANK=0
-ENV SATQUERY_PATCHES=1
+ENV ANVESHA_PATCHES=1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1 libglib2.0-0 && rm -rf /var/lib/apt/lists/*
@@ -30,9 +35,13 @@ COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Application code
-COPY satquery/ satquery/
+COPY anvesha/ anvesha/
 COPY scripts/ scripts/
 COPY samples/ samples/
+# Committed benchmark evidence (~20 KB). The console's Evaluation tab reads
+# artifacts/scorecard.json at request time, so a deployed image with no run
+# history still shows the measured numbers instead of an empty card.
+COPY artifacts/ artifacts/
 COPY web/dist/ web/dist/
 
 # Whitelisted demo-critical weights (NOT the 605MB CLIP / 88MB DINOv2)
@@ -53,10 +62,11 @@ COPY weights/task_keywords.json weights/task_keywords.json
 # missing (place gazetteer + ISRO layer index + built frontend).
 RUN python -c "\
 from pathlib import Path as P;\
-d=P('satquery/acquire/data');\
+d=P('anvesha/acquire/data');\
 missing=[n for n in ('india_states.json','bhuvan_layers.json') if not (d/n).exists()];\
 assert not missing, 'bundled acquisition indices missing from image: %s' % missing;\
 assert P('web/dist/index.html').exists(), 'web/dist/index.html missing: run the frontend build';\
+assert P('artifacts/scorecard.json').exists(), 'artifacts/scorecard.json missing: the console Evaluation tab reads it';\
 print('bundled offline assets OK:', sorted(x.name for x in d.glob('*.json')), 'and web/dist')"
 
 # Non-root user
@@ -66,7 +76,16 @@ USER appuser
 
 EXPOSE 8000
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')" || exit 1
+# Honour $PORT when the host injects one (Cloud Run, Render, Railway, Fly,
+# Spaces' app_port via the platform); fall back to 8000 for a plain `docker
+# run`. Shell form is required for the default expansion, and the healthcheck
+# resolves the same variable so it never probes a port the app is not on.
+ENV PORT=8000
+# /healthz instantiates the four core specialists on its first call to report
+# trained-vs-heuristic honestly (~6 s cold on a fast laptop, more on a small
+# cloud vCPU; memoised thereafter). A 5 s probe timeout marked a healthy
+# container unhealthy during that window, so the budget covers the cold load.
+HEALTHCHECK --interval=30s --timeout=60s --start-period=180s --retries=3 \
+    CMD python -c "import os,urllib.request; urllib.request.urlopen('http://localhost:%s/healthz' % os.environ.get('PORT','8000'))" || exit 1
 
-CMD ["python", "-m", "uvicorn", "satquery.server.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD python -m uvicorn anvesha.server.main:app --host 0.0.0.0 --port ${PORT:-8000}

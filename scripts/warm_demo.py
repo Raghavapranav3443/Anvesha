@@ -2,7 +2,7 @@
 
 Runs each demo setup twice against a running server: first pass computes and
 caches, second pass must be served from cache (``cached: True``). Writes
-``satquery/fixtures/manifest.json`` so UI demo-mode chips validate themselves.
+``anvesha/fixtures/manifest.json`` so UI demo-mode chips validate themselves.
 
 Usage: python scripts/warm_demo.py [--base http://host:8000] [--skip-warm]
 Exit codes: 0 all green; 1 any failure / server unreachable.
@@ -78,7 +78,7 @@ def _get(base: str, path: str, timeout: float = 30.0) -> dict:
 
 
 def _multipart(fields: dict, files: list) -> tuple:
-    boundary = "----SatQueryWarmDemo7f3a"
+    boundary = "----AnveshaWarmDemo7f3a"
     body = b""
     for k, v in fields.items():
         body += (f"--{boundary}\r\nContent-Disposition: form-data; "
@@ -161,7 +161,7 @@ def main() -> int:
                                      "cached": warm,
                                      "run_id": second.get("run_id", "")})
 
-    out = REPO / "satquery" / "fixtures" / "manifest.json"
+    out = REPO / "anvesha" / "fixtures" / "manifest.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     manifest["all_green"] = failures == 0
     out.write_text(json.dumps(manifest, indent=2), encoding="utf-8")

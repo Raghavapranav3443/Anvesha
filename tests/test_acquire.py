@@ -19,14 +19,14 @@ from typing import Any, Dict, Optional
 import numpy as np
 import pytest
 
-from satquery.acquire import aoi as aoi_mod
-from satquery.acquire import fetch as fetch_mod
-from satquery.acquire import http as http_mod
-from satquery.acquire.cache import DiskCache, key_for
-from satquery.acquire.errors import FetchFailed, NetworkBlockedAirgap
-from satquery.acquire.providers.bhuvan import (CONTROL_BBOX, BhuvanProvider,
+from anvesha.acquire import aoi as aoi_mod
+from anvesha.acquire import fetch as fetch_mod
+from anvesha.acquire import http as http_mod
+from anvesha.acquire.cache import DiskCache, key_for
+from anvesha.acquire.errors import FetchFailed, NetworkBlockedAirgap
+from anvesha.acquire.providers.bhuvan import (CONTROL_BBOX, BhuvanProvider,
                                                state_codes_for)
-from satquery.acquire.providers.stac import (SceneRef, StacProvider,
+from anvesha.acquire.providers.stac import (SceneRef, StacProvider,
                                              default_providers,
                                              search_with_fallback)
 
@@ -191,11 +191,11 @@ def test_env_mode_override_does_not_become_a_stored_preference(
         monkeypatch, tmp_path: Path):
     """An env var must not rewrite the saved mode.
 
-    It did: running the smoke script with ``SATQUERY_MODE=online`` wrote
+    It did: running the smoke script with ``ANVESHA_MODE=online`` wrote
     ``"mode": "online"`` into ``data/settings.json``, silently replacing the
     air-gap default for every subsequent launch.
     """
-    from satquery.acquire import mode as mode_mod
+    from anvesha.acquire import mode as mode_mod
 
     settings = tmp_path / "settings.json"
     monkeypatch.setattr(mode_mod, "settings_path", lambda: settings)
@@ -402,7 +402,7 @@ def test_default_providers_puts_primary_first_and_skips_unknown():
 
 
 def test_signed_provider_is_known_but_never_used_automatically():
-    from satquery.acquire.providers.stac import all_providers
+    from anvesha.acquire.providers.stac import all_providers
 
     assert all_providers()["stac_bhoonidhi"].requires_signing is True
     # Asking for it explicitly must still not put an unusable catalogue in the
