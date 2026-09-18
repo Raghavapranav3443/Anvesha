@@ -24,6 +24,11 @@ from typing import Any, Dict, List, Optional, Tuple
 FACT_KEYS = (
     "changed_area_ha", "changed_fraction", "built_up_new_ha", "built_up_lost_ha",
     "vegetation_lost_ha", "vegetation_gained_ha", "near_water_250m",
+    # How the new built-up ground is arranged, not merely how much of it there
+    # is. Present only for runs whose impact analysis measured it; absent
+    # elsewhere, where the rules that need it simply do not apply.
+    "built_up_new_regions", "built_up_new_largest_ha",
+    "built_up_new_largest_share",
     "near_water_500m", "near_water_1000m", "n_change_regions", "largest_region_box",
     "priority_zone", "gsd_m", "gsd_assumed", "confidence", "trust", "trust_band",
     "trust_source", "calibrated", "dominant_direction", "modality_agreement",
@@ -185,7 +190,9 @@ def assemble(outputs: Dict[str, Any], task: str = "",
                    "inspected")
     if shape:
         for k in ("built_up_new_ha", "built_up_lost_ha",
-                  "vegetation_lost_ha", "vegetation_gained_ha"):
+                  "vegetation_lost_ha", "vegetation_gained_ha",
+                  "built_up_new_regions", "built_up_new_largest_ha",
+                  "built_up_new_largest_share"):
             facts._set(k, trans.get(k), "reported in transitions")
     elif trans:
         facts.notes.append(

@@ -114,6 +114,68 @@ def px_to_ha(px_count: int, gsd_m: float) -> float:
     return round(px_count * gsd_m * gsd_m / 10_000.0, 3)
 
 
+def label_components(mask: np.ndarray) -> Tuple[np.ndarray, int]:
+    """8-connected components of a boolean mask, 0 meaning background.
+
+    scipy does this in C when it is available. Without it, an iterative flood
+    fill over the True pixels only -- exactly as correct, and it pays for the
+    foreground rather than the whole scene, which is the right trade because
+    the masks this is used on are a small fraction of the image.
+    """
+    m = mask.astype(bool)
+    if not m.any():
+        return np.zeros(m.shape, dtype=np.int32), 0
+    try:
+        from scipy.ndimage import label as _label
+        labels, n = _label(m, structure=np.ones((3, 3), dtype=int))
+        return labels.astype(np.int32), int(n)
+    except ImportError:
+        pass
+    labels = np.zeros(m.shape, dtype=np.int32)
+    remaining = {(int(r), int(c)) for r, c in np.argwhere(m)}
+    n = 0
+    while remaining:
+        n += 1
+        stack = [remaining.pop()]
+        labels[stack[0]] = n
+        while stack:
+            r, c = stack.pop()
+            for dr in (-1, 0, 1):
+                for dc in (-1, 0, 1):
+                    if dr == 0 and dc == 0:
+                        continue
+                    p = (r + dr, c + dc)
+                    if p in remaining:
+                        remaining.discard(p)
+                        labels[p] = n
+                        stack.append(p)
+    return labels, n
+
+
+def region_stats(mask: np.ndarray, gsd: float) -> Dict[str, Any]:
+    """How a mask is *arranged*: component count, and how much of it is in the
+    single largest component.
+
+    Area alone cannot tell construction from a change of surface. Four months
+    of building work tends to appear as many small parcels, roof-sized patches
+    and linear road or bund features, while a sediment bar, an exposed river
+    bed, an embankment or one large earthworks site produces one compact block.
+    ``largest_share`` is the fact that separates those two readings.
+    """
+    m = mask.astype(bool)
+    total = int(m.sum())
+    if total == 0:
+        return {"regions": 0, "largest_ha": 0.0, "largest_share": 0.0}
+    labels, n = label_components(m)
+    sizes = np.bincount(labels.ravel(), minlength=n + 1)[1:].astype(np.int64)
+    largest = int(sizes.max()) if sizes.size else 0
+    return {
+        "regions": int(n),
+        "largest_ha": px_to_ha(largest, gsd),
+        "largest_share": round(largest / total, 4),
+    }
+
+
 # --------------------------------------------------------------------- #
 # Concept masks (reuse grounder score maps)
 # --------------------------------------------------------------------- #
@@ -177,6 +239,10 @@ def analyse_impact(a, b, change_mask: np.ndarray,
 
     veg_lost_ha = px_to_ha(veg_lost_px, gsd)
     built_new_ha = px_to_ha(built_new_px, gsd)
+    # The arrangement of the new built-up ground, not just its area: the
+    # decision layer needs both to avoid calling a change of surface
+    # "construction" (Decisions.md D27/D29).
+    built_new_regions = region_stats(built_b & ~built_a & changed, gsd)
 
     # --- zone ranking (4x4) --------------------------------------------
     # Use a grid that covers the full image. Integer division of H/W by 4
@@ -247,6 +313,9 @@ def analyse_impact(a, b, change_mask: np.ndarray,
             "vegetation_gained_ha": px_to_ha(veg_gained_px, gsd),
             "built_up_new_ha": built_new_ha,
             "built_up_lost_ha": px_to_ha(built_lost_px, gsd),
+            "built_up_new_regions": built_new_regions["regions"],
+            "built_up_new_largest_ha": built_new_regions["largest_ha"],
+            "built_up_new_largest_share": built_new_regions["largest_share"],
         },
         "zones_top": zones[:6],
         "findings": findings,

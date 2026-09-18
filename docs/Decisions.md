@@ -1142,10 +1142,11 @@ building and road work, but it never names the failure mode this window actually
 floodplain sediment or exposed bed -- and the headline still asserts "where there was none
 before" as fact.
 
-**Decision:** recorded and scoped, not silently patched. The remediation is to surface a
+**Decision:** recorded and scoped, not silently patched (the fix landed in D29). The remediation is to surface a
 largest-contiguous-region fact out of `impact.py` and downgrade to `verify_first`, naming
-the alternative, when one component dominates the flagged area. It is deferred to a
-deliberate change because it alters what the demo headline says on stage.
+the alternative, when one component dominates the flagged area.It is deferred to a
+ deliberate change because it alters what the demo headline says on stage —
+ **now implemented, see D29**.
 
 ### D28 — The deployment target was re-measured: Render cannot run this, and the free SDK is Gradio
 
@@ -1186,3 +1187,47 @@ product from a healthy-looking container serving heuristics.
 will serve an app which never calls `demo.launch()`) is verified only as far as local
 serving on 7860. If HF's runtime rejects it, the remedy is small and known: mount a trivial
 `gr.Blocks` as the outer application so the Space genuinely declares a Gradio interface.
+
+### D29 — The seasonal over-claim is fixed where it is measurable: block geometry, not season
+
+**Context.** D27 recorded the finding and deferred the fix, because it changes what the
+demo headline says. It is now implemented — deliberately *not* by special-casing the
+monsoon.
+
+**What was added.** `impact.analyse_impact` now measures how the new built-up ground is
+*arranged*, not only how much of it there is: `region_stats` returns the connected-component
+count, the largest component in hectares, and that component's share of the flagged area
+(scipy-backed, with an exact flood-fill fallback so an air-gapped install agrees rather than
+approximates). Three facts join `transitions`: `built_up_new_regions`,
+`built_up_new_largest_ha`, `built_up_new_largest_share`.
+
+A verdict rule `V0c_block_geometry` now sits between the ISRO two-source conflict (V0) and
+the construction verdict (V2). When the largest single contiguous block is at least 50 ha
+**and** at least a third of the new built-up area, the outcome downgrades from `act` to
+`verify_first` and the headline names what that block could equally be — an exposed river
+bed or sediment bar, an embankment, or one large earthworks, quarry or landfill site —
+instead of asserting construction over it. The advice asks for the one comparison that
+settles it: the same ground at the same time of year in an earlier image.
+
+**Why geometry rather than season.** The monsoon window was the *occasion* of the bug, not
+its cause: a sediment bar or an embankment produces the same over-claim in any season. Shape
+is measurable from the two images alone, needs no date reasoning, and cannot be defeated by
+a pair that happens to straddle a boundary. The rule only ever downgrades — it never upgrades
+a verdict — so a conservative threshold costs a sharper headline, never a wrong one.
+
+**Calibration.** On the measured pair the largest block is 135.06 ha of 287.94 ha (47%) across
+37 patches, so both thresholds hold with margin. A counter-case of 400 ha of scattered
+construction containing one 60 ha site (share 0.15) keeps `act`, which is the guard that stops
+the hedge swallowing genuine large-scale work. Thresholds are named constants in `rules.py`
+with this measurement in their comment.
+
+**Stated honestly.** Re-measuring the pair gave 37 components / 135.06 ha where D27 recorded
+49 / 193.8 ha: the split moves with the change-mask threshold while the qualitative fact — one
+block of roughly a square kilometre dominating the flagged area — does not. That is why the
+rule keys on a documented threshold rather than on one run's exact numbers.
+
+**Tests.** `tests/test_change_geometry.py` covers labelling, the scipy-free path agreeing with
+scipy exactly, and the shape-versus-share discrimination; `tests/test_decision.py` adds three
+cases — the hedge fires and keeps every measured number, scattered work still concludes `act`,
+and absent geometry facts leave the previous verdict untouched (absence of a fact is not
+evidence of anything).

@@ -383,3 +383,53 @@ def test_public_api_is_composable_from_a_plain_dict():
     rec = d(impact())
     assert rec["schema"] == "anvesha.decision/1"
     assert compose(rec)["outcome_label"]
+
+# --------------------------------------------------------------------------- #
+# Block geometry: one contiguous block is not the same claim as "construction"
+# --------------------------------------------------------------------------- #
+
+# The measured pair from Decisions.md D27/D29: 287.94 ha of new built-up ground
+# in 37 patches, one of which is 135.06 ha -- 47% of the whole.
+BLOCKY = {"built_up_new_ha": 287.94, "built_up_lost_ha": 5.53,
+          "vegetation_lost_ha": 144.02, "vegetation_gained_ha": 0.4,
+          "built_up_new_regions": 37, "built_up_new_largest_ha": 135.06,
+          "built_up_new_largest_share": 0.4691}
+
+
+def test_one_dominant_block_hedges_the_construction_claim():
+    """Regression (D27): this run asserted "New construction has appeared where
+    there was none before" over 287.9 ha whose single largest block is 135 ha.
+
+    A contiguous block that size is what a change of *surface* produces as
+    readily as building work, so the claim must be hedged and the alternative
+    named -- while keeping every measured number.
+    """
+    rec = decide({"impact_analysis": impact(transitions=BLOCKY)})
+    assert rec["outcome"] == "verify_first"
+    assert rec["rule_id"] == "V0c_block_geometry"
+    why = rec["rule"]["why"]
+    assert "135.06" in why, "the measured block size must survive the hedge"
+    assert "47%" in why and "37" in why
+    assert "287.94" in why, "the hedge must not hide the measurement"
+    assert ("sediment bar" in why) or ("exposed river bed" in why)
+    assert "construction" not in rec["rule"]["headline"].split("before")[0]
+
+
+def test_scattered_construction_still_acts():
+    """The share guard: many parcels with one large site among them stays
+    actionable, so the hedge cannot swallow genuine large-scale work."""
+    scattered = {"built_up_new_ha": 400.0, "built_up_lost_ha": 0.0,
+                 "vegetation_lost_ha": 0.0, "vegetation_gained_ha": 0.0,
+                 "built_up_new_regions": 900, "built_up_new_largest_ha": 60.0,
+                 "built_up_new_largest_share": 0.15}
+    rec = decide({"impact_analysis": impact(transitions=scattered)})
+    assert rec["rule_id"] == "V2_encroachment"
+    assert rec["outcome"] == "act"
+
+
+def test_absent_geometry_facts_keep_the_previous_verdict():
+    """A fact that was never measured is not evidence of anything: a run that
+    carries no component geometry must conclude exactly as it did before."""
+    rec = decide({"impact_analysis": impact()})
+    assert rec["rule_id"] == "V2_encroachment"
+    assert rec["outcome"] == "act"

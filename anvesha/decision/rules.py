@@ -55,6 +55,19 @@ ROUTING_CONFIDENCE_FLOOR = 0.5
 # Change below this share of the scene is present but not worth a visit.
 MINOR_FRACTION = 0.005
 
+# When is a "new built-up" area better read as one change of surface than as
+# construction? Both conditions must hold, and they are calibrated against the
+# measured pair that produced the over-claim (Decisions.md D27): 287.9 ha of new
+# built-up ground, 37 patches, of which one contiguous block is 135.1 ha --
+# 47% of the whole. Half a square kilometre of new building in one unbroken
+# piece is not what a season of construction looks like, and the share guard is
+# what keeps genuine large-scale work (many parcels, one big site among them)
+# from being downgraded along with it. This rule only ever downgrades to
+# "verify before acting"; it never upgrades, so a threshold set here costs a
+# sharper headline, not a wrong one.
+BLOCK_GEOMETRY_HA = 50.0
+BLOCK_GEOMETRY_SHARE = 0.33
+
 
 @dataclass
 class Rule:
@@ -285,6 +298,50 @@ def _render_encroachment(f: Facts) -> Dict[str, Any]:
     }
 
 
+def _render_block_geometry(f: Facts) -> Dict[str, Any]:
+    """One contiguous block dominating the flagged area: do not call it
+    construction yet.
+
+    The measured area is unchanged by this reading -- what changes is what we
+    are willing to name it. The alternative readings are stated in the headline
+    itself so a reader cannot mistake a hedged claim for an asserted one.
+    """
+    new_ha = num(f.get("built_up_new_ha"), 0.0)
+    largest = num(f.get("built_up_new_largest_ha"), 0.0)
+    share = num(f.get("built_up_new_largest_share"), 0.0)
+    regions = int(num(f.get("built_up_new_regions"), 0.0))
+    nw = f.get("near_water_500m")
+    extra = (f" {_pct(nw)} of the flagged ground is also within 500 metres of "
+             f"a water body." if nw and num(nw) > 0.2 else "")
+    patches = (f"{regions} separate patch{'es' if regions != 1 else ''}" if regions
+               else "too few patches to be described")
+    return {
+        "headline": ("One large block of ground now reads as built-up — check "
+                     "what it is before treating it as construction."),
+        "why": (f"About {new_ha:.2f} hectares reads as built-up ground that was "
+                f"not built before, but it is not arranged like building work: "
+                f"there are {patches}, and {largest:.2f} hectares — "
+                f"{share * 100:.0f}% of the whole — sit in a single connected "
+                f"block. New construction over a season appears as many small "
+                f"parcels, roof-sized patches and road or bund lines, not as "
+                f"one unbroken block of that size. A block this large and this "
+                f"compact is also what a change of ground surface looks like: "
+                f"an exposed river bed or sediment bar, an embankment, or one "
+                f"large earthworks, quarry or landfill site.{extra}"),
+        "action": ("Before acting on this as construction, compare the same "
+                   "ground at the same time of year in an earlier image. If the "
+                   "block is still there in the same season, it is a real "
+                   "change of surface and worth a ground check with these two "
+                   "dates and the marked area. If it is not there, the "
+                   "difference was seasonal and needs no action."),
+        "who": "Revenue or land-records office; local irrigation office",
+        "confidence_note": ("The area and its shape are measured; what the block "
+                            "actually is cannot be settled from two images, "
+                            "which is why this asks for a check rather than an "
+                            "action."),
+    }
+
+
 def _render_vegetation_loss(f: Facts) -> Dict[str, Any]:
     lost = num(f.get("vegetation_lost_ha"), 0.0)
     return {
@@ -407,6 +464,25 @@ RULES: List[Rule] = [
          render=_render_isro_water_conflict, domain="encroachment",
          description=("New construction on ground the official ISRO map records "
                       "as water: the two sources disagree.")),
+    # A single contiguous block dominating the new built-up area is a different
+    # claim from "construction", so it is settled before the construction
+    # verdict rather than inside it. Requires the arrangement facts, which only
+    # a run whose impact analysis measured them carries: a run that did not
+    # measure geometry keeps the wording it had before, because a missing fact
+    # is not evidence of anything.
+    Rule("V0c_block_geometry", "verdict", "verify_first",
+         requires=("built_up_new_ha", "built_up_new_largest_ha",
+                   "built_up_new_largest_share"),
+         when=lambda f: (num(f.get("built_up_new_ha"), 0.0)
+                         >= SIGNIFICANT_AREA_HA
+                         and num(f.get("built_up_new_largest_ha"), 0.0)
+                         >= BLOCK_GEOMETRY_HA
+                         and num(f.get("built_up_new_largest_share"), 0.0)
+                         >= BLOCK_GEOMETRY_SHARE),
+         render=_render_block_geometry, domain="encroachment",
+         description=("New built-up ground is dominated by one contiguous "
+                      "block, which a change of surface explains as well as "
+                      "construction does.")),
     Rule("V2_encroachment", "verdict", "act",
          requires=("built_up_new_ha",),
          when=lambda f: num(f.get("built_up_new_ha"), 0.0)
